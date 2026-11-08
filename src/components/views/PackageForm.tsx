@@ -14,7 +14,7 @@ import { useExpenseCategories } from "../../lib/expenseCategories";
 import { useBanks } from "../../lib/banks";
 import {  MIN_PACKAGE_AMOUNT , CARGO_ROUTES } from "../../lib/constants";
 import { getNextTag } from "../../lib/tagPool";
-import { Plus, CheckCircle, ClipboardList, BarChart2, Printer, MessageSquare, Bluetooth, Copy, AlertTriangle, User as UserIcon, Banknote, CreditCard, Landmark, MapPin, Layers, Hash, Package as PackageIcon } from "lucide-react";
+import { Plus, CheckCircle, ClipboardList, BarChart2, Printer, MessageSquare, Bluetooth, Copy, AlertTriangle, User as UserIcon, Banknote, CreditCard, Landmark, MapPin, Layers, Hash, Package as PackageIcon, Truck } from "lucide-react";
 import { Spinner } from "../ui";
 import { supabase, writeAuditLog } from "../../lib/supabase";
 import { clearDebt, DEBT_TABLE_NAME } from "../../lib/debt";
@@ -153,6 +153,30 @@ export const PackageForm = ({
   const banks = useBanks();
   const [bank, setBank] = useState<string>(banks[0]);
   const [narrationCode, setNarrationCode] = useState<string>("");
+
+  // Road / Fleet vehicle assignment for road waybills
+  const [vehicles, setVehicles] = useState<{ plate: string; driver_name: string; make?: string; model?: string; status?: string }[]>([]);
+  const [assignedVehicle, setAssignedVehicle] = useState<string>('');
+  const [assignedDriver, setAssignedDriver] = useState<string>('');
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchVehicles = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('fleet_vehicles')
+          .select('plate, driver_name, make, model, status')
+          .order('plate', { ascending: true });
+        if (mounted && data && !error) {
+          setVehicles(data);
+        }
+      } catch {
+        // Safe offline fallback
+      }
+    };
+    fetchVehicles();
+    return () => { mounted = false; };
+  }, []);
 
   // Office-work (B2B corporate) auto-detection -- shared with Cargo/
   // Marketing/Excess Baggage intake via src/lib/officeWork.ts. Previously
@@ -320,7 +344,7 @@ export const PackageForm = ({
     const tx: Transaction = {
       id: trackingRef,
       name: name.trim(),
-      detail: `${destination} · ${contentType} · ${pcsNum}pcs · ${kgNum}kg · ${actualContents}`,
+      detail: `${destination} · ${contentType} · ${pcsNum}pcs · ${kgNum}kg · ${actualContents}${assignedVehicle ? ` · 🚚 ${assignedVehicle}` : ''}`,
       amount: parsedAmount,
       mode,
       bank: (mode === "Transfer" || mode === "POS") ? bank : undefined,
@@ -334,6 +358,8 @@ export const PackageForm = ({
       pieces: pcsNum,
       kg: kgNum,
       contents: actualContents,
+      vehiclePlate: assignedVehicle || undefined,
+      driverName: assignedDriver || undefined,
       hub: user.hub,
       hub_id: user.hub_id,
       enteredByName: user.name,
@@ -452,6 +478,8 @@ export const PackageForm = ({
     setMode("Cash");
     setNarrationCode("");
     setRemark("");
+    setAssignedVehicle("");
+    setAssignedDriver("");
     setSuccessTx(null);
     // Wallet override/remainder-payment state otherwise survives into the
     // next customer's sale -- if Wallet mode is used again without
@@ -838,6 +866,8 @@ export const PackageForm = ({
                       pieces: successTx.pieces,
                       kg: successTx.kg,
                       contents: successTx.contents,
+                      vehiclePlate: successTx.vehiclePlate,
+                      driverName: successTx.driverName,
                       amount: successTx.amount,
                       paymentMode: formatPaymentModeDisplay(successTx.mode, successTx.wallet_deduction_amount, successTx.amount),
                       paymentNarration: successTx.paymentNarration,
@@ -1062,6 +1092,33 @@ export const PackageForm = ({
                   />
                 )}
 
+                <div>
+                  {renderLabel(Truck, "Vehicle / Truck Assignment (Optional · Road Dispatch)")}
+                  <select
+                    value={assignedVehicle}
+                    onChange={(e) => {
+                      const p = e.target.value;
+                      setAssignedVehicle(p);
+                      const match = vehicles.find(v => v.plate === p);
+                      setAssignedDriver(match?.driver_name || '');
+                    }}
+                    className={formInputClass}
+                  >
+                    <option value="">-- No vehicle assigned (Intake counter) --</option>
+                    {vehicles.map((v) => (
+                      <option key={v.plate} value={v.plate}>
+                        {v.plate} {v.driver_name ? `· Driver: ${v.driver_name}` : ''} {v.make ? `(${v.make} ${v.model || ''})` : ''} [{v.status || 'Available'}]
+                      </option>
+                    ))}
+                  </select>
+                  {assignedVehicle && (
+                    <div className="mt-1 flex items-center justify-between text-[11px] font-mono text-[var(--color-accent-cobalt)] px-1">
+                      <span>Assigned: {assignedVehicle}</span>
+                      <span>{assignedDriver ? `Driver: ${assignedDriver}` : 'No driver registered'}</span>
+                    </div>
+                  )}
+                </div>
+
                 <div
                   style={{
                     display: "flex",
@@ -1226,6 +1283,7 @@ export const PackageForm = ({
                       { label: 'Content', value: actualContents },
                       { label: 'Amount', value: parseFloat(amount) || 0 },
                       { label: 'Payment Mode', value: mode },
+                      ...(assignedVehicle ? [{ label: 'Assigned Vehicle', value: `${assignedVehicle}${assignedDriver ? ` (${assignedDriver})` : ''}` }] : []),
                       // Surfaced right before confirming so a staff member
                       // can't silently submit under the wrong terminal --
                       // same reasoning as CargoForm's own review modal.

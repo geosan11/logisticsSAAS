@@ -27,6 +27,8 @@ export interface PackageReceiptData {
   paymentMode: string;
   paymentNarration?: string;
   bankName?: string;
+  vehiclePlate?: string;
+  driverName?: string;
   qrCodeDataUrl?: string;
   // Cumulative value already picked up across every retrieval this entry
   // has had (tx.raw.retrieved_amount) -- see CargoReceiptData's identical
@@ -260,6 +262,12 @@ const PackageReceiptPDF = ({ data }: { data: PackageReceiptData }) => {
           <View style={styles.row}>
             <Text style={styles.label}>Contents</Text>
             <Text style={styles.value}>{data.contents}</Text>
+          </View>
+        ) : null}
+        {data.vehiclePlate ? (
+          <View style={styles.row}>
+            <Text style={styles.label}>Vehicle</Text>
+            <Text style={styles.value}>{data.vehiclePlate}{data.driverName ? ` (${data.driverName})` : ''}</Text>
           </View>
         ) : null}
 

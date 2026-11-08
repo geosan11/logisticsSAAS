@@ -230,6 +230,9 @@ export interface Transaction {
   totalKg?: number;
   flight?: string;
   pnr?: string;           // Passenger Name Record / booking reference
+  // Road / CMR Waybill & Fleet specifics
+  vehiclePlate?: string;
+  driverName?: string;
   // Payment Validation
   paymentConfirmed?: boolean;
   confirmedAt?: string;
