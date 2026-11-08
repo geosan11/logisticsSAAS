@@ -76,20 +76,36 @@ export const Settings = ({
   const [companyAddress, setCompanyAddress] = useState(
     () => localStorage.getItem('ehi_company_address') || ''
   );
+  const [brandColor, setBrandColor] = useState(
+    () => localStorage.getItem('ehi_brand_color') || '#3b82f6'
+  );
+  const [brandLogoUrl, setBrandLogoUrl] = useState(
+    () => localStorage.getItem('ehi_brand_logo_url') || ''
+  );
+  const [allowAirMode, setAllowAirMode] = useState(true);
+  const [allowRoadMode, setAllowRoadMode] = useState(true);
   const [savingCompany, setSavingCompany] = useState(false);
 
   useEffect(() => {
     supabase.from('pricing_config').select('config_value').eq('config_key', 'company_settings').single()
       .then(({ data, error }) => {
         if (!data?.config_value || error) return;
-        const c = data.config_value as { name?: string; phone?: string; address?: string };
+        const c = data.config_value as { name?: string; phone?: string; address?: string; brandColor?: string; logoUrl?: string; activeModes?: string[] };
         if (c.name) setCompanyName(c.name);
         if (c.phone != null) setCompanyPhone(c.phone);
         if (c.address != null) setCompanyAddress(c.address);
+        if (c.brandColor) setBrandColor(c.brandColor);
+        if (c.logoUrl != null) setBrandLogoUrl(c.logoUrl);
+        if (c.activeModes) {
+          setAllowAirMode(c.activeModes.includes('air'));
+          setAllowRoadMode(c.activeModes.includes('road'));
+        }
         try {
           localStorage.setItem('ehi_company_name', c.name || '');
           localStorage.setItem('ehi_company_phone', c.phone || '');
           localStorage.setItem('ehi_company_address', c.address || '');
+          if (c.brandColor) localStorage.setItem('ehi_brand_color', c.brandColor);
+          if (c.logoUrl) localStorage.setItem('ehi_brand_logo_url', c.logoUrl);
         } catch {
           // localStorage unavailable -- state above is already updated
         }
@@ -131,12 +147,32 @@ export const Settings = ({
     const name = companyName.trim();
     const phone = companyPhone.trim();
     const address = companyAddress.trim();
+    const color = brandColor.trim() || '#3b82f6';
+    const logo = brandLogoUrl.trim();
+
+    const activeModes: string[] = [];
+    if (allowAirMode) activeModes.push('air');
+    if (allowRoadMode) activeModes.push('road');
+    if (allowAirMode && allowRoadMode) activeModes.push('intermodal');
+    if (activeModes.length === 0) activeModes.push('air');
+
     setSavingCompany(true);
     const { error } = await supabase.from('pricing_config').upsert({
       config_key: 'company_settings',
-      config_value: { name, phone, address },
-      description: 'Company identity shown on receipts and printouts',
+      config_value: { name, phone, address, brandColor: color, logoUrl: logo, activeModes },
+      description: 'Tenant company identity, branding colors, and mode configuration',
     }, { onConflict: 'config_key' });
+
+    if (user.tenant_id) {
+      await supabase.from('tenants').update({
+        name,
+        brand_color: color,
+        brand_logo_url: logo || null,
+        active_modes: activeModes,
+        updated_at: new Date().toISOString()
+      }).eq('id', user.tenant_id);
+    }
+
     setSavingCompany(false);
     if (error) {
       showToast({ message: `Failed to save company settings: ${error.message}`, type: 'error' });
@@ -145,7 +181,9 @@ export const Settings = ({
     localStorage.setItem('ehi_company_name', name);
     localStorage.setItem('ehi_company_phone', phone);
     localStorage.setItem('ehi_company_address', address);
-    showToast({ message: 'Company settings saved.', type: 'success' });
+    localStorage.setItem('ehi_brand_color', color);
+    localStorage.setItem('ehi_brand_logo_url', logo);
+    showToast({ message: 'Tenant company and branding settings saved.', type: 'success' });
   };
 
   // Option Toggles (persisted locally)
@@ -633,12 +671,77 @@ export const Settings = ({
                     className="w-full px-3 py-2 text-[12px] font-mono rounded bg-[var(--color-surface-2)] border border-[var(--color-border)] text-[var(--color-foreground)] focus:outline-none focus:border-[var(--color-accent-amber)] resize-none"
                   />
                 </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label htmlFor="settings-brand-color" className="block text-[9px] font-mono text-[var(--color-muted)] uppercase tracking-wider mb-1">
+                      Brand Accent Color
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        id="settings-brand-color-picker"
+                        type="color"
+                        value={brandColor}
+                        onChange={e => setBrandColor(e.target.value)}
+                        className="w-10 h-10 p-1 rounded bg-[var(--color-surface-2)] border border-[var(--color-border)] cursor-pointer"
+                      />
+                      <input
+                        id="settings-brand-color"
+                        type="text"
+                        value={brandColor}
+                        onChange={e => setBrandColor(e.target.value)}
+                        placeholder="#3b82f6"
+                        className="w-full h-10 px-3 text-[12px] font-mono rounded bg-[var(--color-surface-2)] border border-[var(--color-border)] text-[var(--color-foreground)] focus:outline-none focus:border-[var(--color-accent-amber)]"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label htmlFor="settings-brand-logo" className="block text-[9px] font-mono text-[var(--color-muted)] uppercase tracking-wider mb-1">
+                      Brand Logo URL
+                    </label>
+                    <input
+                      id="settings-brand-logo"
+                      type="url"
+                      value={brandLogoUrl}
+                      onChange={e => setBrandLogoUrl(e.target.value)}
+                      placeholder="https://..."
+                      className="w-full h-10 px-3 text-[12px] font-mono rounded bg-[var(--color-surface-2)] border border-[var(--color-border)] text-[var(--color-foreground)] focus:outline-none focus:border-[var(--color-accent-amber)]"
+                    />
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-lg bg-[var(--color-surface-2)] border border-[var(--color-border)] space-y-2">
+                  <div className="text-[10px] font-mono font-bold text-[var(--color-foreground)] uppercase tracking-wider">
+                    Enabled Logistics Modes
+                  </div>
+                  <div className="flex gap-4">
+                    <label className="flex items-center gap-2 cursor-pointer text-[12px] font-mono text-[var(--color-foreground)]">
+                      <input
+                        type="checkbox"
+                        checked={allowAirMode}
+                        onChange={e => setAllowAirMode(e.target.checked)}
+                        className="rounded"
+                      />
+                      <span>✈ Air Operations</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer text-[12px] font-mono text-[var(--color-foreground)]">
+                      <input
+                        type="checkbox"
+                        checked={allowRoadMode}
+                        onChange={e => setAllowRoadMode(e.target.checked)}
+                        className="rounded"
+                      />
+                      <span>🚚 Road Operations</span>
+                    </label>
+                  </div>
+                </div>
+
                 <button
                   onClick={handleSaveCompany}
                   disabled={savingCompany}
                   className="w-full py-2.5 bg-[var(--color-accent-amber)] text-[var(--color-on-accent)] text-[11px] font-bold font-mono rounded cursor-pointer disabled:opacity-50"
                 >
-                  {savingCompany ? 'SAVING…' : 'SAVE COMPANY SETTINGS'}
+                  {savingCompany ? 'SAVING…' : 'SAVE TENANT BRANDING SETTINGS'}
                 </button>
                 <p className="text-[9px] text-[var(--color-muted)] font-mono leading-relaxed pt-1">
                   Saved to the database — visible on every device immediately, not just this one.

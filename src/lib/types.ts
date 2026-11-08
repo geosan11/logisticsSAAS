@@ -42,6 +42,7 @@ export interface User {
   hub: string;
   hub_code?: string;
   hub_id?: string;
+  tenant_id?: string;
   active?: boolean;
   can_print_ledger?: boolean;   // Super admin grants this per user -- reprint/print only, see can_edit_ledger for editing
   can_edit_ledger?: boolean;    // Super admin grants this per user to edit transaction entries in the ledger
