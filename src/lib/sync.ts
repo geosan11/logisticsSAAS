@@ -647,3 +647,38 @@ export async function requeueQuarantined(): Promise<number> {
   return count;
 }
 
+export interface QuarantinedItemDetail {
+  id: string;
+  table: string;
+  error?: string | null;
+  created_at: string;
+  data: Record<string, unknown>;
+}
+
+export async function getQuarantinedDetails(): Promise<QuarantinedItemDetail[]> {
+  const list: QuarantinedItemDetail[] = [];
+  for (const table of ['cargo_entries', 'manifests', 'marketing_entries', 'package_entries'] as const) {
+    const rows = await (db[table] as Dexie.Table).where('synced').equals(2).toArray().catch(() => []);
+    for (const r of rows as any[]) {
+      list.push({
+        id: r.id,
+        table,
+        error: r.sync_error || null,
+        created_at: r.created_at || '',
+        data: r.data || {},
+      });
+    }
+  }
+  return list;
+}
+
+export async function discardQuarantinedRecord(table: string, id: string): Promise<boolean> {
+  try {
+    if (['cargo_entries', 'manifests', 'marketing_entries', 'package_entries'].includes(table)) {
+      await (db[table as keyof typeof db] as Dexie.Table).where('id').equals(id).delete();
+      return true;
+    }
+  } catch {}
+  return false;
+}
+

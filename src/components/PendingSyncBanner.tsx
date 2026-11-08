@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { AlertTriangle, RefreshCw, LogIn, ShieldAlert, RotateCcw } from 'lucide-react';
+import { AlertTriangle, RefreshCw, LogIn, ShieldAlert, RotateCcw, Eye, Trash2 } from 'lucide-react';
 import type { PendingSyncSummary } from '../lib/deviceSync';
+import { Modal } from './Modal';
+import { getQuarantinedDetails, discardQuarantinedRecord, type QuarantinedItemDetail } from '../lib/sync';
 
 export interface PendingSyncBannerProps {
   summary: PendingSyncSummary;
@@ -25,6 +27,27 @@ export const PendingSyncBanner: React.FC<PendingSyncBannerProps> = ({
   className = '',
 }) => {
   const { pending_total, quarantined_count, pending_by_table } = summary;
+  const [showModal, setShowModal] = useState(false);
+  const [quarantinedList, setQuarantinedList] = useState<QuarantinedItemDetail[]>([]);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const loadQuarantined = async () => {
+    const list = await getQuarantinedDetails();
+    setQuarantinedList(list);
+  };
+
+  useEffect(() => {
+    if (showModal) {
+      loadQuarantined();
+    }
+  }, [showModal]);
+
+  const handleDiscard = async (table: string, id: string) => {
+    const ok = await discardQuarantinedRecord(table, id);
+    if (ok) {
+      await loadQuarantined();
+    }
+  };
 
   if (pending_total <= 0 && quarantined_count <= 0) {
     return null;
@@ -133,20 +156,112 @@ export const PendingSyncBanner: React.FC<PendingSyncBannerProps> = ({
                 {onRequeueQuarantined ? '— re-queue after the cause is fixed' : '— needs admin'}
               </span>
             </span>
-            {onRequeueQuarantined && (
+            <div className="flex items-center gap-2 self-end sm:self-auto">
               <button
                 type="button"
-                onClick={() => onRequeueQuarantined()}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-sans font-bold cursor-pointer transition-all active:scale-95 self-end sm:self-auto"
-                style={{ background: 'rgba(244,63,94,0.2)', color: '#fb7185', border: '1px solid rgba(244,63,94,0.4)' }}
+                onClick={() => setShowModal(true)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-sans font-bold cursor-pointer transition-all active:scale-95 bg-[var(--color-surface-2)] text-[var(--color-foreground)] border border-[var(--color-border)]"
+                title="View quarantined records and conflict errors"
               >
-                <RotateCcw size={12} />
-                <span>Re-queue</span>
+                <Eye size={12} />
+                <span>Inspect</span>
               </button>
-            )}
+              {onRequeueQuarantined && (
+                <button
+                  type="button"
+                  onClick={() => onRequeueQuarantined()}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-sans font-bold cursor-pointer transition-all active:scale-95"
+                  style={{ background: 'rgba(244,63,94,0.2)', color: '#fb7185', border: '1px solid rgba(244,63,94,0.4)' }}
+                >
+                  <RotateCcw size={12} />
+                  <span>Re-queue</span>
+                </button>
+              )}
+            </div>
           </div>
         )}
       </motion.div>
+
+      {/* Quarantine Details Modal (Portal to body per Rule 4 and Rule 5) */}
+      <Modal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        title="Sync Quarantine & Conflicts"
+        size="xl"
+      >
+        <div className="p-4 sm:p-5 flex flex-col gap-4 overflow-y-auto max-h-[70vh]">
+          <div className="flex items-center justify-between text-[12px] text-[var(--color-muted)]">
+            <span>{quarantinedList.length} quarantined items on this device</span>
+            {onRequeueQuarantined && (
+              <button
+                type="button"
+                onClick={async () => {
+                  if (onRequeueQuarantined) await onRequeueQuarantined();
+                  await loadQuarantined();
+                }}
+                className="px-3 py-1 rounded bg-[rgba(251,191,36,0.18)] text-[var(--color-accent-amber)] font-bold font-mono text-[11px] border border-[rgba(251,191,36,0.35)]"
+              >
+                Re-queue All
+              </button>
+            )}
+          </div>
+
+          {quarantinedList.length === 0 ? (
+            <div className="py-8 text-center text-[12px] text-[var(--color-muted)] font-mono">
+              No quarantined records currently stored in Dexie.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {quarantinedList.map((item) => (
+                <div
+                  key={`${item.table}-${item.id}`}
+                  className="p-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] flex flex-col gap-2"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <span className="font-mono text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-[var(--color-surface-2)] text-[var(--color-foreground)] border border-[var(--color-border)]">
+                        {item.table}
+                      </span>
+                      <span className="font-mono text-[11px] text-[var(--color-foreground)] ml-2">
+                        {item.id}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
+                        className="text-[10px] font-mono text-[var(--color-muted)] hover:text-[var(--color-foreground)] underline cursor-pointer"
+                      >
+                        {expandedId === item.id ? 'Hide JSON' : 'View Payload'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDiscard(item.table, item.id)}
+                        title="Discard record from local queue"
+                        className="p-1 text-[var(--color-muted)] hover:text-[var(--color-error)] cursor-pointer"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {item.error && (
+                    <div className="text-[11px] font-mono text-[#fb7185] bg-[rgba(244,63,94,0.08)] p-2 rounded border border-[rgba(244,63,94,0.2)]">
+                      {item.error}
+                    </div>
+                  )}
+
+                  {expandedId === item.id && (
+                    <pre className="text-[10px] font-mono p-2.5 rounded bg-[var(--color-surface-2)] overflow-x-auto max-h-48 border border-[var(--color-border)] text-[var(--color-foreground)]">
+                      {JSON.stringify(item.data, null, 2)}
+                    </pre>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Modal>
     </AnimatePresence>
   );
 };
