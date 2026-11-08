@@ -8,13 +8,15 @@ import { reportDeviceSyncHeartbeat } from './deviceSync';
 export { getPendingSyncSummary, getDeviceId, reportDeviceSyncHeartbeat } from './deviceSync';
 export type { PendingSyncSummary, DeviceSyncStatusRow } from './deviceSync';
 
-// Postgres error codes that a retry can never fix — the payload or schema is
-// wrong, not the network. Quarantine these instead of retrying forever.
+// Postgres error codes that a retry can never fix — the payload, constraint,
+// permission, or duplicate key is wrong, not the network. Quarantine these instead of retrying forever.
 const PERMANENT_PG_CODES = new Set([
   '23514', // check_violation
   '23502', // not_null_violation
+  '23505', // unique_violation (duplicate key/conflict)
   '42703', // undefined_column
   '42P01', // undefined_table
+  '42501', // insufficient_privilege (RLS access denied)
   '22P02', // invalid_text_representation (bad enum/uuid/number)
 ]);
 

@@ -22,6 +22,8 @@ export async function chargeWalletForSale(params: {
   // apply_wallet_transaction so the deduction row carries the real
   // department instead of the RPC's blanket 'cargo' default.
   department?: 'cargo' | 'baggage' | 'marketing' | 'package';
+  // Stable key per logical sale attempt; if omitted, defaults to a fresh random UUID
+  idempotencyKey?: string;
 }): Promise<WalletChargeResult> {
   const deduct = Math.min(params.amount, params.wallet.balance);
   const remainder = Math.max(0, params.amount - deduct);
@@ -36,10 +38,8 @@ export async function chargeWalletForSale(params: {
     description: params.description,
     loggedBy: params.loggedBy,
     department: params.department,
-    // One key per sale attempt -- if this exact request's response is lost
-    // (network drop after the RPC already committed) and something retries
-    // it, the retry becomes a no-op instead of a second deduction.
-    idempotencyKey: crypto.randomUUID(),
+    // Use caller's stable attempt key if supplied (e.g. on retry), or generate a new one
+    idempotencyKey: params.idempotencyKey || crypto.randomUUID(),
   });
   if (!res.ok) return { ok: false, walletDeduction: 0, remainder, error: res.error };
   return { ok: true, walletDeduction: deduct, remainder, newBalance: res.newBalance };

@@ -63,7 +63,11 @@ export async function applyWalletTransaction(params: {
     return { ok: false, error: error.message };
   }
   const row = Array.isArray(data) ? data[0] : data;
-  return { ok: true, newBalance: Number(row?.new_balance), transactionId: row?.transaction_id };
+  const newBal = Number(row?.new_balance);
+  if (!row || !Number.isFinite(newBal)) {
+    return { ok: false, error: 'Malformed or empty response from wallet service' };
+  }
+  return { ok: true, newBalance: newBal, transactionId: row?.transaction_id };
 }
 
 export interface ReverseDeductionResult {
@@ -93,7 +97,11 @@ export async function reverseWalletDeduction(params: {
     return { ok: false, error: error.message };
   }
   const row = Array.isArray(data) ? data[0] : data;
-  return { ok: true, newBalance: Number(row?.new_balance), reversalTxnId: row?.reversal_txn_id };
+  const newBal = Number(row?.new_balance);
+  if (!row || !Number.isFinite(newBal)) {
+    return { ok: false, error: 'Malformed or empty response from wallet service' };
+  }
+  return { ok: true, newBalance: newBal, reversalTxnId: row?.reversal_txn_id };
 }
 
 export interface RetrievalResult {
