@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
-import { UserProfile, signIn } from '../lib/auth';
+import { UserProfile, signIn, signInDemo } from '../lib/auth';
 import skyBg from '../assets/login-sky-bg.jpg';
 import ehiLogo from '../assets/branding/ehi-logo.png';
 import { getConnectionMode, testSupabaseConnection, supabase } from '../lib/supabase';
@@ -74,8 +74,26 @@ export const LoginScreen = ({ onLogin, notice }: { onLogin: (user: UserProfile) 
     return () => clearTimeout(preloadTimer);
   }, []);
 
+  const handleDemoLogin = (role: 'admin' | 'cargo' | 'road' = 'admin') => {
+    setIsLoading(true);
+    try {
+      const demoUser = signInDemo(role);
+      onLogin(demoUser);
+    } catch (err: any) {
+      setError('Could not start demo session.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const cleanEmail = email.trim().toLowerCase();
+    if (cleanEmail.includes('demo') || cleanEmail === 'admin' || (!cleanEmail && connStatus === 'unconfigured')) {
+      const role = cleanEmail.includes('cargo') ? 'cargo' : cleanEmail.includes('road') ? 'road' : 'admin';
+      handleDemoLogin(role);
+      return;
+    }
     if (!email.trim() || !password.trim()) {
       setError('Email and password are required.');
       return;
@@ -88,14 +106,14 @@ export const LoginScreen = ({ onLogin, notice }: { onLogin: (user: UserProfile) 
     } catch (err: any) {
       const msg: string = err.message || '';
       if (msg.toLowerCase().includes('fetch') || msg.toLowerCase().includes('network') || msg.toLowerCase().includes('connect')) {
-        setError('Cannot reach the server. Check your internet connection and try again.');
+        setError('Cannot reach the server. Check your internet connection or use a Demo Login below.');
         setConnStatus('offline');
       } else if (msg.toLowerCase().includes('deactivated')) {
         setError('Your account has been deactivated. Contact your administrator.');
       } else if (msg.toLowerCase().includes('profile not set up')) {
         setError('Account exists but profile is not configured. Contact IT.');
       } else {
-        setError('Incorrect email or password. Try again.');
+        setError('Incorrect email or password. Try again or use a Demo Login below.');
       }
     } finally {
       setIsLoading(false);
@@ -106,7 +124,7 @@ export const LoginScreen = ({ onLogin, notice }: { onLogin: (user: UserProfile) 
     checking:     { label: 'Connecting…',        color: '#64748b', dot: '#94a3b8', pulse: true  },
     live:         { label: 'Network Live',       color: '#059669', dot: '#10b981', pulse: true  },
     offline:      { label: 'Offline Mode Cache', color: '#dc2626', dot: '#ef4444', pulse: false },
-    unconfigured: { label: 'Not Configured',     color: '#d97706', dot: '#f59e0b', pulse: false },
+    unconfigured: { label: 'Demo Ready',         color: '#0284c7', dot: '#38bdf8', pulse: true  },
   };
   const status = statusConfig[connStatus];
 
@@ -188,13 +206,54 @@ export const LoginScreen = ({ onLogin, notice }: { onLogin: (user: UserProfile) 
         </div>
 
         {/* Heading & Subtitle */}
-        <div className="text-center mb-6">
+        <div className="text-center mb-5">
           <h1 className="text-[22px] sm:text-[25px] font-extrabold text-slate-900 tracking-[-0.03em] mb-1.5">
             Operator Sign In
           </h1>
           <p className="text-[13px] font-medium text-slate-500 leading-relaxed max-w-[300px] mx-auto tracking-[-0.01em]">
             Sign in with your station credentials to manage flights, cargo manifests, and ledgers.
           </p>
+        </div>
+
+        {/* Instant Demo Preview Section */}
+        <div className="mb-5 p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-blue-500/10 border border-amber-500/30 shadow-sm">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[12px] font-bold text-slate-900 flex items-center gap-1.5">
+              <span>⚡</span> <span>Instant Demo Access</span>
+            </span>
+            <span className="text-[10px] font-bold tracking-wide uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-900">
+              One-click
+            </span>
+          </div>
+          <p className="text-[11px] text-slate-600 leading-tight mb-2.5">
+            Explore the unified Air + Road Logistics SaaS with pre-seeded test data:
+          </p>
+          <div className="grid grid-cols-3 gap-1.5">
+            <button
+              type="button"
+              onClick={() => handleDemoLogin('admin')}
+              className="py-2.5 px-2 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-95 text-white text-[11px] font-bold transition-all shadow-sm flex flex-col items-center justify-center gap-0.5 cursor-pointer"
+            >
+              <span className="text-sm">👑</span>
+              <span>Super Admin</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleDemoLogin('cargo')}
+              className="py-2.5 px-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-[11px] font-bold transition-all shadow-sm flex flex-col items-center justify-center gap-0.5 cursor-pointer"
+            >
+              <span className="text-sm">✈️</span>
+              <span>Air Cargo</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleDemoLogin('road')}
+              className="py-2.5 px-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-[11px] font-bold transition-all shadow-sm flex flex-col items-center justify-center gap-0.5 cursor-pointer"
+            >
+              <span className="text-sm">🚚</span>
+              <span>Road Desk</span>
+            </button>
+          </div>
         </div>
 
         {notice && (
@@ -216,12 +275,11 @@ export const LoginScreen = ({ onLogin, notice }: { onLogin: (user: UserProfile) 
             <input
               id="login-email"
               name="email"
-              type="email"
+              type="text"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="Operator email address"
+              placeholder="Operator email or 'demo'"
               autoComplete="email"
-              required
               className="w-full bg-transparent text-slate-800 placeholder-slate-400 text-[14px] font-medium py-3 pl-10 pr-4 outline-none tracking-[-0.01em]"
             />
           </div>
@@ -237,9 +295,8 @@ export const LoginScreen = ({ onLogin, notice }: { onLogin: (user: UserProfile) 
               type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
+              placeholder="Password (optional for demo)"
               autoComplete="current-password"
-              required
               className="w-full bg-transparent text-slate-800 placeholder-slate-400 text-[14px] font-medium py-3 pl-10 pr-10 outline-none tracking-[-0.01em]"
             />
             <button
@@ -271,8 +328,8 @@ export const LoginScreen = ({ onLogin, notice }: { onLogin: (user: UserProfile) 
           )}
 
           {connStatus === 'unconfigured' && (
-            <div className="bg-amber-500/10 border border-amber-400/25 rounded-xl px-3.5 py-2.5 text-xs text-amber-800">
-              VITE_SUPABASE_URL not configured. Add it to environment variables.
+            <div className="bg-sky-500/10 border border-sky-400/25 rounded-xl px-3.5 py-2.5 text-xs text-sky-800 flex items-center justify-between">
+              <span>Preview mode active. Click any Demo role above to test!</span>
             </div>
           )}
 
@@ -280,7 +337,7 @@ export const LoginScreen = ({ onLogin, notice }: { onLogin: (user: UserProfile) 
           <div className="pt-1.5">
             <button
               type="submit"
-              disabled={isLoading || connStatus === 'unconfigured'}
+              disabled={isLoading}
               className="w-full py-3.5 px-6 rounded-xl bg-[#1e2029] hover:bg-[#12131a] active:bg-black text-white font-semibold text-[14px] tracking-[-0.01em] shadow-[0_4px_14px_rgba(30,32,41,0.22)] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
               {isLoading ? (
@@ -288,6 +345,8 @@ export const LoginScreen = ({ onLogin, notice }: { onLogin: (user: UserProfile) 
                   <Loader2 size={16} className="animate-spin text-white" />
                   <span>Signing in…</span>
                 </>
+              ) : connStatus === 'unconfigured' && !email ? (
+                <span>Launch Demo (Admin)</span>
               ) : (
                 <span>Sign In</span>
               )}

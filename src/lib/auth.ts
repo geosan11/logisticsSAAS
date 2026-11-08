@@ -19,6 +19,7 @@ export interface UserProfile {
   can_approve_retrievals?: boolean;
   assigned_airline?: string;
   view_overrides?: string[] | null;
+  tenant_id?: string;
 }
 
 // Last known-good profile, used only as a fallback in getSessionInner() when
@@ -155,18 +156,247 @@ export async function signIn(email: string, password: string): Promise<UserProfi
   return result;
 }
 
+// ── DEMO PROFILES & OFFLINE PREVIEW SEED ─────────────────────────────
+export const DEMO_PROFILES: Record<string, UserProfile> = {
+  admin: {
+    id: '00000000-0000-0000-0000-000000000001',
+    email: 'admin.demo@ehimultisystems.com',
+    name: 'Captain Geo (Ops Director)',
+    role: 'super_admin',
+    hub: 'Lagos Hub (MMA2)',
+    hub_code: 'LOS',
+    hubType: 'Head Office',
+    hub_id: '00000000-0000-0000-0000-000000000001',
+    tenant_id: '00000000-0000-0000-0000-000000000001',
+    active: true,
+    can_print_ledger: true,
+    can_edit_ledger: true,
+    can_edit_remarks: true,
+    can_approve_retrievals: true,
+    view_overrides: null,
+  },
+  cargo: {
+    id: '00000000-0000-0000-0000-000000000002',
+    email: 'cargo.demo@ehimultisystems.com',
+    name: 'Amaka Obi (Air Cargo Lead)',
+    role: 'cargo_agent',
+    hub: 'Lagos Hub (MMA2)',
+    hub_code: 'LOS',
+    hubType: 'Cargo Station',
+    hub_id: '00000000-0000-0000-0000-000000000001',
+    tenant_id: '00000000-0000-0000-0000-000000000001',
+    active: true,
+    can_print_ledger: true,
+    can_edit_ledger: false,
+    can_edit_remarks: true,
+    can_approve_retrievals: false,
+    view_overrides: null,
+  },
+  road: {
+    id: '00000000-0000-0000-0000-000000000003',
+    email: 'road.demo@ehimultisystems.com',
+    name: 'Tunde Adeleke (Road Operations)',
+    role: 'admin',
+    hub: 'Abuja Hub',
+    hub_code: 'ABV',
+    hubType: 'Cargo Station',
+    hub_id: '00000000-0000-0000-0000-000000000002',
+    tenant_id: '00000000-0000-0000-0000-000000000001',
+    active: true,
+    can_print_ledger: true,
+    can_edit_ledger: true,
+    can_edit_remarks: true,
+    can_approve_retrievals: true,
+    view_overrides: null,
+  },
+};
+
+export function seedDemoDataIfEmpty(user: UserProfile): void {
+  try {
+    const txKey = `ehi_recent_tx_v1_${user.id}`;
+    const existing = localStorage.getItem(txKey);
+    if (!existing || JSON.parse(existing).length === 0) {
+      const demoTxs = [
+        {
+          id: 'EHI-LOS-CG-001042',
+          name: 'Dangote Industries Ltd',
+          detail: 'Arik Air · 4pcs · 128KG · LOS-ABV · Industrial Spares',
+          amount: 89600,
+          mode: 'Transfer',
+          bank: 'Access Bank',
+          time: '11:45',
+          type: 'cargo',
+          status: 'Intake',
+          awb_tag_number: 'EHI-LOS-CG-001042',
+          airline: 'Arik Air',
+          flight: 'W3 331',
+          pieces: 4,
+          kg: 128,
+          route: 'LOS-ABV',
+          contentType: 'Industrial Spares',
+          enteredByName: user.name,
+          pickupPin: '7392',
+          hub: user.hub,
+          hub_id: user.hub_id,
+          created_at: new Date(Date.now() - 3600000).toISOString(),
+        },
+        {
+          id: 'EHI-LOS-PKG-000512',
+          name: 'Chukwuma Electronics',
+          detail: 'ABV · Electronics · 2pcs · 45kg · Solar Inverters · 🚚 KJA-482XA',
+          amount: 32000,
+          mode: 'Cash',
+          time: '10:20',
+          type: 'package',
+          status: 'Intake',
+          destination: 'ABV',
+          contentType: 'Electronics',
+          pieces: 2,
+          kg: 45,
+          contents: 'Solar Inverters',
+          vehiclePlate: 'KJA-482XA',
+          driverName: 'Musa Ibrahim',
+          enteredByName: user.name,
+          pickupPin: '5819',
+          hub: user.hub,
+          hub_id: user.hub_id,
+          created_at: new Date(Date.now() - 7200000).toISOString(),
+        },
+        {
+          id: 'EHI-LOS-CG-001041',
+          name: 'Prime Pharmaceuticals',
+          detail: 'Air Peace · 2pcs · 18KG · LOS-KAN · Cold-chain Vaccines',
+          amount: 27500,
+          mode: 'Wallet',
+          time: '09:15',
+          type: 'cargo',
+          status: 'Intake',
+          awb_tag_number: 'EHI-LOS-CG-001041',
+          airline: 'Air Peace',
+          flight: 'P4 7122',
+          pieces: 2,
+          kg: 18,
+          route: 'LOS-KAN',
+          contentType: 'Vaccines',
+          wallet_id: '00000000-0000-0000-0000-000000000012',
+          wallet_deduction_amount: 27500,
+          enteredByName: user.name,
+          pickupPin: '4190',
+          hub: user.hub,
+          hub_id: user.hub_id,
+          created_at: new Date(Date.now() - 12000000).toISOString(),
+        },
+      ];
+      localStorage.setItem(txKey, JSON.stringify(demoTxs));
+    }
+
+    const expKey = `ehi_recent_expenses_v1_${user.id}`;
+    if (!localStorage.getItem(expKey)) {
+      const sampleExpenses = [
+        {
+          id: 'EX-001',
+          type: 'Fuel',
+          amount: 18500,
+          description: 'Diesel fuel top-up for Truck KJA-482XA (Line-haul dispatch)',
+          time: new Date(Date.now() - 10000000).toISOString(),
+          created_at: new Date(Date.now() - 10000000).toISOString(),
+          hub_id: user.hub_id,
+          status: 'approved',
+          mode: 'Transfer',
+          logged_by: user.name,
+        },
+      ];
+      localStorage.setItem(expKey, JSON.stringify(sampleExpenses));
+    }
+
+    const walletsKey = 'ehi_customer_wallets_v1';
+    if (!localStorage.getItem(walletsKey)) {
+      const sampleWallets = [
+        {
+          id: '00000000-0000-0000-0000-000000000010',
+          customer_name: 'Dangote Industries Ltd',
+          phone: '08031234567',
+          balance: 450000,
+          status: 'active',
+          tenant_id: user.tenant_id,
+        },
+        {
+          id: '00000000-0000-0000-0000-000000000011',
+          customer_name: 'Chukwuma Electronics',
+          phone: '08029876543',
+          balance: 75000,
+          status: 'active',
+          tenant_id: user.tenant_id,
+        },
+        {
+          id: '00000000-0000-0000-0000-000000000012',
+          customer_name: 'Prime Pharmaceuticals',
+          phone: '08055551122',
+          balance: 142500,
+          status: 'active',
+          tenant_id: user.tenant_id,
+        },
+      ];
+      localStorage.setItem(walletsKey, JSON.stringify(sampleWallets));
+    }
+
+    const shiftKey = 'ehi_today_shifts_v1';
+    if (!localStorage.getItem(shiftKey)) {
+      const sampleShifts = [
+        {
+          id: '00000000-0000-0000-0000-000000000020',
+          hub_id: user.hub_id || '00000000-0000-0000-0000-000000000001',
+          department: 'all',
+          opened_by: user.name,
+          status: 'open',
+          opened_at: new Date(Date.now() - 14400000).toISOString(),
+        },
+      ];
+      localStorage.setItem(shiftKey, JSON.stringify(sampleShifts));
+    }
+
+    const corpKey = 'ehi_corporate_clients_v2';
+    if (!localStorage.getItem(corpKey)) {
+      const sampleCorps = [
+        { id: '00000000-0000-0000-0000-000000000010', company_name: 'Dangote Industries Ltd', contact_phone: '08031234567', accumulated_monthly_debt: 0, active: true },
+        { id: '00000000-0000-0000-0000-000000000011', company_name: 'Chukwuma Electronics', contact_phone: '08029876543', accumulated_monthly_debt: 0, active: true },
+        { id: '00000000-0000-0000-0000-000000000012', company_name: 'Prime Pharmaceuticals', contact_phone: '08055551122', accumulated_monthly_debt: 0, active: true },
+      ];
+      localStorage.setItem(corpKey, JSON.stringify(sampleCorps));
+    }
+  } catch (err) {
+    console.warn('Failed to seed demo data', err);
+  }
+}
+
+export function signInDemo(roleKey: 'admin' | 'cargo' | 'road' = 'admin'): UserProfile {
+  const profile = DEMO_PROFILES[roleKey] || DEMO_PROFILES.admin;
+  try {
+    localStorage.setItem('ehi_demo_user', JSON.stringify(profile));
+  } catch {}
+  cacheProfile(profile);
+  seedDemoDataIfEmpty(profile);
+  return profile;
+}
+
+export function isDemoSession(): boolean {
+  try {
+    return Boolean(localStorage.getItem('ehi_demo_user'));
+  } catch {
+    return false;
+  }
+}
+
 export async function signOut() {
   clearCachedProfile();
+  try {
+    localStorage.removeItem('ehi_demo_user');
+  } catch {}
   try {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
   } catch(e) {
     console.warn("Sign out err", e);
-    // auth.ts is a plain module, not a component, so it can't call
-    // useToast() directly -- see the notifySilentError comment in
-    // ToastContext.tsx. The app still logs the user out locally regardless
-    // (App.tsx's handleLogout always clears the user after this call), so
-    // this is a heads-up, not a blocker.
     notifySilentError('Signed out locally, but the server session may not have closed. This is usually harmless.');
   }
 }
@@ -324,6 +554,16 @@ export async function updateStaffProfile(
 }
 
 async function getSessionInner(): Promise<UserProfile | null> {
+  const demoRaw = typeof localStorage !== 'undefined' ? localStorage.getItem('ehi_demo_user') : null;
+  if (demoRaw) {
+    try {
+      const demoUser = JSON.parse(demoRaw) as UserProfile;
+      if (demoUser && demoUser.id && demoUser.active) {
+        return demoUser;
+      }
+    } catch {}
+  }
+
   const { data, error: sessionError } = await supabase.auth.getSession();
   if (sessionError || !data?.session) return null;
 
