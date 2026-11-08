@@ -225,11 +225,11 @@ export const SideNav = ({
           >
             <div
               style={{
-                fontFamily: "'JetBrains Mono', monospace",
-                fontSize: 13,
-                fontWeight: 900,
+                fontFamily: "var(--font-display)",
+                fontSize: 13.5,
+                fontWeight: 800,
                 color: "var(--color-foreground, #F1F5F9)",
-                letterSpacing: "0.03em",
+                letterSpacing: "-0.01em",
                 lineHeight: 1.1,
               }}
             >
@@ -237,11 +237,11 @@ export const SideNav = ({
             </div>
             <div
               style={{
-                fontSize: 8,
-                fontWeight: 700,
-                fontFamily: "monospace",
+                fontSize: 9,
+                fontWeight: 600,
+                fontFamily: "var(--font-sans)",
                 color: "var(--color-accent-amber)",
-                letterSpacing: "0.1em",
+                letterSpacing: "0.08em",
                 textTransform: "uppercase",
                 marginTop: 2,
               }}

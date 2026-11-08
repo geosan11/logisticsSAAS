@@ -43,6 +43,8 @@ export const PendingSyncBanner: React.FC<PendingSyncBannerProps> = ({
   }, [showModal]);
 
   const handleDiscard = async (table: string, id: string) => {
+    if (!onRequeueQuarantined) return;
+    if (!window.confirm(`Permanently discard quarantined record "${id}" from ${table} on this device?`)) return;
     const ok = await discardQuarantinedRecord(table, id);
     if (ok) {
       await loadQuarantined();
@@ -234,14 +236,16 @@ export const PendingSyncBanner: React.FC<PendingSyncBannerProps> = ({
                       >
                         {expandedId === item.id ? 'Hide JSON' : 'View Payload'}
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDiscard(item.table, item.id)}
-                        title="Discard record from local queue"
-                        className="p-1 text-[var(--color-muted)] hover:text-[var(--color-error)] cursor-pointer"
-                      >
-                        <Trash2 size={13} />
-                      </button>
+                      {onRequeueQuarantined && (
+                        <button
+                          type="button"
+                          onClick={() => handleDiscard(item.table, item.id)}
+                          title="Discard record from local queue (Admin only)"
+                          className="p-1 text-[var(--color-muted)] hover:text-[var(--color-error)] cursor-pointer"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
                     </div>
                   </div>
 

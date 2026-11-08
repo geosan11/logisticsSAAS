@@ -244,7 +244,7 @@ export const Header = ({
                       strokeWidth={isActive ? 2.2 : 1.8}
                       className="shrink-0 transition-transform duration-200 group-hover:scale-110"
                     />
-                    <span className="font-mono text-[10px] font-bold tracking-tight whitespace-nowrap ml-1.5">
+                    <span className="font-sans text-[11px] font-semibold tracking-tight whitespace-nowrap ml-1.5">
                       {item.label}
                     </span>
                   </button>
@@ -269,7 +269,7 @@ export const Header = ({
               type="button"
               onClick={() => setMode('air')}
               title="Switch to Air Logistics"
-              className={`h-7 px-2 rounded-md flex items-center gap-1 font-mono text-[10px] font-bold transition-all cursor-pointer ${
+              className={`h-7 px-2.5 rounded-md flex items-center gap-1 font-sans text-[10px] font-bold tracking-wide transition-all cursor-pointer ${
                 mode === 'air'
                   ? 'bg-[rgba(59,130,246,0.18)] text-[var(--color-accent-cobalt,#60A5FA)] border border-[rgba(59,130,246,0.35)] shadow-sm'
                   : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)] border border-transparent'
@@ -282,7 +282,7 @@ export const Header = ({
               type="button"
               onClick={() => setMode('road')}
               title="Switch to Road Logistics"
-              className={`h-7 px-2 rounded-md flex items-center gap-1 font-mono text-[10px] font-bold transition-all cursor-pointer ${
+              className={`h-7 px-2.5 rounded-md flex items-center gap-1 font-sans text-[10px] font-bold tracking-wide transition-all cursor-pointer ${
                 mode === 'road'
                   ? 'bg-[rgba(16,185,129,0.18)] text-[var(--color-success,#34D399)] border border-[rgba(16,185,129,0.35)] shadow-sm'
                   : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)] border border-transparent'
@@ -295,7 +295,7 @@ export const Header = ({
               type="button"
               onClick={() => setMode('intermodal')}
               title="Intermodal (Unified Air & Road)"
-              className={`h-7 px-2 rounded-md flex items-center gap-1 font-mono text-[10px] font-bold transition-all cursor-pointer ${
+              className={`h-7 px-2.5 rounded-md flex items-center gap-1 font-sans text-[10px] font-bold tracking-wide transition-all cursor-pointer ${
                 mode === 'intermodal'
                   ? 'bg-[rgba(251,191,36,0.18)] text-[var(--color-accent-amber,#FBBF24)] border border-[rgba(251,191,36,0.35)] shadow-sm'
                   : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)] border border-transparent'

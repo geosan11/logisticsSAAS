@@ -35,7 +35,8 @@ function compareIsoDesc(aIso?: string, bIso?: string): number {
   return b < a ? -1 : b > a ? 1 : 0;
 }
 import { useTheme } from '../lib/useTheme';
-import { getAllowedTabs } from '../lib/permissions';
+import { getAllowedTabs, canAccessTab } from '../lib/permissions';
+import { useLogisticsMode } from '../lib/modeContext';
 import { Header as HeaderRaw } from './Header';
 import { BottomNav as BottomNavRaw } from './BottomNav';
 import { SideNav as SideNavRaw } from './SideNav';
@@ -181,11 +182,10 @@ function pathToTab(pathname: string): TabView {
 }
 
 export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void }) => {
+  const { mode: logisticsMode } = useLogisticsMode();
   const getDefaultTab = (role: string): TabView => {
-    if (role === 'office_work') return 'Cargo';
-    if (role === 'marketing_agent') return 'Marketing';
+    if (role === 'office_work') return logisticsMode === 'road' ? 'Packages' : 'Cargo';
     if (role === 'driver') return 'MyTrips';
-    if (role === 'baggage_agent' && user.assigned_airline) return `Baggage:${user.assigned_airline}`;
     return 'Tower';
   };
   const navigate = useNavigate();
@@ -223,6 +223,15 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
     if (location.pathname !== '/' && location.pathname !== '') return;
     navigate(tabToPath(resolveRootTab()), { replace: true });
   }, [location.pathname, navigate, resolveRootTab]);
+
+  // Redirect to Dashboard ('Tower') if the user switches the global logistics
+  // mode (Air / Road / Intermodal) while viewing a tab restricted to the other mode.
+  useEffect(() => {
+    if (currentTab === 'Tower' || currentTab === 'More') return;
+    if (!canAccessTab(user, currentTab, [], logisticsMode)) {
+      setCurrentTab('Tower');
+    }
+  }, [logisticsMode, currentTab, user, setCurrentTab]);
 
   useEffect(() => {
     try {
@@ -684,7 +693,7 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
           addHubFilter(supabase.from('cargo_entries').select('entry_ref,consignee_name,airline,flight_number,awb_tag_number,total_pcs,total_kg,size_inches,route,content_type,amount,receipt_mode,pickup_pin,status,created_at,commission_rate,bank,hub_id,terminal,remark,amount_paid,payment_history,payment_confirmed,pos_approval_code,confirmed_by,confirmed_at,consignee_phone,client_type,corporate_client_id,linked_as_office_work,bank_reference,bank_sender,bank_alert_text,entered_by,last_edited_by,last_edited_at,wallet_id,wallet_deduction_amount,retrieved,retrieved_amount,retrieved_pieces,retrieved_kg,retrieval_note,retrieved_at,retrieved_by,retrieval_approved,retrieval_approved_by,retrieval_approved_at,is_debt_clearance,related_tx_id').gte('created_at', startISO).lte('created_at', endISO).order('created_at', { ascending: false }).limit(LEDGER_ROW_CAP)),
           addHubFilter(supabase.from('manifests').select('transaction_id,passenger_name,flight_no,destination,excess_kg,amount,payment_mode,created_at,bank,hub_id,total_kg,pnr,passenger_phone,total_pcs,amount_paid,payment_history,airline,payment_confirmed,pos_approval_code,confirmed_by,confirmed_at,bank_reference,bank_sender,bank_alert_text,entered_by,last_edited_by,last_edited_at,wallet_id,wallet_deduction_amount,retrieved,retrieved_amount,retrieved_pieces,retrieved_kg,retrieval_note,retrieved_at,retrieved_by,retrieval_approved,retrieval_approved_by,retrieval_approved_at,is_debt_clearance,related_tx_id,remark,client_type,corporate_client_id,linked_as_office_work').gte('created_at', startISO).lte('created_at', endISO).order('created_at', { ascending: false }).limit(LEDGER_ROW_CAP)),
           addHubFilter(supabase.from('marketing_entries').select('entry_ref,awb_tag_number,customer_name,route,airline,qty_big_bag,qty_med_bag,qty_small_bag,bb_kg,mb_kg,sb_kg,amount_paid,payment_mode,created_at,hub_id,bank,entered_by,last_edited_by,last_edited_at,debt_amount_paid,payment_history,payment_confirmed,pos_approval_code,confirmed_by,confirmed_at,bank_reference,bank_sender,bank_alert_text,wallet_id,wallet_deduction_amount,retrieved,retrieved_amount,retrieved_pieces,retrieved_kg,retrieval_note,retrieved_at,retrieved_by,retrieval_approved,retrieval_approved_by,retrieval_approved_at,is_debt_clearance,related_tx_id,remark,customer_phone,client_type,corporate_client_id,linked_as_office_work').gte('created_at', startISO).lte('created_at', endISO).order('created_at', { ascending: false }).limit(LEDGER_ROW_CAP)),
-          addHubFilter(supabase.from('package_entries').select('entry_ref,customer_name,destination,content_type,total_pcs,total_kg,contents,status,amount,payment_mode,bank,payment_narration,debt_paid,debt_paid_at,amount_paid,payment_history,created_at,hub_id,terminal,payment_confirmed,pos_approval_code,confirmed_by,confirmed_at,entered_by,last_edited_by,last_edited_at,wallet_id,wallet_deduction_amount,retrieved,retrieved_amount,retrieved_pieces,retrieved_kg,retrieval_note,retrieved_at,retrieved_by,retrieval_approved,retrieval_approved_by,retrieval_approved_at,is_debt_clearance,related_tx_id,remark,customer_phone,client_type,corporate_client_id,linked_as_office_work').gte('created_at', startISO).lte('created_at', endISO).order('created_at', { ascending: false }).limit(LEDGER_ROW_CAP)),
+          addHubFilter(supabase.from('package_entries').select('entry_ref,customer_name,destination,content_type,total_pcs,total_kg,contents,vehicle_plate,driver_name,status,amount,payment_mode,bank,payment_narration,debt_paid,debt_paid_at,amount_paid,payment_history,created_at,hub_id,terminal,payment_confirmed,pos_approval_code,confirmed_by,confirmed_at,entered_by,last_edited_by,last_edited_at,wallet_id,wallet_deduction_amount,retrieved,retrieved_amount,retrieved_pieces,retrieved_kg,retrieval_note,retrieved_at,retrieved_by,retrieval_approved,retrieval_approved_by,retrieval_approved_at,is_debt_clearance,related_tx_id,remark,customer_phone,client_type,corporate_client_id,linked_as_office_work').gte('created_at', startISO).lte('created_at', endISO).order('created_at', { ascending: false }).limit(LEDGER_ROW_CAP)),
           addHubFilter(supabase.from('expenses').select('id,category,amount,description,created_at,hub_id,status,mode,bank,logged_by,approved_by,approved_at,rejected_by,rejected_at').gte('created_at', startISO).lte('created_at', endISO).order('created_at', { ascending: false }).limit(LEDGER_ROW_CAP)),
           fetchUserProfilesCached(),
           // Debt-collection events -- synthetic rows derived server-side
@@ -988,6 +997,8 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
               pieces: r.total_pcs || undefined,
               kg: r.total_kg || undefined,
               contents: r.contents || undefined,
+              vehiclePlate: r.vehicle_plate || undefined,
+              driverName: r.driver_name || undefined,
               paymentNarration: r.payment_narration || undefined,
               debtPaid: r.debt_paid ?? undefined,
               debtPaidAt: r.debt_paid_at || undefined,
@@ -2207,6 +2218,8 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
             pieces: r.total_pcs,
             kg: r.total_kg,
             contents: r.contents || undefined,
+            vehiclePlate: r.vehicle_plate || undefined,
+            driverName: r.driver_name || undefined,
             paymentNarration: r.payment_narration || undefined,
             debtPaid: r.debt_paid ?? undefined,
             debtPaidAt: r.debt_paid_at || undefined,
@@ -2265,6 +2278,8 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
               pieces: nextPcs,
               kg: nextKg,
               contents: nextContents,
+              vehiclePlate: r.vehicle_plate !== undefined ? (r.vehicle_plate || undefined) : t.vehiclePlate,
+              driverName: r.driver_name !== undefined ? (r.driver_name || undefined) : t.driverName,
               paymentNarration: r.payment_narration ?? t.paymentNarration,
               paymentConfirmed: r.payment_confirmed ?? t.paymentConfirmed,
               posApprovalCode: r.pos_approval_code ?? t.posApprovalCode,
@@ -2634,6 +2649,8 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
         total_pcs: tx.pieces || 1,
         total_kg: tx.kg || 0,
         contents: (tx as any).contents || null,
+        vehicle_plate: tx.vehiclePlate || null,
+        driver_name: tx.driverName || null,
         status: tx.status || 'Intake',
         amount: tx.amount,
         payment_mode: tx.mode === 'Debt Paid' ? 'Debt' : tx.mode,
@@ -2781,6 +2798,8 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
       updatePayload.total_pcs = t.pieces || 1;
       updatePayload.total_kg = t.kg || 0;
       updatePayload.contents = (t as any).contents || null;
+      if (t.vehiclePlate !== undefined) updatePayload.vehicle_plate = t.vehiclePlate || null;
+      if (t.driverName !== undefined) updatePayload.driver_name = t.driverName || null;
       if (t.paymentNarration !== undefined) updatePayload.payment_narration = t.paymentNarration;
     }
 

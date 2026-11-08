@@ -324,6 +324,7 @@ export const PackageForm = ({
   // collected and no wallet debited.
   // A short wallet paying its remainder by Transfer/POS needs a bank before
   // the entry can be submitted -- mirrors the same guard in handleAddEntry.
+  const saleIdempotencyKeyRef = useRef<string>(crypto.randomUUID());
   const walletRemainderBankOk = mode !== 'Wallet' || (!!activeWallet && (activeWallet.balance >= parsedAmount ||
     !(walletRemainderMode === 'Transfer' || walletRemainderMode === 'POS') || walletRemainderBank.trim().length > 0));
   const isValid = isValidCore && walletRemainderBankOk;
@@ -403,6 +404,7 @@ export const PackageForm = ({
         description: `Package Consignment ${trackingRef}`,
         loggedBy: user.name,
         department: 'package',
+        idempotencyKey: saleIdempotencyKeyRef.current,
       });
       if (!charge.ok) {
         showToast({ message: `Wallet deduction failed: ${charge.error}. Entry was not logged.`, type: 'error' });
@@ -461,6 +463,7 @@ export const PackageForm = ({
   };
 
   const handleReset = () => {
+    saleIdempotencyKeyRef.current = crypto.randomUUID();
     setName("");
     setPhone("");
     setPcs("1");

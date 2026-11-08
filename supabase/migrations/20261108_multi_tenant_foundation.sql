@@ -41,7 +41,9 @@ ALTER TABLE public.cargo_entries
   ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES public.tenants(id);
 
 ALTER TABLE public.package_entries
-  ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES public.tenants(id);
+  ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES public.tenants(id),
+  ADD COLUMN IF NOT EXISTS vehicle_plate text,
+  ADD COLUMN IF NOT EXISTS driver_name text;
 
 ALTER TABLE public.customer_wallets
   ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES public.tenants(id);
@@ -175,10 +177,18 @@ BEGIN
   FOR UPDATE;
 
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'Customer wallet not found: %', p_wallet_id;
+    RAISE EXCEPTION 'Wallet % not found', p_wallet_id;
   END IF;
 
-  -- POST-LOCK IDEMPOTENCY RE-CHECK:
+  -- Enforce strict tenant boundary inside SECURITY DEFINER RPC (Rule 3)
+  IF v_wallet_tenant IS NOT NULL
+     AND public.current_user_tenant_id() IS NOT NULL
+     AND v_wallet_tenant <> public.current_user_tenant_id()
+     AND COALESCE(public.current_user_role(), '') <> 'super_admin' THEN
+    RAISE EXCEPTION 'Cross-tenant wallet operation forbidden for wallet %', p_wallet_id;
+  END IF;
+
+  -- POST-LOCK IDEMPOTENCY RE-CHECK (Rule 2):
   -- If another concurrent request with the exact same idempotency_key committed
   -- while this transaction was waiting on FOR UPDATE, detect it and abort the delta.
   IF p_idempotency_key IS NOT NULL THEN
@@ -193,49 +203,77 @@ BEGIN
   END IF;
 
   IF p_type = 'deduction' AND (v_balance_before + v_delta) < 0 THEN
-    RAISE EXCEPTION 'Insufficient wallet balance: current balance is %, attempted deduction is %',
+    RAISE EXCEPTION 'Insufficient wallet balance: has %, needs %',
       v_balance_before, p_amount;
   END IF;
 
-  v_balance_after := v_balance_before + v_delta;
-
   UPDATE public.customer_wallets
-  SET balance = v_balance_after,
-      updated_at = now()
-  WHERE id = p_wallet_id;
+  SET balance         = balance + v_delta,
+      total_topped_up = total_topped_up + (CASE WHEN p_type IN ('top_up', 'refund') THEN p_amount ELSE 0 END),
+      total_used      = total_used + (CASE WHEN p_type = 'deduction' THEN p_amount ELSE 0 END),
+      status          = CASE WHEN balance + v_delta <= 0 THEN 'exhausted' ELSE 'active' END,
+      updated_at      = now()
+  WHERE id = p_wallet_id
+  RETURNING balance INTO v_balance_after;
 
   INSERT INTO public.wallet_transactions (
-    wallet_id,
-    type,
-    amount,
-    balance_before,
-    balance_after,
-    cargo_ref,
-    cargo_entry_id,
-    description,
-    logged_by,
-    department,
-    payment_mode,
-    idempotency_key
+    wallet_id, hub_id, type, amount, balance_before, balance_after,
+    cargo_ref, cargo_entry_id, description, logged_by, logged_by_user_id,
+    department, status, payment_mode, idempotency_key
   ) VALUES (
-    p_wallet_id,
-    p_type,
-    p_amount,
-    v_balance_before,
-    v_balance_after,
-    p_cargo_ref,
-    p_cargo_entry_id,
-    p_description,
-    p_logged_by,
-    p_department,
-    p_payment_mode,
-    p_idempotency_key
+    p_wallet_id, v_wallet_hub, p_type, p_amount, v_balance_before, v_balance_after,
+    p_cargo_ref, p_cargo_entry_id, p_description, COALESCE(p_logged_by, 'system'), auth.uid(),
+    p_department, 'completed', p_payment_mode, p_idempotency_key
   )
+  ON CONFLICT (idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING
   RETURNING id INTO v_txn_id;
+
+  IF v_txn_id IS NULL AND p_idempotency_key IS NOT NULL THEN
+    SELECT id, balance_after INTO v_txn_id, v_balance_after
+    FROM public.wallet_transactions
+    WHERE idempotency_key = p_idempotency_key;
+  END IF;
 
   RETURN QUERY SELECT v_balance_after, v_txn_id;
 END;
 $$;
+
+GRANT EXECUTE ON FUNCTION public.apply_wallet_transaction(uuid, text, numeric, text, uuid, text, text, text, text, uuid) TO authenticated;
+
+-- ── 6. Auto-Stamp Tenant Trigger & Restrictive Tenant RLS ────
+CREATE OR REPLACE FUNCTION public.set_row_tenant_id()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW.tenant_id IS NULL THEN
+    NEW.tenant_id := COALESCE(
+      public.current_user_tenant_id(),
+      '00000000-0000-0000-0000-000000000001'::uuid
+    );
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DO $$
+DECLARE
+  v_tbl text;
+BEGIN
+  FOREACH v_tbl IN ARRAY ARRAY['hubs', 'cargo_entries', 'package_entries', 'customer_wallets', 'fleet_vehicles', 'driver_trips'] LOOP
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = v_tbl) THEN
+      EXECUTE format('DROP TRIGGER IF EXISTS trg_set_tenant_id ON public.%I', v_tbl);
+      EXECUTE format('CREATE TRIGGER trg_set_tenant_id BEFORE INSERT ON public.%I FOR EACH ROW EXECUTE FUNCTION public.set_row_tenant_id()', v_tbl);
+      EXECUTE format('DROP POLICY IF EXISTS "Restrictive tenant isolation" ON public.%I', v_tbl);
+      EXECUTE format(
+        'CREATE POLICY "Restrictive tenant isolation" ON public.%I AS RESTRICTIVE FOR ALL TO authenticated USING (public.current_user_role() = ''super_admin'' OR public.current_user_tenant_id() IS NULL OR tenant_id IS NOT DISTINCT FROM public.current_user_tenant_id()) WITH CHECK (public.current_user_role() = ''super_admin'' OR public.current_user_tenant_id() IS NULL OR tenant_id IS NOT DISTINCT FROM public.current_user_tenant_id())',
+        v_tbl
+      );
+    END IF;
+  END LOOP;
+END $$;
 
 -- ── 6. RLS Policies on Tenants Table ─────────────────────────
 ALTER TABLE public.tenants ENABLE ROW LEVEL SECURITY;

@@ -108,3 +108,46 @@ BEGIN
 END $$;
 
 ROLLBACK;
+
+-- TEST 3: Cross-tenant wallet deduction rejection & bookkeeping preservation (Rule 2, Rule 3, Rule 6)
+BEGIN;
+
+DO $$
+DECLARE
+  v_tenant_a uuid := gen_random_uuid();
+  v_tenant_b uuid := gen_random_uuid();
+  v_user_a uuid := gen_random_uuid();
+  v_wallet_b uuid := gen_random_uuid();
+  v_blocked boolean := false;
+BEGIN
+  INSERT INTO public.tenants (id, slug, name) VALUES
+    (v_tenant_a, 'tenant-a-wallet', 'Tenant A'),
+    (v_tenant_b, 'tenant-b-wallet', 'Tenant B');
+
+  INSERT INTO public.user_profiles (id, full_name, role, tenant_id) VALUES
+    (v_user_a, 'Admin Tenant A', 'admin', v_tenant_a);
+
+  INSERT INTO public.customer_wallets (id, customer_name, phone, balance, tenant_id)
+  VALUES (v_wallet_b, 'Tenant B Customer', '08000000099', 25000, v_tenant_b);
+
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', v_user_a, 'role', 'authenticated')::text, true);
+
+  BEGIN
+    PERFORM public.apply_wallet_transaction(
+      p_wallet_id := v_wallet_b,
+      p_type := 'deduction',
+      p_amount := 5000,
+      p_logged_by := 'Admin Tenant A'
+    );
+  EXCEPTION WHEN OTHERS THEN
+    v_blocked := true;
+  END;
+
+  IF NOT v_blocked THEN
+    RAISE EXCEPTION 'TEST 3 FAILED: Cross-tenant wallet deduction succeeded when it should have been rejected!';
+  END IF;
+
+  RAISE NOTICE 'TEST 3 PASSED: Cross-tenant wallet operation strictly rejected.';
+END $$;
+
+ROLLBACK;

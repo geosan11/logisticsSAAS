@@ -574,10 +574,6 @@ export const CargoForm = ({
         if (sized != null) return { type: 'size' as const, amount: sized };
       }
     }
-    const actualW = parseFloat(kg) || 0;
-    if (volumetricWeight > actualW && actualW > 0) {
-      return { type: 'volumetric' as any, amount: volumetricWeight };
-    }
     const w = effectiveKg;
     if (w <= 0) return null;
     const flat = resolveFlatTier(flatTierRates, actualContentType, actualAirline, route, w, user.hub_id, lagosHubIds);
@@ -603,7 +599,7 @@ export const CargoForm = ({
     }
     return null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kg, sizeInches, isSizeTierContent, route, actualContentType, actualAirline, specialGoodsRates, minimumCharges, flatTierRates, sizeTierRates, standardRates, hubRouteRates, hubAirlineRouteRates]);
+  }, [effectiveKg, sizeInches, isSizeTierContent, route, actualContentType, actualAirline, specialGoodsRates, minimumCharges, flatTierRates, sizeTierRates, standardRates, hubRouteRates, hubAirlineRouteRates]);
 
   const availableAirlines = useAirlines();
   const airlineCommissions = useAirlineCommissions();
@@ -1057,14 +1053,14 @@ export const CargoForm = ({
   const officePricedSigRef = useRef<string>('');
   useEffect(() => {
     if (!linkedAsOfficeWork || !officeWorkRate) return;
-    const w = parseFloat(kg) || 0;
+    const w = effectiveKg;
     if (w <= 0) return;
     const sig = `${officeWorkRate.corporate_client_id}|${route}|${w}`;
     if (officePricedSigRef.current === sig) return;
     officePricedSigRef.current = sig;
     const computed = Math.max(roundMoney(w * officeWorkRate.rate_per_kg), officeWorkRate.minimum_amount ?? 0);
     setAmount(String(computed));
-  }, [linkedAsOfficeWork, officeWorkRate, kg, route]);
+  }, [linkedAsOfficeWork, officeWorkRate, effectiveKg, route]);
 
   // Load real corporate contract rates from Supabase — this table was
   // NEVER fetched here at all: corpRates only ever came from localStorage
@@ -1498,8 +1494,9 @@ export const CargoForm = ({
   };
 
   // --- RETAIL BILLING SUBMIT ---
+  const saleIdempotencyKeyRef = useRef<string>(crypto.randomUUID());
   const actualConsignee = consignee === "Other" ? customConsignee : consignee;
-  const w = parseFloat(kg) || 0;
+  const w = effectiveKg;
   const rate = resolveRate(actualAirline, route, actualContentType, w);
   const minCharge = resolveMinimumCharge(minimumCharges, actualAirline, route, w);
   // null rate/minCharge = nothing configured at any tier (special-goods,
@@ -1640,7 +1637,7 @@ export const CargoForm = ({
     const nextSerial = incrementLocalSerial();
     setSerialNumber(nextSerial);
 
-    const summaryStr = `${actualAirline} · ${pcs}pcs · ${kg}KG · ${route} · ${actualContentType}${isSizeTierContent && sizeInches ? ` · ${sizeInches}in` : ''}`;
+    const summaryStr = `${actualAirline} · ${pcs}pcs · ${effectiveKg}KG · ${route} · ${actualContentType}${isSizeTierContent && sizeInches ? ` · ${sizeInches}in` : ''}`;
 
     const tx: Transaction = {
       id: resolvedAwb,
@@ -1659,7 +1656,7 @@ export const CargoForm = ({
       flight: flightNumber.trim() || undefined,
       commissionRate,
       pieces: parseInt(pcs) || 1,
-      kg: parseFloat(kg) || 0,
+      kg: effectiveKg,
       sizeInches: isSizeTierContent && sizeInches ? (Math.round(parseFloat(sizeInches)) || undefined) : undefined,
       pickupPin,
       consigneePhone: consigneePhone.trim(),
@@ -1717,6 +1714,7 @@ export const CargoForm = ({
         description: `Cargo Consignment ${resolvedAwb}`,
         loggedBy: user.name,
         department: 'cargo',
+        idempotencyKey: saleIdempotencyKeyRef.current,
       });
       if (!charge.ok) {
         showToast({ message: `Wallet deduction failed: ${charge.error}. Entry was not logged.`, type: "error" });
@@ -1812,8 +1810,13 @@ export const CargoForm = ({
     setFlightNumber("");
     setFlightAutoFilled(false);
     fetchAwbPreview();
+    saleIdempotencyKeyRef.current = crypto.randomUUID();
     setPcs("1");
     setKg("");
+    setLengthCm("");
+    setWidthCm("");
+    setHeightCm("");
+    setShowDims(false);
     // Blank, not routes[0]/contentTypes[0] -- these start blank on mount
     // specifically so isRetailFormValid's non-empty checks force a
     // conscious pick (see their own useState('') declarations); silently
@@ -2947,6 +2950,11 @@ export const CargoForm = ({
                       : `Minimum Charge applied: ₦${fmt(priceOverrideInfo.amount)}`}
                   </div>
                 )}
+                {volumetricWeight > (parseFloat(kg) || 0) && (
+                  <div className="text-[10px] text-[var(--color-accent-amber)] mt-1">
+                    Billed at IATA Volumetric Weight: {effectiveKg} kg (actual {parseFloat(kg) || 0} kg)
+                  </div>
+                )}
               </div>
 
               <div>
@@ -3095,7 +3103,7 @@ export const CargoForm = ({
                     { label: 'Consignee', value: actualConsignee },
                     { label: 'Route', value: route },
                     { label: 'Content', value: actualContentType },
-                    { label: 'Weight', value: `${kg} KG` },
+                    { label: 'Weight', value: `${effectiveKg} KG${volumetricWeight > (parseFloat(kg) || 0) ? ' (Volumetric)' : ''}` },
                     { label: 'Amount', value: parsedAmount },
                     { label: 'Payment Mode', value: mode },
                     // Terminal choice (MMA2/GAT, LOS hub only) is otherwise a
