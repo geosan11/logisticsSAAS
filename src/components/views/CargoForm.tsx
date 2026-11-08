@@ -291,6 +291,11 @@ export const CargoForm = ({
 
   const [pcs, setPcs] = useState("1");
   const [kg, setKg] = useState("");
+  // Optional IATA volumetric dimensions (cm) -> (L x W x H) / 6000
+  const [showDims, setShowDims] = useState(false);
+  const [lengthCm, setLengthCm] = useState("");
+  const [widthCm, setWidthCm] = useState("");
+  const [heightCm, setHeightCm] = useState("");
   // Screen size, only relevant/shown for content types flagged is_size_tier
   // (e.g. Plasma TV) -- see isSizeTierContent below. kg stays a separate
   // field even for these entries (still tracked for manifest/cargo weight).
@@ -511,12 +516,27 @@ export const CargoForm = ({
   // the size-tier price check that takes priority over the normal kg cascade.
   const isSizeTierContent = sizeTierContentTypeNames.has(actualContentType);
 
+  const volumetricWeight = useMemo(() => {
+    const l = parseFloat(lengthCm) || 0;
+    const w = parseFloat(widthCm) || 0;
+    const h = parseFloat(heightCm) || 0;
+    if (l > 0 && w > 0 && h > 0) {
+      return Math.round(((l * w * h) / 6000) * 100) / 100;
+    }
+    return 0;
+  }, [lengthCm, widthCm, heightCm]);
+
+  const effectiveKg = useMemo(() => {
+    const actualW = parseFloat(kg) || 0;
+    return Math.max(actualW, volumetricWeight);
+  }, [kg, volumetricWeight]);
+
   // Compute auto-price from KG × rate, floored by any matching minimum
   // charge bracket for this airline+route — used to pre-fill the amount
   // field. Derived without setState so there is no extra re-render on every
   // keystroke.
   const autoAmount = useMemo(() => {
-    const w = parseFloat(kg) || 0;
+    const w = effectiveKg;
     // Size-tier content (e.g. Plasma TV) prices as one whole amount per
     // screen-size bracket, keyed on inches instead of kg -- checked before
     // the kg-based checks below since w may legitimately be 0/irrelevant
@@ -541,7 +561,7 @@ export const CargoForm = ({
     const final = minCharge != null ? Math.max(computed, minCharge) : computed;
     return final.toString();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kg, sizeInches, isSizeTierContent, route, actualContentType, actualAirline, standardRates, hubRouteRates, hubAirlineRouteRates, specialGoodsRates, minimumCharges, flatTierRates, sizeTierRates]);
+  }, [effectiveKg, sizeInches, isSizeTierContent, route, actualContentType, actualAirline, standardRates, hubRouteRates, hubAirlineRouteRates, specialGoodsRates, minimumCharges, flatTierRates, sizeTierRates]);
 
   // Which of the three overrides (if any) determined autoAmount -- surfaced
   // as a badge near the price preview so staff aren't confused by a number
@@ -554,7 +574,11 @@ export const CargoForm = ({
         if (sized != null) return { type: 'size' as const, amount: sized };
       }
     }
-    const w = parseFloat(kg) || 0;
+    const actualW = parseFloat(kg) || 0;
+    if (volumetricWeight > actualW && actualW > 0) {
+      return { type: 'volumetric' as any, amount: volumetricWeight };
+    }
+    const w = effectiveKg;
     if (w <= 0) return null;
     const flat = resolveFlatTier(flatTierRates, actualContentType, actualAirline, route, w, user.hub_id, lagosHubIds);
     if (flat != null) {
@@ -2735,7 +2759,16 @@ export const CargoForm = ({
                   />
                 </div>
                 <div className="flex-1">
-                  {renderLabel(Package, "KG")}
+                  <div className="flex items-center justify-between">
+                    {renderLabel(Package, "KG")}
+                    <button
+                      type="button"
+                      onClick={() => setShowDims(!showDims)}
+                      className="text-[10px] font-mono text-[var(--color-accent-amber)] hover:underline cursor-pointer"
+                    >
+                      {showDims ? "Hide Dims" : "+ Dim (cm)"}
+                    </button>
+                  </div>
                   <input
                     id="retail-kg"
                     name="kg"
@@ -2752,6 +2785,44 @@ export const CargoForm = ({
                   />
                 </div>
               </div>
+
+              {showDims && (
+                <div className="p-3 rounded-xl bg-[var(--color-surface-2)] border border-[var(--color-border)] space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-mono font-bold text-[var(--color-foreground)]">Dimensions (L × W × H in cm)</span>
+                    <span className="text-[10px] font-mono text-[var(--color-muted)]">IATA Volumetric (/6000)</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <input
+                      type="number"
+                      placeholder="L (cm)"
+                      value={lengthCm}
+                      onChange={(e) => setLengthCm(e.target.value)}
+                      className={formInputClass}
+                    />
+                    <input
+                      type="number"
+                      placeholder="W (cm)"
+                      value={widthCm}
+                      onChange={(e) => setWidthCm(e.target.value)}
+                      className={formInputClass}
+                    />
+                    <input
+                      type="number"
+                      placeholder="H (cm)"
+                      value={heightCm}
+                      onChange={(e) => setHeightCm(e.target.value)}
+                      className={formInputClass}
+                    />
+                  </div>
+                  {volumetricWeight > 0 && (
+                    <div className="text-[10px] font-mono text-[var(--color-accent-amber)] flex items-center justify-between pt-1 border-t border-[var(--color-border)]">
+                      <span>Volumetric Weight: {volumetricWeight} kg</span>
+                      <span className="font-bold">Chargeable: {effectiveKg} kg</span>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div>
                 {renderLabel(Layers, "Content")}
