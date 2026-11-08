@@ -1,28 +1,62 @@
 # EHI Multisystems - AI Developer Guidelines & Verification Protocol
 
-This file serves as a persistent guide injected directly into the agent's context. It establishes the mandatory post-implementation debugging, validation, and quality-checking protocol for all future changes.
+This file serves as a persistent guide injected directly into the agent's context. It establishes the mandatory pre-implementation rules, post-implementation debugging, validation, and quality-checking protocol for all changes.
 
 ---
 
-## 1. Post-Change Debugging & Verification Protocol
+## 1. The Seven EHI Reliability Rules (MUST ENFORCE)
 
-For **every** feature request, bug fix, or visual modification, you **MUST** run the following verification pipeline before declaring the task complete:
+Before making any change touching the areas below, you **MUST** state which rules apply and how you satisfied them in your plan/turn:
 
-### Step 1: TypeScript Integrity checks (Linting)
-- Run `lint_applet` to identify any unused imports, wrong types, missing dependencies, or syntax issues.
-- Fix all linter errors immediately. Never submit code with active compiler or linter errors.
-
-### Step 2: Application Compilation Proofing
-- Run `compile_applet` to verify a successful production build.
-- This ensures full compatibility with the deployment pipeline and catches deep-level TypeScript compilation errors that standard IDE linting might miss.
-
-### Step 3: Server & Module Check
-- Verify that custom assets, helper modules, or relative imports (e.g., `../../lib/...`) exist and are valid.
-- Run `restart_dev_server` if scripts, config files, or Express endpoints were modified to ensure the container runtime adopts the fresh config.
+1. **Ledger & Performance**:
+   - Virtualize long lists (`@tanstack/react-virtual`).
+   - Bound queries; paginate with server cursors (`ledger_search_page`). Never load unbounded history into the UI.
+2. **Wallet & Financial Integrity**:
+   - Fail-closed checks.
+   - Idempotent operations using stable `p_idempotency_key`.
+   - Explicit race handling on rate sync and wallet updates. No silent failures.
+3. **RLS & Multi-Tenancy**:
+   - Array-aware `sibling_hub_ids()`: compare using `hub_id = ANY(sibling_hub_ids())` (never scalar equality on array or extra subquery parens).
+   - Strict tenant isolation: every tenant table and policy must enforce `tenant_id = current_user_tenant_id()`. Multi-tenant tested from day one.
+4. **Offline Visibility & Sync**:
+   - Clear offline state indicator.
+   - Dexie (`IndexedDB`) + Supabase sync must surface conflicts and quarantined entries with clear operator visibility. Tag pools and reconciliation must stay consistent.
+5. **Modals & Portals**:
+   - Use portals for all modals (`src/components/Modal.tsx` rendered to `document.body`).
+   - Never use nested ad-hoc `fixed inset-0` dialogs that cause stacking context / z-index collisions.
+6. **Financial Correctness & Audit**:
+   - Every money movement (wallet intake, debt clearance, refund, dispatch advance, payout) must have an audit trail (`audit_log`, `wallet_transactions`, `debt_collection_events`) and reconciliation path (`EODReconciliation`).
+7. **UI Consistency & Mode-Awareness**:
+   - Mode-aware components (`Air` / `Road` / `Intermodal`), but unified shared design system.
+   - Professional, clean, logistics-grade density (Obsidian theme: dark card surfaces, amber accents, status green/red).
 
 ---
 
-## 2. Core Architectural Guardrails
+## 2. Verification Protocol (Run on Every Change)
+
+For **every** feature request, bug fix, or refactor, you **MUST** run the following verification pipeline before declaring the task complete:
+
+### Step 1: TypeScript Integrity Check
+```bash
+npm run lint
+```
+Strict `tsc --noEmit`. Fix all linter and compiler errors immediately. Never submit code with active compiler errors.
+
+### Step 2: Automated Tests
+```bash
+npx --yes vitest run
+```
+Verify unit and regression tests pass cleanly.
+
+### Step 3: Application Production Build
+```bash
+npm run build
+```
+Ensures full bundle compilation of client assets, PWA service worker, and the bundled server (`dist/server.cjs`).
+
+---
+
+## 3. Core Architectural Guardrails
 
 ### A. Strict Type Safety & Imports
 - **Named Imports Only:** Avoid generic or manual object destructuring for critical React components. Explicitly import hooks and state triggers.
@@ -39,11 +73,3 @@ For **every** feature request, bug fix, or visual modification, you **MUST** run
 ### C. Persistent Offline-First Architecture
 - **Dual-State Synchronization:** This application is built as an offline-first resilient system. Ensure retail and corporate transactions are safely cached inside Dexie (local state query wrappers) first, then verified and pushed down to the primary DB when network connectivity shifts safely.
 - **Graceful Fallbacks:** If API connections are delayed or unavailable, show appropriate offline badges or warning indicators, matching the prepackaged EHI visual style.
-
----
-
-## 3. High-Velocity Aesthetic Guidelines
-
-- **Theme Cohesion:** Maintain the dark luxurious **Obsidian Minimalist** theme (deep grays, slate backgrounds, sleek amber accents, gold buttons, and clear green/red status metrics).
-- **No Under-Designed UI Elements:** Forms, badges, and lists should use precise padding, subtle rounded elements (`var(--radius-sm)`), responsive focus rings, and clear typographic division.
-- **Clean Transitions:** Apply standard exit and entry micro-animations using `motion/react` where appropriate to guide the user's attention.

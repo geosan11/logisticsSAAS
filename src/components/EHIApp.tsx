@@ -68,6 +68,8 @@ const OutboundArrivalsRaw = lazy(() => import('./views/OutboundArrivals').then(m
 const MyTripsRaw = lazy(() => import('./views/MyTrips').then(m => ({ default: m.MyTrips })));
 const ITDashboardRaw = lazy(() => import('./views/ITDashboard').then(m => ({ default: m.ITDashboard })));
 const CreditDebitRaw = lazy(() => import('./views/CreditDebit').then(m => ({ default: m.CreditDebit })));
+const DispatchRaw = lazy(() => import('./views/Dispatch').then(m => ({ default: m.Dispatch })));
+const FleetRaw = lazy(() => import('./views/Fleet').then(m => ({ default: m.Fleet })));
 const AirlineLogoManager = lazy(() => import('./views/AirlineLogoManager').then(m => ({ default: m.AirlineLogoManager })));
 const AirlinePerformance = lazy(() => import('./views/AirlinePerformance').then(m => ({ default: m.AirlinePerformance })));
 const DataImport = lazy(() => import('./views/DataImport').then(m => ({ default: m.DataImport })));
@@ -77,7 +79,6 @@ const FlightRadar = lazy(() => import('./views/FlightRadar').then(m => ({ defaul
 
 import { ErrorBoundary } from './ErrorBoundary';
 import { syncLagosRates, getEquivalentHubIds } from '../lib/lagosHubSync';
-import { AIChatBuddy } from './AIChatBuddy';
 
 const Header = memo(HeaderRaw);
 const BottomNav = memo(BottomNavRaw);
@@ -97,6 +98,8 @@ const OutboundArrivals = memo(OutboundArrivalsRaw);
 const MyTrips = memo(MyTripsRaw);
 const ITDashboard = memo(ITDashboardRaw);
 const CreditDebit = memo(CreditDebitRaw);
+const Dispatch = memo(DispatchRaw);
+const Fleet = memo(FleetRaw);
 
 // Shared fallback for every lazy-loaded view's <Suspense> boundary below --
 // same spinner already used for the Baggage: airline-not-found case a few
@@ -138,6 +141,8 @@ const TAB_PATHS: Partial<Record<TabView, string>> = {
   'AirlinePerformance': '/airline-performance',
   'GAT':                '/gat',
   'FlightRadar':        '/flight-radar',
+  'Dispatch':           '/dispatch',
+  'Fleet':              '/fleet',
   // Baggage:{name} and More:{name} are handled by prefix -- see tabToPath/pathToTab below.
 };
 
@@ -3304,6 +3309,8 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
                 />
               )}
               {currentTab === 'Scan' && <Scanner transactions={transactions} user={user} showToast={showToast} />}
+              {currentTab === 'Dispatch' && <Dispatch onBack={() => setCurrentTab('Tower')} />}
+              {currentTab === 'Fleet' && <Fleet onBack={() => setCurrentTab('Tower')} user={user} />}
               {currentTab === 'Incoming' && <IncomingToHub user={user} onBack={() => setCurrentTab('More')} />}
               {currentTab === 'OutboundArrivals' && <OutboundArrivals user={user} onBack={() => setCurrentTab('More')} />}
               {currentTab === 'MyTrips' && <MyTrips user={user} />}
@@ -3351,8 +3358,6 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
       <div className="ehi-bottomnav-wrapper fixed bottom-0 left-0 right-0 w-full z-50" style={{ overflow: 'visible', background: 'transparent' }}>
         <BottomNav user={user} currentTab={currentTab} onChangeTab={setCurrentTab} />
       </div>
-
-      <AIChatBuddy user={user} />
 
       {/* Per-stream view-only ledger overlay */}
       {streamLedger && createPortal(

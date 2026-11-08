@@ -14,6 +14,9 @@ import {
   Radar,
   QrCode,
   ShieldCheck,
+  Plane,
+  Truck,
+  Layers,
 } from 'lucide-react';
 import { User } from '../lib/types';
 import { useState, useMemo } from 'react';
@@ -24,6 +27,7 @@ import { Theme } from '../lib/useTheme';
 import { getHubCode } from '../lib/helpers';
 import { useConfirm } from '../lib/ConfirmContext';
 import { canAccessTab } from '../lib/permissions';
+import { useLogisticsMode } from '../lib/modeContext';
 
 import ehiLogo from '../assets/branding/ehi-logo.png';
 
@@ -66,6 +70,7 @@ export const Header = ({
   const confirm = useConfirm();
   const navigate = useNavigate();
   const location = useLocation();
+  const { mode, setMode, isAir, isRoad } = useLogisticsMode();
 
   const quickNavItems = useMemo(() => {
     const candidates = [
@@ -97,13 +102,24 @@ export const Header = ({
         perm: 'More:CustomerWallets',
         icon: Wallet,
       },
-      {
-        id: 'radar',
-        label: 'Flight Radar',
-        path: '/flight-radar',
-        perm: 'FlightRadar',
-        icon: Radar,
-      },
+      ...(isAir ? [
+        {
+          id: 'radar',
+          label: 'Flight Radar',
+          path: '/flight-radar',
+          perm: 'FlightRadar',
+          icon: Radar,
+        },
+      ] : []),
+      ...(isRoad ? [
+        {
+          id: 'dispatch',
+          label: 'Dispatch',
+          path: '/more/dispatch',
+          perm: 'More:Dispatch',
+          icon: Truck,
+        },
+      ] : []),
       {
         id: 'scan',
         label: 'QR Scanner',
@@ -111,16 +127,18 @@ export const Header = ({
         perm: 'Scan',
         icon: QrCode,
       },
-      {
-        id: 'pod',
-        label: 'POD Log',
-        path: '/more/pod-log',
-        perm: 'More:PODLog',
-        icon: ShieldCheck,
-      },
+      ...(isRoad ? [
+        {
+          id: 'pod',
+          label: 'POD Log',
+          path: '/more/pod-log',
+          perm: 'More:PODLog',
+          icon: ShieldCheck,
+        },
+      ] : []),
     ];
-    return candidates.filter((item) => canAccessTab(user, item.perm, []));
-  }, [user]);
+    return candidates.filter((item) => canAccessTab(user, item.perm, [], mode));
+  }, [user, mode, isAir, isRoad]);
 
   const getRoleDisplay = (role: string) => {
     switch (role) {
@@ -244,6 +262,49 @@ export const Header = ({
             data-ehi-header-right-slot
             className="flex items-center gap-1.5 flex-wrap justify-end empty:hidden pr-1 border-r border-[var(--color-border)] min-w-0"
           />
+
+          {/* Logistics Mode Switcher (Air / Road / Intermodal) */}
+          <div className="flex items-center p-0.5 rounded-lg bg-[var(--color-surface-1)] border border-[var(--color-border)] shadow-inner shrink-0">
+            <button
+              type="button"
+              onClick={() => setMode('air')}
+              title="Switch to Air Logistics"
+              className={`h-7 px-2 rounded-md flex items-center gap-1 font-mono text-[10px] font-bold transition-all cursor-pointer ${
+                mode === 'air'
+                  ? 'bg-[rgba(59,130,246,0.18)] text-[var(--color-accent-cobalt,#60A5FA)] border border-[rgba(59,130,246,0.35)] shadow-sm'
+                  : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)] border border-transparent'
+              }`}
+            >
+              <Plane size={11} strokeWidth={mode === 'air' ? 2.5 : 2} />
+              <span className="hidden sm:inline">AIR</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('road')}
+              title="Switch to Road Logistics"
+              className={`h-7 px-2 rounded-md flex items-center gap-1 font-mono text-[10px] font-bold transition-all cursor-pointer ${
+                mode === 'road'
+                  ? 'bg-[rgba(16,185,129,0.18)] text-[var(--color-success,#34D399)] border border-[rgba(16,185,129,0.35)] shadow-sm'
+                  : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)] border border-transparent'
+              }`}
+            >
+              <Truck size={11} strokeWidth={mode === 'road' ? 2.5 : 2} />
+              <span className="hidden sm:inline">ROAD</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('intermodal')}
+              title="Intermodal (Unified Air & Road)"
+              className={`h-7 px-2 rounded-md flex items-center gap-1 font-mono text-[10px] font-bold transition-all cursor-pointer ${
+                mode === 'intermodal'
+                  ? 'bg-[rgba(251,191,36,0.18)] text-[var(--color-accent-amber,#FBBF24)] border border-[rgba(251,191,36,0.35)] shadow-sm'
+                  : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)] border border-transparent'
+              }`}
+            >
+              <Layers size={11} strokeWidth={mode === 'intermodal' ? 2.5 : 2} />
+              <span className="hidden sm:inline">ALL</span>
+            </button>
+          </div>
 
           {/* Theme toggle — Frosted Glass Lens Orb */}
           <button

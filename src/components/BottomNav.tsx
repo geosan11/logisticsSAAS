@@ -1,15 +1,16 @@
 import { User, TabView } from '../lib/types';
 import { getHubCode } from '../lib/helpers';
-import { Home, Package, TrendingUp, Plane, QrCode, MoreHorizontal, Truck, Building } from 'lucide-react';
+import { Home, Package, Plane, QrCode, MoreHorizontal, Truck, Building, Radar } from 'lucide-react';
+import { useLogisticsMode } from '../lib/modeContext';
 
 const VIEW_ICON: Record<string, any> = {
-  Tower: Home, Cargo: Package, Marketing: TrendingUp, Packages: Package,
+  Tower: Home, Cargo: Plane, Packages: Truck, Dispatch: Truck, Fleet: Truck, FlightRadar: Radar,
   Scan: QrCode, Incoming: Package, OutboundArrivals: Package, MyTrips: Truck, More: MoreHorizontal,
   GAT: Building,
 };
 const VIEW_TITLE: Record<string, string> = {
-  Tower: 'Dashboard', Cargo: 'Cargo', Marketing: 'Marketing', Packages: 'Packages',
-  Scan: 'Scanner', Incoming: 'Incoming', OutboundArrivals: 'Outbound Arrivals', MyTrips: 'My Trips', More: 'More',
+  Tower: 'Dashboard', Cargo: 'Air Cargo', Packages: 'Waybills', Dispatch: 'Dispatch', Fleet: 'Fleet', FlightRadar: 'Radar',
+  Scan: 'Scanner', Incoming: 'Incoming', OutboundArrivals: 'Outbound', MyTrips: 'My Trips', More: 'More',
   GAT: 'GAT',
 };
 
@@ -18,17 +19,11 @@ export const BottomNav = ({ user, currentTab, onChangeTab }: {
   currentTab: TabView;
   onChangeTab: (t: TabView) => void;
 }) => {
-  // A super-admin-set view_overrides is an exact replacement list -- when
-  // present, show everything in it (no 5-item curation: the admin picked
-  // this set deliberately for this specific person) instead of the normal
-  // per-role curated set below.
+  const { mode, isAir, isRoad } = useLogisticsMode();
   const userHubCode = getHubCode(user.hub_code || user.hub);
 
   if (user.view_overrides != null) {
     const overrideTabs = user.view_overrides
-      // GAT (General Aviation Terminal / MM1) is a Lagos-only physical
-      // counter -- even an explicit per-user override shouldn't surface it
-      // to someone stationed at a different hub.
       .filter((id) => id !== 'GAT' || userHubCode === 'LOS')
       .map((id) => {
         const isBaggage = id.startsWith('Baggage:');
@@ -41,51 +36,35 @@ export const BottomNav = ({ user, currentTab, onChangeTab }: {
     return <BottomNavTabs tabs={overrideTabs} currentTab={currentTab} onChangeTab={onChangeTab} />;
   }
 
-  // Role-specific tab sets — max 5 items per role
-  const getTabsForRole = (role: string) => {
-    const home   = { id: 'Tower' as TabView, title: 'Dashboard', icon: Home };
-    const cargo  = { id: 'Cargo' as TabView, title: 'Cargo', icon: Package };
-    const gat    = { id: 'GAT' as TabView, title: 'GAT', icon: Building };
-    const mkt    = { id: 'Marketing' as TabView, title: 'Marketing', icon: TrendingUp };
-    const baggage = { id: `Baggage:${user.assigned_airline || ''}` as TabView, title: user.assigned_airline || 'Baggage', icon: Plane };
-    const scan   = { id: 'Scan' as TabView, title: 'Scanner', icon: QrCode };
-    const trips  = { id: 'MyTrips' as TabView, title: 'My Trips', icon: Truck };
-    const more   = { id: 'More' as TabView, title: 'More', icon: MoreHorizontal };
+  // Curated mode- & role-aware tab sets — max 5 items
+  const home     = { id: 'Tower' as TabView, title: 'Dashboard', icon: Home };
+  const cargo    = { id: 'Cargo' as TabView, title: 'Air Cargo', icon: Plane };
+  const waybills = { id: 'Packages' as TabView, title: 'Waybills', icon: Truck };
+  const dispatch = { id: 'Dispatch' as TabView, title: 'Dispatch', icon: Truck };
+  const radar    = { id: 'FlightRadar' as TabView, title: 'Radar', icon: Radar };
+  const scan     = { id: 'Scan' as TabView, title: 'Scanner', icon: QrCode };
+  const trips    = { id: 'MyTrips' as TabView, title: 'My Trips', icon: Truck };
+  const more     = { id: 'More' as TabView, title: 'More', icon: MoreHorizontal };
 
-    switch (role) {
-      case 'super_admin':
-        // All revenue streams visible — Baggage airlines accessible via More
-        return [home, cargo, gat, mkt, scan, more];
-      case 'admin':
-        return [home, cargo, gat, mkt, scan, more];
-      case 'cargo_agent':
-        return [home, cargo, gat, scan, more];
-      case 'baggage_agent':
-        // No assigned airline yet (e.g. a bulk-imported account awaiting
-        // setup) -- omit the tab rather than link to a dead `Baggage:`
-        // (empty name) that matches no configured airline.
-        return user.assigned_airline ? [home, baggage, scan, more] : [home, scan, more];
-      case 'marketing_agent':
-        return [home, mkt, scan, more];
-      case 'driver':
-        return [home, trips, scan];
-      case 'accountant':
-        return [home, scan, more];
-      case 'auditor':
-        return [home, scan, more];
-      case 'office_work':
-        return [cargo, gat, mkt, scan, more];
-      default:
-        return [home, scan, more];
+  const getTabsForRole = (role: string) => {
+    if (role === 'driver') {
+      return [home, trips, scan, more];
     }
+
+    if (mode === 'air') {
+      return [home, cargo, radar, scan, more];
+    }
+
+    if (mode === 'road') {
+      return [home, waybills, dispatch, scan, more];
+    }
+
+    // Intermodal (default / both)
+    return [home, cargo, waybills, scan, more];
   };
 
   const tabs = getTabsForRole(user.role);
-  // GAT is a second physical Lagos counter, not a separate hub -- only
-  // relevant to users actually stationed at the Lagos hub, regardless of
-  // role.
-  const finalTabs = userHubCode === 'LOS' ? tabs : tabs.filter((t) => t.id !== 'GAT');
-  return <BottomNavTabs tabs={finalTabs} currentTab={currentTab} onChangeTab={onChangeTab} />;
+  return <BottomNavTabs tabs={tabs} currentTab={currentTab} onChangeTab={onChangeTab} />;
 };
 
 type NavTab = { id: TabView; title: string; icon: any };

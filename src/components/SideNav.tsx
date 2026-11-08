@@ -17,15 +17,18 @@ import {
 import { User, TabView, ExcessBaggageAirline } from "../lib/types";
 import { Theme } from "../lib/useTheme";
 import { getAllowedTabs } from "../lib/permissions";
+import { useLogisticsMode } from "../lib/modeContext";
 
 // Icon/label lookup for the static views -- getAllowedTabs (src/lib/permissions.ts)
 // is the single source of truth for WHICH ids a user can see (role default
 // or their super-admin-set override); this is purely presentational.
 const VIEW_ICON: Record<string, any> = {
   Tower: Home,
-  Cargo: Package,
-  Marketing: TrendingUp,
+  Cargo: Plane,
   Packages: Truck,
+  Dispatch: Truck,
+  Fleet: Truck,
+  FlightRadar: Plane,
   Scan: QrCode,
   Incoming: ArrowDownToLine,
   OutboundArrivals: ArrowUpToLine,
@@ -34,12 +37,14 @@ const VIEW_ICON: Record<string, any> = {
 };
 const VIEW_LABEL: Record<string, string> = {
   Tower: "Dashboard",
-  Cargo: "Cargo Entry",
-  Marketing: "Marketing",
-  Packages: "Package Desk",
+  Cargo: "Air Cargo",
+  Packages: "Waybills",
+  Dispatch: "Dispatch",
+  Fleet: "Fleet & Fuel",
+  FlightRadar: "Flight Radar",
   Scan: "QR Scanner",
-  Incoming: "Incoming To Hub",
-  OutboundArrivals: "Outbound Arrivals",
+  Incoming: "Incoming",
+  OutboundArrivals: "Outbound",
   MyTrips: "My Trips",
   More: "More",
 };
@@ -106,11 +111,8 @@ export const SideNav = ({
     document.documentElement.style.setProperty("--sidenav-offset", `${width}px`);
   }, [isExpanded, docked]);
 
-  // getAllowedTabs is the single source of truth for which ids this user
-  // can see -- their super-admin-set view_overrides if present, else the
-  // normal role-derived default (src/lib/permissions.ts). This component
-  // only decides how to DISPLAY whatever ids come back.
-  const allowedTabs = getAllowedTabs(user, excessBaggageAirlines);
+  const { mode, isAir, isRoad } = useLogisticsMode();
+  const allowedTabs = getAllowedTabs(user, excessBaggageAirlines, mode);
   const allowedSet = new Set(allowedTabs);
 
   const baggageEntries = allowedTabs
@@ -124,16 +126,17 @@ export const SideNav = ({
       };
     });
 
-  // Baggage entries always sit between Marketing and Packages regardless of
-  // whether Marketing/Packages themselves are in this user's allowed set --
-  // a baggage_agent (who has no Marketing access at all) must still see
-  // their own airline tab, so the split can't be conditional on Marketing
-  // surviving the filter.
-  const toEntries = (ids: TabView[]) => ids.filter((id) => allowedSet.has(id)).map((id) => ({ id, icon: VIEW_ICON[id], label: VIEW_LABEL[id] }));
+  const toEntries = (ids: TabView[]) => ids.filter((id) => allowedSet.has(id)).map((id) => ({ id, icon: VIEW_ICON[id] || Package, label: VIEW_LABEL[id] || id }));
+
+  const airPrimary: TabView[] = ["Cargo", "FlightRadar"];
+  const roadPrimary: TabView[] = ["Packages", "Dispatch", "Fleet"];
+
   const visibleTabs = [
-    ...toEntries(["Tower", "Cargo", "Marketing"]),
+    ...toEntries(["Tower"]),
+    ...(isAir ? toEntries(airPrimary) : []),
+    ...(isRoad ? toEntries(roadPrimary) : []),
     ...baggageEntries,
-    ...toEntries(["Packages", "Scan", "Incoming", "OutboundArrivals", "MyTrips", "More"]),
+    ...toEntries(["Scan", "Incoming", "OutboundArrivals", "MyTrips", "More"]),
   ];
 
   return (

@@ -99,6 +99,8 @@ export default defineConfig(() => {
             'virtual':       ['@tanstack/react-virtual'],
             'supabase':      ['@supabase/supabase-js'],
             'pdf':           ['@react-pdf/renderer'],
+            'excel':         ['exceljs', 'xlsx', 'papaparse'],
+            'maps':          ['leaflet', 'react-leaflet'],
             'qr':            ['html5-qrcode'],
             'offline':       ['dexie'],
           },
