@@ -1,5 +1,4 @@
 import {
-  Wifi,
   WifiOff,
   LogOut,
   Sun,
@@ -7,26 +6,17 @@ import {
   ChevronDown,
   RefreshCw,
   Building2,
-  LayoutDashboard,
-  BookOpen,
-  HandCoins,
-  Wallet,
-  Radar,
-  QrCode,
-  ShieldCheck,
   Plane,
   Truck,
   Layers,
 } from 'lucide-react';
 import { User } from '../lib/types';
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Theme } from '../lib/useTheme';
 import { getHubCode } from '../lib/helpers';
 import { useConfirm } from '../lib/ConfirmContext';
-import { canAccessTab } from '../lib/permissions';
 import { useLogisticsMode } from '../lib/modeContext';
 
 import ehiLogo from '../assets/branding/ehi-logo.png';
@@ -43,7 +33,7 @@ export const Header = ({
   stateWideView,
   onToggleStateWideView,
   docked = false,
-  onCloseOverlay,
+  onCloseOverlay: _onCloseOverlay,
 }: {
   user: User;
   isOffline: boolean;
@@ -53,92 +43,14 @@ export const Header = ({
   theme: Theme;
   onToggleTheme: () => void;
   onManualSync?: () => void;
-  // Own-hub vs state-wide (own hub + sibling hubs, e.g. Lagos HQ + Lagos
-  // Cargo) ledger scope. undefined when the user has no sibling hubs or is
-  // an admin role that already sees every hub -- the toggle has nothing to
-  // offer either way, so it's left out of the menu entirely.
   stateWideView?: boolean;
   onToggleStateWideView?: () => void;
-  // Desktop shell uses a sticky full-width top bar (.ehi-header-row) with
-  // controls in-flow. The Master Ledger stream overlay portals a full-screen
-  // layer that needs its own header row -- `docked` keeps the same controls
-  // inline there without relying on the shell sticky bar.
   docked?: boolean;
   onCloseOverlay?: () => void;
 }) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const confirm = useConfirm();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { mode, setMode, isAir, isRoad } = useLogisticsMode();
-
-  const quickNavItems = useMemo(() => {
-    const candidates = [
-      {
-        id: 'tower',
-        label: 'Overview',
-        path: '/tower',
-        perm: 'Tower',
-        icon: LayoutDashboard,
-      },
-      {
-        id: 'ledger',
-        label: 'Master Ledger',
-        path: '/more/ledger',
-        perm: 'More:TransactionLedger',
-        icon: BookOpen,
-      },
-      {
-        id: 'debt',
-        label: 'Debt & Retrievals',
-        path: '/more/debt-collection-log',
-        perm: 'More:DebtCollectionLog',
-        icon: HandCoins,
-      },
-      {
-        id: 'wallets',
-        label: 'Wallets',
-        path: '/more/customer-wallets',
-        perm: 'More:CustomerWallets',
-        icon: Wallet,
-      },
-      ...(isAir ? [
-        {
-          id: 'radar',
-          label: 'Flight Radar',
-          path: '/flight-radar',
-          perm: 'FlightRadar',
-          icon: Radar,
-        },
-      ] : []),
-      ...(isRoad ? [
-        {
-          id: 'dispatch',
-          label: 'Dispatch',
-          path: '/more/dispatch',
-          perm: 'More:Dispatch',
-          icon: Truck,
-        },
-      ] : []),
-      {
-        id: 'scan',
-        label: 'QR Scanner',
-        path: '/scan',
-        perm: 'Scan',
-        icon: QrCode,
-      },
-      ...(isRoad ? [
-        {
-          id: 'pod',
-          label: 'POD Log',
-          path: '/more/pod-log',
-          perm: 'More:PODLog',
-          icon: ShieldCheck,
-        },
-      ] : []),
-    ];
-    return candidates.filter((item) => canAccessTab(user, item.perm, [], mode));
-  }, [user, mode, isAir, isRoad]);
+  const { mode, setMode } = useLogisticsMode();
 
   const getRoleDisplay = (role: string) => {
     switch (role) {
@@ -169,173 +81,120 @@ export const Header = ({
   };
 
   return (
-    <div
-      className="flex flex-col w-full shrink-0 z-40 relative"
-    >
+    <div className="flex flex-col w-full shrink-0 z-40 relative">
       <div
-        className="ehi-header-row flex items-center justify-between gap-3 px-4 py-2.5 min-h-[56px] flex-wrap"
+        className="ehi-header-row flex items-center justify-between gap-2 px-3 sm:px-4 min-h-[52px] h-[52px] flex-nowrap"
         style={{
           background: 'var(--color-nav-bg)',
           borderBottom: '1px solid var(--color-border)',
         }}
       >
-        {/* Left & Center Navigation Area */}
-        <div className="flex items-center gap-2.5 min-w-0 flex-wrap">
-          {/* Brand -- the real logo asset (same file SideNav uses on desktop) */}
-          <div className="flex items-center gap-2.5 ehi-header-brand shrink-0">
+        {/* Left Area: Brand & Role badge */}
+        <div className="flex items-center gap-2 min-w-0 shrink-0">
+          <div className="flex items-center gap-2 ehi-header-brand shrink-0">
             <img
               src={ehiLogo}
               alt="EHI Multisystems"
-              className="rounded-lg"
-              style={{ height: 32, width: 'auto', objectFit: 'contain' }}
+              className="rounded-md"
+              style={{ height: 26, width: 'auto', objectFit: 'contain' }}
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
             />
-            <div>
-              <div style={{
-                display: 'inline-flex', alignItems: 'center', gap: 4,
+            {/* Role chip is visible on sm+; on mobile it stays in user menu to preserve space */}
+            <div
+              className="hidden sm:inline-flex items-center gap-1"
+              style={{
                 background: getRoleColor(user.role).bg,
                 border: `1px solid ${getRoleColor(user.role).border}`,
                 borderRadius: 'var(--radius-pill)',
-                padding: '1px 8px', marginTop: 2,
-              }}>
-                <span style={{ fontSize: 10, fontWeight: 600, color: getRoleColor(user.role).text }}>
-                  {getRoleDisplay(user.role)}
-                </span>
-              </div>
+                padding: '1px 7px',
+              }}
+            >
+              <span style={{ fontSize: 10, fontWeight: 600, color: getRoleColor(user.role).text }}>
+                {getRoleDisplay(user.role)}
+              </span>
             </div>
           </div>
 
           {/* Dynamic Slot for Ledger Left Controls (Back button + Title & Entry count) */}
           <div
             data-ehi-header-left-slot
-            className="flex items-center gap-2.5 min-w-0 empty:hidden"
+            className="flex items-center gap-2 min-w-0 empty:hidden"
           />
-
-          {/* Progressive-Disclosure Quick Navigation Rail */}
-          {quickNavItems.length > 0 && (
-            <nav
-              aria-label="Quick Navigation"
-              className="hidden md:flex items-center gap-1 p-0.5 rounded-full bg-[var(--color-surface-1)] border border-[var(--color-border)] shrink-0"
-            >
-              {quickNavItems.map((item) => {
-                const Icon = item.icon;
-                const isActive =
-                  (!docked &&
-                    (location.pathname === item.path ||
-                      location.pathname.startsWith(item.path + '/'))) ||
-                  (docked && item.id === 'ledger');
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    title={item.label}
-                    onClick={() => {
-                      if (onCloseOverlay) onCloseOverlay();
-                      navigate(item.path);
-                    }}
-                    className={`group relative h-7 px-2.5 rounded-full flex items-center justify-center transition-colors cursor-pointer select-none shrink-0 ${
-                      isActive
-                        ? 'bg-[var(--color-surface-3)] text-[var(--color-foreground)] border border-[var(--color-border-strong)]'
-                        : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)] border border-transparent'
-                    }`}
-                  >
-                    <Icon
-                      size={13}
-                      strokeWidth={isActive ? 2.2 : 1.8}
-                      className="shrink-0 transition-transform duration-200 group-hover:scale-105"
-                    />
-                    <span className="font-sans text-[11px] font-semibold tracking-tight whitespace-nowrap ml-1.5">
-                      {item.label}
-                    </span>
-                  </button>
-                );
-              })}
-            </nav>
-          )}
         </div>
 
-        {/* Right controls -- sit in the sticky top bar on desktop
-            (.ehi-header-controls is in-flow; see index.css). */}
-        <div className="ehi-header-controls flex items-center gap-2 ml-auto flex-wrap justify-end min-w-0">
+        {/* Right controls: Single quiet unified row */}
+        <div className="ehi-header-controls flex items-center gap-1.5 sm:gap-2 shrink-0 ml-auto justify-end">
           {/* Dynamic Slot for Ledger Secondary Navigation Controls (Filters, Export, Debt Log, 80mm, Manifest) */}
           <div
             data-ehi-header-right-slot
-            className="flex items-center gap-1.5 flex-wrap justify-end empty:hidden pr-1 border-r border-[var(--color-border)] min-w-0"
+            className="flex items-center gap-1.5 empty:hidden pr-1 border-r border-[var(--color-border)]"
           />
 
-          {/* Logistics Mode Switcher (Air / Road / Intermodal) */}
-          <div className="flex items-center p-0.5 rounded-full bg-[var(--color-surface-1)] border border-[var(--color-border)] shrink-0">
+          {/* Logistics Mode Switcher (Air / Road / Intermodal) - Readable text on all viewports */}
+          <div
+            className="flex items-center p-0.5 rounded-full bg-[var(--color-surface-1)] border border-[var(--color-border)] shrink-0"
+            role="group"
+            aria-label="Logistics Mode"
+          >
             <button
               type="button"
               onClick={() => setMode('air')}
-              title="Switch to Air Logistics"
-              className={`h-7 px-2.5 rounded-full flex items-center gap-1 font-sans text-[10px] font-semibold tracking-wide transition-colors cursor-pointer ${
+              title="Air Logistics Mode"
+              aria-pressed={mode === 'air'}
+              className={`h-7 px-2 sm:px-2.5 rounded-full flex items-center gap-1 font-sans text-[10px] font-semibold tracking-wide transition-colors cursor-pointer select-none ${
                 mode === 'air'
                   ? 'bg-[var(--color-surface-3)] text-[var(--color-foreground)] border border-[var(--color-border-strong)]'
                   : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)] border border-transparent'
               }`}
             >
               <Plane size={11} strokeWidth={mode === 'air' ? 2.5 : 2} />
-              <span className="hidden sm:inline">AIR</span>
+              <span>AIR</span>
             </button>
             <button
               type="button"
               onClick={() => setMode('road')}
-              title="Switch to Road Logistics"
-              className={`h-7 px-2.5 rounded-full flex items-center gap-1 font-sans text-[10px] font-semibold tracking-wide transition-colors cursor-pointer ${
+              title="Road Logistics Mode"
+              aria-pressed={mode === 'road'}
+              className={`h-7 px-2 sm:px-2.5 rounded-full flex items-center gap-1 font-sans text-[10px] font-semibold tracking-wide transition-colors cursor-pointer select-none ${
                 mode === 'road'
                   ? 'bg-[var(--color-surface-3)] text-[var(--color-foreground)] border border-[var(--color-border-strong)]'
                   : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)] border border-transparent'
               }`}
             >
               <Truck size={11} strokeWidth={mode === 'road' ? 2.5 : 2} />
-              <span className="hidden sm:inline">ROAD</span>
+              <span>ROAD</span>
             </button>
             <button
               type="button"
               onClick={() => setMode('intermodal')}
-              title="Intermodal (Unified Air & Road)"
-              className={`h-7 px-2.5 rounded-full flex items-center gap-1 font-sans text-[10px] font-semibold tracking-wide transition-colors cursor-pointer ${
+              title="Unified Intermodal Mode (Air & Road)"
+              aria-pressed={mode === 'intermodal'}
+              className={`h-7 px-2 sm:px-2.5 rounded-full flex items-center gap-1 font-sans text-[10px] font-semibold tracking-wide transition-colors cursor-pointer select-none ${
                 mode === 'intermodal'
                   ? 'bg-[var(--color-surface-3)] text-[var(--color-foreground)] border border-[var(--color-border-strong)]'
                   : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)] border border-transparent'
               }`}
             >
               <Layers size={11} strokeWidth={mode === 'intermodal' ? 2.5 : 2} />
-              <span className="hidden sm:inline">ALL</span>
+              <span>ALL</span>
             </button>
           </div>
 
-          {/* Theme toggle — Clean monochrome button */}
-          <button
-            type="button"
-            onClick={onToggleTheme}
-            className="w-8 h-8 rounded-full flex items-center justify-center bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] text-[var(--color-muted)] hover:text-[var(--color-foreground)] transition-colors cursor-pointer shrink-0"
-            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-            aria-label={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-          >
-            {theme === 'dark' ? (
-              <Sun size={14} strokeWidth={2} className="transition-transform duration-200 hover:rotate-45" />
-            ) : (
-              <Moon size={14} strokeWidth={2} className="transition-transform duration-200 hover:-rotate-12" />
-            )}
-          </button>
-
-          {/* Pending Sync Badge */}
+          {/* Pending Sync Badge (Shows only when records are queued) */}
           {pendingCount > 0 && (
             <button
               onClick={() => {
                 if (onManualSync) onManualSync();
               }}
               title="Click to force sync offline entries"
-              className="px-2.5 py-1 rounded-full flex items-center gap-1.5 bg-[var(--color-warning-bg)] border border-[var(--color-warning-border)] text-[var(--color-warning-fg)] font-mono text-[10px] font-semibold cursor-pointer hover:opacity-90 active:scale-95 transition-all shrink-0"
+              className="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full flex items-center gap-1 bg-[var(--color-warning-bg)] border border-[var(--color-warning-border)] text-[var(--color-warning-fg)] font-mono text-[10px] font-semibold cursor-pointer hover:opacity-90 active:scale-95 transition-all shrink-0"
             >
-              <RefreshCw size={11} className="animate-spin" />
-              <span>{pendingCount} Queued</span>
+              <RefreshCw size={10} className="animate-spin" />
+              <span>{pendingCount}</span>
             </button>
           )}
 
-          {/* Wifi status button */}
+          {/* Quiet Network Status Dot (Ambient telemetry indicator, not a green action button) */}
           <button
             type="button"
             onClick={async () => {
@@ -350,27 +209,49 @@ export const Header = ({
               }
               onToggleWifi();
             }}
-            title={isOffline ? 'Offline Mode Active — Tap to Reconnect' : 'Network Online — Tap to Switch to Offline Mode'}
-            aria-label={isOffline ? 'Offline Mode Active — Tap to Reconnect' : 'Network Online — Tap to Switch to Offline Mode'}
-            className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
+            title={isOffline ? 'Offline Mode Active — Tap to Reconnect' : 'Live Network Connected — Tap for Offline Simulation'}
+            aria-label={isOffline ? 'Offline Mode Active — Tap to Reconnect' : 'Live Network Connected'}
+            className={`h-7 px-1.5 sm:px-2 rounded-full flex items-center gap-1.5 transition-colors cursor-pointer select-none shrink-0 border ${
               isOffline
-                ? 'bg-[var(--color-error-bg)] border border-[var(--color-error-border)] text-[var(--color-error)]'
-                : 'bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] text-[var(--color-success)]'
+                ? 'bg-[var(--color-error-bg)] border-[var(--color-error-border)] text-[var(--color-error)]'
+                : 'bg-transparent border-transparent hover:bg-[var(--color-surface-hover)] text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
             }`}
           >
-            {isOffline ? (
-              <WifiOff size={13} strokeWidth={2.2} />
+            <span className="relative flex h-2 w-2 shrink-0 items-center justify-center">
+              {isOffline ? (
+                <span className="inline-flex rounded-full h-2 w-2 bg-[var(--color-error)]" />
+              ) : (
+                <span className="inline-flex rounded-full h-2 w-2 bg-[var(--color-success)]" />
+              )}
+            </span>
+            <span className="text-[10px] font-mono font-medium tracking-tight hidden sm:inline">
+              {isOffline ? 'Offline' : 'Live'}
+            </span>
+          </button>
+
+          {/* Theme Toggle — Desktop direct button (also inside User Menu on mobile) */}
+          <button
+            type="button"
+            onClick={onToggleTheme}
+            className="hidden sm:flex w-7 h-7 rounded-full items-center justify-center bg-transparent hover:bg-[var(--color-surface-hover)] text-[var(--color-muted)] hover:text-[var(--color-foreground)] transition-colors cursor-pointer shrink-0"
+            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            aria-label={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          >
+            {theme === 'dark' ? (
+              <Sun size={14} strokeWidth={2} className="transition-transform duration-200 hover:rotate-45" />
             ) : (
-              <Wifi size={13} strokeWidth={2.2} />
+              <Moon size={14} strokeWidth={2} className="transition-transform duration-200 hover:-rotate-12" />
             )}
           </button>
 
-          {/* User Button & Dropdown */}
+          {/* User Profile Button & Dropdown */}
           <div className="relative shrink-0">
             <button
               type="button"
               onClick={() => setShowDropdown(!showDropdown)}
               title={`${user.name} (${getRoleDisplay(user.role)} · ${getHubCode(user.hub)})`}
+              aria-expanded={showDropdown}
+              aria-haspopup="true"
               className="group relative h-8 px-1.5 rounded-full flex items-center gap-1.5 bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] transition-colors cursor-pointer select-none"
             >
               <div className="w-6 h-6 rounded-full flex items-center justify-center bg-[var(--color-surface-3)] border border-[var(--color-border-strong)] text-[var(--color-foreground)] font-bold text-[11px] shrink-0">
@@ -378,7 +259,7 @@ export const Header = ({
               </div>
 
               <div
-                className={`flex items-center overflow-hidden whitespace-nowrap transition-all duration-200 ease-out ${
+                className={`hidden md:flex items-center overflow-hidden whitespace-nowrap transition-all duration-200 ease-out ${
                   showDropdown
                     ? 'max-w-[200px] opacity-100 pl-1 pr-1'
                     : 'max-w-0 opacity-0 pl-0 pr-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:pl-1 group-hover:pr-1 group-focus-visible:max-w-[200px] group-focus-visible:opacity-100 group-focus-visible:pl-1 group-focus-visible:pr-1'
@@ -411,7 +292,7 @@ export const Header = ({
                 )}
                 <div
                   style={{
-                    position: 'absolute', right: 0, top: 38, width: 200,
+                    position: 'absolute', right: 0, top: 38, width: 220,
                     background: 'var(--color-surface-1)',
                     border: '1px solid var(--color-border-strong)',
                     borderRadius: 'var(--radius-card)',
@@ -427,15 +308,43 @@ export const Header = ({
                       {user.name}
                     </div>
                     <div style={{ fontSize: 10, color: 'var(--color-muted)', fontFamily: 'var(--font-mono)', marginTop: 2 }}>
-                      {getHubCode(user.hub)}
+                      {getRoleDisplay(user.role)} · {getHubCode(user.hub)}
                     </div>
                   </div>
+
+                  {/* Theme Switcher inside User Menu */}
+                  <button
+                    onClick={() => { onToggleTheme(); setShowDropdown(false); }}
+                    className="group hover:bg-[var(--color-surface-hover)] transition-colors"
+                    style={{
+                      width: '100%', padding: '10px 14px',
+                      background: 'transparent', border: 'none',
+                      borderBottom: '1px solid var(--color-border)',
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      cursor: 'pointer', textAlign: 'left',
+                    }}
+                  >
+                    {theme === 'dark' ? (
+                      <Sun size={15} className="text-[var(--color-muted)] group-hover:text-[var(--color-foreground)] shrink-0" />
+                    ) : (
+                      <Moon size={15} className="text-[var(--color-muted)] group-hover:text-[var(--color-foreground)] shrink-0" />
+                    )}
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-foreground)' }}>
+                        {theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                      </div>
+                      <div style={{ fontSize: 10, color: 'var(--color-muted)', marginTop: 1 }}>
+                        Currently using {theme} theme
+                      </div>
+                    </div>
+                  </button>
+
                   {onToggleStateWideView && (
                     <button
                       onClick={() => { onToggleStateWideView(); setShowDropdown(false); }}
                       className="group hover:bg-[var(--color-surface-hover)] transition-colors"
                       style={{
-                        width: '100%', padding: '12px 14px',
+                        width: '100%', padding: '10px 14px',
                         background: 'transparent', border: 'none',
                         borderBottom: '1px solid var(--color-border)',
                         display: 'flex', alignItems: 'center', gap: 10,
@@ -443,7 +352,7 @@ export const Header = ({
                       }}
                       title={stateWideView ? 'Showing your hub + sibling hubs in your state. Click to scope to your own hub only.' : 'Showing only your own hub. Click to include sibling hubs in your state.'}
                     >
-                      <Building2 size={16} strokeWidth={1.8} className="text-[var(--color-muted)] group-hover:text-[var(--color-foreground)] shrink-0" />
+                      <Building2 size={15} strokeWidth={1.8} className="text-[var(--color-muted)] group-hover:text-[var(--color-foreground)] shrink-0" />
                       <div>
                         <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-foreground)' }}>
                           {stateWideView ? 'State-wide view' : 'My hub only'}
@@ -454,17 +363,18 @@ export const Header = ({
                       </div>
                     </button>
                   )}
+
                   <button
                     onClick={() => { setShowDropdown(false); onLogout(); }}
                     className="group hover:bg-[var(--color-error-bg)] transition-colors"
                     style={{
-                      width: '100%', padding: '12px 14px',
+                      width: '100%', padding: '10px 14px',
                       background: 'transparent', border: 'none',
                       display: 'flex', alignItems: 'center', gap: 10,
                       cursor: 'pointer', color: 'var(--color-error)',
                     }}
                   >
-                    <LogOut size={16} strokeWidth={1.8} className="text-[var(--color-error)] shrink-0" />
+                    <LogOut size={15} strokeWidth={1.8} className="text-[var(--color-error)] shrink-0" />
                     <span className="text-[var(--color-error)]" style={{ fontSize: 12, fontWeight: 600 }}>Sign Out</span>
                   </button>
                 </div>
@@ -500,4 +410,3 @@ export const Header = ({
     </div>
   );
 };
-

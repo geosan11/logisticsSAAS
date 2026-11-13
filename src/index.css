@@ -1118,7 +1118,7 @@ main {
        content never renders underneath it. Set on :root by SideNav.tsx,
        kept in sync with whatever width it's currently rendering at.
        Equals the rail width only (flush left, no inset gutter). */
-    padding-left: var(--sidenav-offset, 220px);
+    padding-left: var(--sidenav-offset, 200px);
     transition: padding-left 0.3s cubic-bezier(0.2, 0, 0, 1);
   }
 

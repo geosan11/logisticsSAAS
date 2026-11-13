@@ -10,18 +10,16 @@ import {
   MoreHorizontal,
   Truck,
   LogOut,
-  Sun,
-  Moon,
   Radar,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { User, TabView, ExcessBaggageAirline } from "../lib/types";
 import { Theme } from "../lib/useTheme";
 import { getAllowedTabs } from "../lib/permissions";
 import { useLogisticsMode } from "../lib/modeContext";
 
-// Icon/label lookup for the static views -- getAllowedTabs (src/lib/permissions.ts)
-// is the single source of truth for WHICH ids a user can see (role default
-// or their super-admin-set override); this is purely presentational.
+// Icon lookup for the static views
 const VIEW_ICON: Record<string, any> = {
   Tower: Home,
   Cargo: Plane,
@@ -35,10 +33,11 @@ const VIEW_ICON: Record<string, any> = {
   MyTrips: Truck,
   More: MoreHorizontal,
 };
+
 const VIEW_LABEL: Record<string, string> = {
   Tower: "Dashboard",
   Cargo: "Air Cargo",
-  Packages: "Package & Parcel Desk",
+  Packages: "Package Desk",
   Dispatch: "Dispatch",
   Fleet: "Fleet & Fuel",
   FlightRadar: "Flight Radar",
@@ -48,13 +47,28 @@ const VIEW_LABEL: Record<string, string> = {
   Scan: "QR Scanner",
   More: "More",
 };
+
+const VIEW_COMPACT_LABEL: Record<string, string> = {
+  Tower: "Dashboard",
+  Cargo: "Air Cargo",
+  Packages: "Packages",
+  Dispatch: "Dispatch",
+  Fleet: "Fleet",
+  FlightRadar: "Radar",
+  Incoming: "Incoming",
+  OutboundArrivals: "Outbound",
+  MyTrips: "My Trips",
+  Scan: "Scanner",
+  More: "More",
+};
+
 export const SideNav = ({
   user,
   currentTab,
   onChangeTab,
   onLogout,
-  theme,
-  onToggleTheme,
+  theme: _theme,
+  onToggleTheme: _onToggleTheme,
   excessBaggageAirlines,
   docked = false,
 }: {
@@ -62,18 +76,12 @@ export const SideNav = ({
   currentTab: TabView;
   onChangeTab: (t: TabView) => void;
   onLogout: () => void;
-  theme: Theme;
-  onToggleTheme: () => void;
+  theme?: Theme;
+  onToggleTheme?: () => void;
   excessBaggageAirlines: ExcessBaggageAirline[];
   // Full-screen overlays (the Master Ledger's stream view) portal to
-  // document.body with their own fixed inset-0 z-50 layer, which paints
-  // over the real floating SideNav entirely -- it never disappears, it's
-  // just hidden underneath. `docked` renders a second, in-flow instance
-  // inside that overlay instead: no fixed positioning, no floating gap,
-  // flush against the left edge like a normal flex sibling, so the
-  // overlay's own content can never render underneath it and nav access
-  // isn't lost while the ledger is open. Icon-only, no expand/collapse --
-  // that's the floating nav's own affordance and doesn't apply here.
+  // document.body with their own fixed inset-0 z-50 layer. `docked` renders
+  // a second, in-flow instance inside that overlay.
   docked?: boolean;
 }) => {
   const [isExpanded, setIsExpanded] = useState(true);
@@ -81,13 +89,20 @@ export const SideNav = ({
 
   useEffect(() => {
     if (docked) return;
-    // Check local storage or window size for initial state
-    const saved = localStorage.getItem("ehi_sidebar_expanded");
-    if (saved !== null) {
-      setIsExpanded(saved === "true");
-    } else {
-      setIsExpanded(window.innerWidth >= 1200);
-    }
+    // Check local storage or window size for initial state.
+    // Default to expanded on >= 1024px screens (e.g. CF-31 1024x768 touchscreen)
+    // so counter staff always see clear labels out of the box.
+    const updateExpand = () => {
+      const saved = localStorage.getItem("ehi_sidebar_expanded");
+      if (saved !== null) {
+        setIsExpanded(saved === "true");
+      } else {
+        setIsExpanded(window.innerWidth >= 1024);
+      }
+    };
+    updateExpand();
+    window.addEventListener("resize", updateExpand);
+    return () => window.removeEventListener("resize", updateExpand);
   }, [docked]);
 
   const handleToggleExpand = () => {
@@ -97,19 +112,11 @@ export const SideNav = ({
     localStorage.setItem("ehi_sidebar_expanded", String(nextState));
   };
 
-  // The nav is position:fixed (floats above the page instead of sitting in
-  // normal flex flow), so .ehi-main-content can no longer rely on flexbox
-  // to make room for it -- it reads this CSS var (set on the root so no
-  // prop-drilling into EHIApp is needed) to reserve matching space, kept in
-  // sync with the same width this component renders at. Flush to the left
-  // edge (no inset gap), so the offset equals the rail width only. The
-  // docked instance sits in normal flow already, so it must never touch
-  // this -- doing so would fight the real floating instance for the same var.
   useEffect(() => {
     if (docked) return;
-    const width = isExpanded ? 220 : 72;
+    const width = effectiveExpanded ? 200 : 72;
     document.documentElement.style.setProperty("--sidenav-offset", `${width}px`);
-  }, [isExpanded, docked]);
+  }, [effectiveExpanded, docked]);
 
   const { mode, isAir, isRoad } = useLogisticsMode();
   const allowedTabs = getAllowedTabs(user, excessBaggageAirlines, mode);
@@ -123,10 +130,19 @@ export const SideNav = ({
         id,
         icon: Plane,
         label: user.role === "baggage_agent" ? airlineName : `${airlineName} POS`,
+        compactLabel: airlineName,
       };
     });
 
-  const toEntries = (ids: TabView[]) => ids.filter((id) => allowedSet.has(id)).map((id) => ({ id, icon: VIEW_ICON[id] || Package, label: VIEW_LABEL[id] || id }));
+  const toEntries = (ids: TabView[]) =>
+    ids
+      .filter((id) => allowedSet.has(id))
+      .map((id) => ({
+        id,
+        icon: VIEW_ICON[id] || Package,
+        label: VIEW_LABEL[id] || id,
+        compactLabel: VIEW_COMPACT_LABEL[id] || id,
+      }));
 
   const airPrimary: TabView[] = ["Cargo", "FlightRadar"];
   const roadPrimary: TabView[] = ["Packages", "Dispatch", "Fleet"];
@@ -145,11 +161,8 @@ export const SideNav = ({
       style={{
         display: "flex",
         flexDirection: "column",
-        width: docked ? 72 : (effectiveExpanded ? 220 : 72),
+        width: docked ? 72 : (effectiveExpanded ? 200 : 72),
         position: docked ? "relative" : "fixed",
-        // Floating but attached: flush left edge, square corners, full
-        // height -- reads as part of the app shell rather than a detached
-        // rounded card floating in the canvas gutter.
         top: docked ? undefined : 0,
         left: docked ? undefined : 0,
         zIndex: docked ? undefined : 30,
@@ -162,30 +175,30 @@ export const SideNav = ({
         height: docked ? "100%" : "var(--app-height)",
         overflowY: "auto",
         overflowX: "hidden",
-        transition: docked ? undefined : "width 0.3s cubic-bezier(0.2, 0, 0, 1)",
+        transition: docked ? undefined : "width 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
       }}
     >
-      {/* Brand */}
+      {/* Brand Header */}
       <div
         style={{
           padding: effectiveExpanded ? "12px 12px 8px" : "12px 0 8px",
           display: "flex",
           flexDirection: "column",
           alignItems: effectiveExpanded ? "flex-start" : "center",
-          transition: "all 0.3s cubic-bezier(0.2, 0, 0, 1)",
+          transition: "all 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
           flexShrink: 0,
         }}
       >
         <div
-          className={`flex items-center transition-opacity ${docked ? "" : "cursor-pointer hover:opacity-80"} ${effectiveExpanded ? "gap-2.5" : "justify-center w-full"}`}
+          className={`flex items-center select-none ${docked ? "" : "cursor-pointer hover:opacity-85"} ${effectiveExpanded ? "gap-2.5 px-1" : "justify-center w-full"}`}
           style={{ minHeight: 36 }}
-          title={docked ? undefined : (effectiveExpanded ? "Collapse sidebar" : "Expand sidebar")}
+          title={docked ? undefined : (effectiveExpanded ? "Collapse sidebar rail" : "Expand sidebar rail")}
           onClick={docked ? undefined : handleToggleExpand}
         >
           <div
             style={{
-              width: 36,
-              height: 36,
+              width: 32,
+              height: 32,
               borderRadius: "var(--radius-input)",
               background: "var(--color-surface-2)",
               border: "1px solid var(--color-border)",
@@ -199,14 +212,12 @@ export const SideNav = ({
             <img
               src={ehiLogo}
               alt="EHI"
-              style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: 8 }}
+              style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: 6 }}
               onError={(e) => {
-                // Falls back to the original text treatment if the file is
-                // missing or fails to load, rather than showing a broken image icon
                 (e.target as HTMLImageElement).style.display = 'none';
                 const fallback = document.createElement('span');
                 fallback.textContent = 'EHI';
-                fallback.style.cssText = "font-family:'JetBrains Mono',monospace;font-weight:800;font-size:14px;color:var(--color-foreground);";
+                fallback.style.cssText = "font-family:'JetBrains Mono',monospace;font-weight:800;font-size:12px;color:var(--color-foreground);";
                 (e.target as HTMLImageElement).parentElement?.appendChild(fallback);
               }}
             />
@@ -218,15 +229,14 @@ export const SideNav = ({
               opacity: effectiveExpanded ? 1 : 0,
               width: effectiveExpanded ? "auto" : 0,
               overflow: "hidden",
-              transition:
-                "opacity 0.2s ease, width 0.3s cubic-bezier(0.2, 0, 0, 1)",
+              transition: "opacity 0.2s ease, width 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
               whiteSpace: "nowrap",
             }}
           >
             <div
               style={{
                 fontFamily: "var(--font-sans)",
-                fontSize: 13,
+                fontSize: 12,
                 fontWeight: 700,
                 color: "var(--color-foreground)",
                 letterSpacing: "-0.01em",
@@ -239,55 +249,31 @@ export const SideNav = ({
               style={{
                 fontSize: 9,
                 fontWeight: 600,
-                fontFamily: "var(--font-sans)",
+                fontFamily: "var(--font-mono)",
                 color: "var(--color-muted)",
-                letterSpacing: "0.06em",
+                letterSpacing: "0.05em",
                 textTransform: "uppercase",
-                marginTop: 2,
+                marginTop: 1,
               }}
             >
-              Logistics Platform
+              {user.hub}
             </div>
-          </div>
-        </div>
-
-        <div
-          className="ehi-sidebar-brand"
-          style={{
-            marginTop: 6,
-            opacity: effectiveExpanded ? 1 : 0,
-            height: effectiveExpanded ? "auto" : 0,
-            overflow: "hidden",
-            transition:
-              "opacity 0.2s ease, height 0.3s cubic-bezier(0.2, 0, 0, 1)",
-            whiteSpace: "nowrap",
-          }}
-        >
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              color: "var(--color-foreground)",
-            }}
-          >
-            {user.name}
-          </div>
-          <div
-            style={{
-              fontSize: 9,
-              fontFamily: "var(--font-mono)",
-              color: "var(--color-muted)",
-              textTransform: "uppercase",
-              letterSpacing: "0.05em",
-              marginTop: 1,
-            }}
-          >
-            {user.hub}
           </div>
         </div>
       </div>
 
-      <nav style={{ flex: 1, padding: "6px 8px", display: "flex", flexDirection: "column", gap: 3, minHeight: 0 }}>
+      {/* Primary Navigation Rail */}
+      <nav
+        aria-label="Sidebar Navigation"
+        style={{
+          flex: 1,
+          padding: effectiveExpanded ? "6px 8px" : "6px 4px",
+          display: "flex",
+          flexDirection: "column",
+          gap: effectiveExpanded ? 3 : 4,
+          minHeight: 0,
+        }}
+      >
         {visibleTabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = currentTab === tab.id;
@@ -296,30 +282,34 @@ export const SideNav = ({
             <button
               key={tab.id}
               onClick={() => onChangeTab(tab.id)}
-              title={!effectiveExpanded ? tab.label : undefined}
+              title={tab.label}
+              aria-label={tab.label}
+              aria-current={isActive ? 'page' : undefined}
               className="group select-none"
               style={{
                 width: "100%",
-                minHeight: 44,
+                minHeight: effectiveExpanded ? 44 : 48,
+                minWidth: 44,
                 display: "flex",
+                flexDirection: effectiveExpanded ? "row" : "column",
                 alignItems: "center",
                 justifyContent: effectiveExpanded ? "flex-start" : "center",
-                gap: effectiveExpanded ? 10 : 0,
-                padding: effectiveExpanded ? "6px 10px" : "6px",
+                gap: effectiveExpanded ? 10 : 2,
+                padding: effectiveExpanded ? "6px 10px" : "6px 2px",
                 background: isActive ? "var(--color-surface-3)" : "transparent",
                 border: isActive ? "1px solid var(--color-border-strong)" : "1px solid transparent",
-                borderRadius: "var(--radius-pill)",
+                borderRadius: effectiveExpanded ? "var(--radius-pill)" : "12px",
                 cursor: "pointer",
                 transition: "background-color 0.15s ease, border-color 0.15s ease",
-                textAlign: "left",
+                textAlign: effectiveExpanded ? "left" : "center",
               }}
               onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = "var(--color-surface-hover)"; }}
               onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
             >
               <div
                 style={{
-                  width: 28,
-                  height: 28,
+                  width: effectiveExpanded ? 26 : 20,
+                  height: effectiveExpanded ? 26 : 20,
                   borderRadius: "var(--radius-pill)",
                   display: "flex",
                   justifyContent: "center",
@@ -339,35 +329,45 @@ export const SideNav = ({
                   }
                 />
               </div>
-              <div
-                style={{
-                  opacity: effectiveExpanded ? 1 : 0,
-                  width: effectiveExpanded ? "auto" : 0,
-                  overflow: "hidden",
-                  transition:
-                    "opacity 0.2s ease, width 0.3s cubic-bezier(0.2, 0, 0, 1)",
-                  whiteSpace: "nowrap",
-                  display: "flex",
-                  alignItems: "center",
-                }}
-              >
-                <span
-                  className={`${isActive ? "text-[var(--color-foreground)] font-semibold" : "text-[var(--color-muted)] group-hover:text-[var(--color-foreground)] font-medium"} transition-colors`}
+
+              {effectiveExpanded ? (
+                <div
                   style={{
-                    fontSize: 12.5,
+                    overflow: "hidden",
+                    whiteSpace: "nowrap",
+                    display: "flex",
+                    alignItems: "center",
+                    flex: 1,
                   }}
                 >
-                  {tab.label}
+                  <span
+                    className={`${isActive ? "text-[var(--color-foreground)] font-semibold" : "text-[var(--color-muted)] group-hover:text-[var(--color-foreground)] font-medium"} transition-colors`}
+                    style={{ fontSize: 12 }}
+                  >
+                    {tab.label}
+                  </span>
+                </div>
+              ) : (
+                <span
+                  className={`truncate max-w-[62px] ${isActive ? "text-[var(--color-foreground)] font-bold" : "text-[var(--color-muted)] group-hover:text-[var(--color-foreground)] font-medium"} transition-colors`}
+                  style={{
+                    fontSize: 9,
+                    lineHeight: 1,
+                    letterSpacing: "-0.01em",
+                  }}
+                >
+                  {tab.compactLabel}
                 </span>
-              </div>
+              )}
             </button>
           );
         })}
       </nav>
 
+      {/* Sidebar Controls & Footer */}
       <div
         style={{
-          padding: "8px",
+          padding: effectiveExpanded ? "8px 10px" : "8px 4px",
           borderTop: "1px solid var(--color-border)",
           display: "flex",
           flexDirection: "column",
@@ -375,97 +375,82 @@ export const SideNav = ({
           flexShrink: 0,
         }}
       >
-        <button
-          onClick={onToggleTheme}
-          title={!effectiveExpanded ? (theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode") : undefined}
-          className="group hover:bg-[var(--color-surface-hover)] transition-colors select-none"
-          style={{
-            width: "100%",
-            minHeight: 44,
-            padding: effectiveExpanded ? "6px 10px" : "6px",
-            justifyContent: effectiveExpanded ? "flex-start" : "center",
-            background: "transparent",
-            border: "1px solid transparent",
-            display: "flex",
-            alignItems: "center",
-            gap: effectiveExpanded ? 10 : 0,
-            cursor: "pointer",
-            borderRadius: "var(--radius-pill)",
-          }}
-        >
-          {theme === "dark" ? (
-            <Sun
-              size={16}
-              className="text-[var(--color-muted)] group-hover:text-[var(--color-foreground)] transition-transform duration-300 group-hover:rotate-45 active:scale-90 shrink-0"
-            />
-          ) : (
-            <Moon
-              size={16}
-              className="text-[var(--color-muted)] group-hover:text-[var(--color-foreground)] transition-transform duration-300 group-hover:-rotate-12 active:scale-90 shrink-0"
-            />
-          )}
-          <div
+        {/* Rail Expand/Collapse Button (Hidden if docked) */}
+        {!docked && (
+          <button
+            onClick={handleToggleExpand}
+            title={effectiveExpanded ? "Collapse rail (Icon + Micro-label)" : "Expand rail (Full Labels)"}
+            aria-label={effectiveExpanded ? "Collapse sidebar rail" : "Expand sidebar rail"}
+            className="group hover:bg-[var(--color-surface-hover)] transition-colors select-none text-[var(--color-muted)] hover:text-[var(--color-foreground)]"
             style={{
-              opacity: effectiveExpanded ? 1 : 0,
-              width: effectiveExpanded ? "auto" : 0,
-              overflow: "hidden",
-              transition:
-                "opacity 0.2s ease, width 0.3s cubic-bezier(0.2, 0, 0, 1)",
-              whiteSpace: "nowrap",
+              width: "100%",
+              minHeight: 38,
+              padding: effectiveExpanded ? "6px 10px" : "6px 2px",
+              justifyContent: effectiveExpanded ? "flex-start" : "center",
+              background: "transparent",
+              border: "1px solid transparent",
               display: "flex",
+              flexDirection: effectiveExpanded ? "row" : "column",
               alignItems: "center",
+              gap: effectiveExpanded ? 8 : 2,
+              cursor: "pointer",
+              borderRadius: effectiveExpanded ? "var(--radius-pill)" : "12px",
             }}
           >
-            <span
-              className="text-left text-[var(--color-muted)] group-hover:text-[var(--color-foreground)] font-medium transition-colors"
-              style={{ fontSize: 12 }}
-            >
-              {theme === "dark" ? "Light Mode" : "Dark Mode"}
-            </span>
-          </div>
-        </button>
+            {effectiveExpanded ? (
+              <>
+                <ChevronLeft size={15} strokeWidth={2} className="shrink-0" />
+                <span style={{ fontSize: 11, fontWeight: 500 }}>Collapse rail</span>
+              </>
+            ) : (
+              <>
+                <ChevronRight size={15} strokeWidth={2} className="shrink-0" />
+                <span style={{ fontSize: 8.5, fontWeight: 600, letterSpacing: "-0.01em" }}>Expand</span>
+              </>
+            )}
+          </button>
+        )}
 
+        {/* Sign Out Button */}
         <button
           onClick={onLogout}
-          title={!effectiveExpanded ? "Sign Out" : undefined}
-          className="group hover:bg-[var(--color-surface-hover)] transition-colors select-none"
+          title="Sign Out"
+          aria-label="Sign Out"
+          className="group hover:bg-[var(--color-error-bg)] transition-colors select-none"
           style={{
             width: "100%",
             minHeight: 44,
-            padding: effectiveExpanded ? "6px 10px" : "6px",
+            padding: effectiveExpanded ? "6px 10px" : "6px 2px",
             justifyContent: effectiveExpanded ? "flex-start" : "center",
             background: "transparent",
             border: "1px solid transparent",
             display: "flex",
+            flexDirection: effectiveExpanded ? "row" : "column",
             alignItems: "center",
-            gap: effectiveExpanded ? 10 : 0,
+            gap: effectiveExpanded ? 8 : 2,
             cursor: "pointer",
-            borderRadius: "var(--radius-pill)",
+            borderRadius: effectiveExpanded ? "var(--radius-pill)" : "12px",
           }}
         >
           <LogOut
             size={16}
-            className="text-[var(--color-muted)] group-hover:text-[var(--color-foreground)] transition-colors shrink-0"
+            className="text-[var(--color-muted)] group-hover:text-[var(--color-error)] transition-colors shrink-0"
           />
-          <div
-            style={{
-              opacity: effectiveExpanded ? 1 : 0,
-              width: effectiveExpanded ? "auto" : 0,
-              overflow: "hidden",
-              transition:
-                "opacity 0.2s ease, width 0.3s cubic-bezier(0.2, 0, 0, 1)",
-              whiteSpace: "nowrap",
-              display: "flex",
-              alignItems: "center",
-            }}
-          >
+          {effectiveExpanded ? (
             <span
-              className="text-[var(--color-muted)] group-hover:text-[var(--color-foreground)] font-medium transition-colors"
+              className="text-[var(--color-muted)] group-hover:text-[var(--color-error)] font-medium transition-colors"
               style={{ fontSize: 12 }}
             >
               Sign Out
             </span>
-          </div>
+          ) : (
+            <span
+              className="text-[var(--color-muted)] group-hover:text-[var(--color-error)] font-medium transition-colors"
+              style={{ fontSize: 9, letterSpacing: "-0.01em" }}
+            >
+              Exit
+            </span>
+          )}
         </button>
       </div>
     </aside>
