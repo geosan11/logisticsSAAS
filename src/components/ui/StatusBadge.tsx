@@ -10,19 +10,19 @@ export type FlightStatus =
   | 'diverted' | 'returned' | 'cancelled' | 'landed' | 'unknown';
 
 const FLIGHT_STATUS_META: Record<FlightStatus, { label: string; color: string; bg: string }> = {
-  scheduled: { label: 'Scheduled', color: 'var(--color-muted)', bg: 'rgba(255,255,255,0.06)' },
-  boarding: { label: 'Boarding', color: 'var(--color-accent-cobalt)', bg: 'rgba(59,130,246,0.12)' },
-  departed: { label: 'En Route', color: 'var(--color-accent-cobalt)', bg: 'rgba(59,130,246,0.12)' },
-  delayed: { label: 'Delayed', color: 'var(--color-accent-amber)', bg: 'rgba(251,191,36,0.12)' },
-  diverted: { label: 'Diverted', color: 'var(--color-error)', bg: 'rgba(239,68,68,0.12)' },
+  scheduled: { label: 'Scheduled', color: 'var(--color-muted)', bg: 'var(--color-neutral-bg)' },
+  boarding: { label: 'Boarding', color: 'var(--color-info)', bg: 'var(--color-info-bg)' },
+  departed: { label: 'En Route', color: 'var(--color-info)', bg: 'var(--color-info-bg)' },
+  delayed: { label: 'Delayed', color: 'var(--color-warning)', bg: 'var(--color-warning-bg)' },
+  diverted: { label: 'Diverted', color: 'var(--color-error)', bg: 'var(--color-error-bg)' },
   // Special case: a diversion whose landing airport is the same one the
   // flight departed from -- flagged separately by the caller (see
   // FlightRadar.tsx's normalizeCachedStatus) rather than inferred here,
   // since this component has no airport data to compare.
-  returned: { label: 'Returned to Origin', color: 'var(--color-error)', bg: 'rgba(239,68,68,0.12)' },
-  cancelled: { label: 'Cancelled', color: 'var(--color-error)', bg: 'rgba(239,68,68,0.12)' },
-  landed: { label: 'Landed', color: 'var(--color-success)', bg: 'rgba(16,185,129,0.12)' },
-  unknown: { label: 'Not Tracked', color: 'var(--color-muted)', bg: 'rgba(255,255,255,0.06)' },
+  returned: { label: 'Returned to Origin', color: 'var(--color-error)', bg: 'var(--color-error-bg)' },
+  cancelled: { label: 'Cancelled', color: 'var(--color-error)', bg: 'var(--color-error-bg)' },
+  landed: { label: 'Landed', color: 'var(--color-success)', bg: 'var(--color-success-bg)' },
+  unknown: { label: 'Not Tracked', color: 'var(--color-muted)', bg: 'var(--color-neutral-bg)' },
 };
 
 export function flightStatusMeta(status: string): { label: string; color: string; bg: string } {

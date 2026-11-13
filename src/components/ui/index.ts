@@ -27,3 +27,7 @@ export { AnimatedNumber } from './AnimatedNumber';
 export { GlassToggle } from './GlassToggle';
 export { StatusBadge, flightStatusMeta } from './StatusBadge';
 export type { FlightStatus } from './StatusBadge';
+
+// Density control (Compact vs Spacious)
+export { useDensity, DEFAULT_DENSITY } from '../../lib/useDensity';
+export type { Density } from '../../lib/useDensity';

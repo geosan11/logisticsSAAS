@@ -40,12 +40,12 @@ export const Tabs = ({
         variant === 'pill'
           ? `px-3 py-1.5 rounded-full ${
               active
-                ? 'bg-[var(--color-accent-amber)] text-[var(--color-on-accent)]'
-                : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
+                ? 'bg-[var(--color-primary-pill)] text-[var(--color-primary-pill-text)]'
+                : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)]'
             }`
           : `pb-2.5 px-3 border-b-2 -mb-px ${
               active
-                ? 'border-[var(--color-accent-amber)] text-[var(--color-accent-amber)]'
+                ? 'border-[var(--color-foreground)] text-[var(--color-foreground)]'
                 : 'border-transparent text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
             }`;
       return (
@@ -63,8 +63,8 @@ export const Tabs = ({
             <span
               className="ml-0.5 rounded-full px-1.5 text-[10px] leading-[1.4]"
               style={{
-                background: active ? 'rgba(0,0,0,0.15)' : 'var(--color-neutral-bg)',
-                color: active ? 'var(--color-on-accent)' : 'var(--color-neutral-fg)',
+                background: active ? 'rgba(0,0,0,0.2)' : 'var(--color-neutral-bg)',
+                color: active ? 'var(--color-primary-pill-text)' : 'var(--color-neutral-fg)',
               }}
             >
               {t.count}

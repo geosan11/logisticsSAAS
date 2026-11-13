@@ -19,27 +19,21 @@ export const GlassToggle = ({
       onClick={onChange}
       role="switch"
       aria-checked={checked}
-      className={`relative ${track} rounded-full p-0.5 transition-all duration-300 ease-in-out cursor-pointer outline-none shrink-0`}
+      className={`relative ${track} rounded-full p-0.5 transition-all duration-200 ease-in-out cursor-pointer outline-none shrink-0`}
       style={{
         background: checked
-          ? 'linear-gradient(90deg, rgba(251,191,36,0.20) 0%, rgba(217,119,6,0.30) 100%)'
+          ? 'var(--color-primary-pill)'
           : 'var(--color-surface-2)',
-        border: checked ? '1px solid rgba(251,191,36,0.40)' : '1px solid var(--color-border-strong)',
-        boxShadow: checked ? '0 0 12px rgba(252,191,73,0.25)' : 'var(--shadow-xs)',
+        border: checked ? '1px solid var(--color-primary-pill)' : '1px solid var(--color-border-strong)',
+        boxShadow: 'var(--shadow-xs)',
       }}
     >
-      {checked && (
-        <span className="absolute inset-0 rounded-full bg-amber-400/5 blur-[4px] animate-pulse" />
-      )}
       <span
-        className={`block ${knob} rounded-full transition-all duration-300 ease-in-out shadow-md border ${
-          checked
-            ? 'bg-gradient-to-br from-amber-300 to-amber-500 border-amber-300/80 shadow-[0_2px_6px_rgba(252,191,73,0.4)]'
-            : ''
-        }`}
+        className={`block ${knob} rounded-full transition-all duration-200 ease-in-out shadow-sm border`}
         style={{
           transform: checked ? `translateX(${travel}px)` : 'translateX(0)',
-          ...(checked ? {} : { background: 'var(--color-surface-card)', borderColor: 'var(--color-border-strong)' }),
+          background: checked ? 'var(--color-primary-pill-text)' : 'var(--color-surface-card)',
+          borderColor: checked ? 'var(--color-primary-pill-text)' : 'var(--color-border-strong)',
         }}
       />
     </button>

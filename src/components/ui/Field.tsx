@@ -10,14 +10,14 @@ import type { InputHTMLAttributes, SelectHTMLAttributes, TextareaHTMLAttributes,
 type FieldSize = 'sm' | 'md' | 'lg';
 
 const CONTROL_SIZE: Record<FieldSize, string> = {
-  sm: 'h-9 px-3 text-[12px]',
-  md: 'h-10 px-3.5 text-[13px]',
-  lg: 'h-12 px-3.5 text-[16px]',
+  sm: 'h-[var(--control-height-sm,32px)] px-3 text-[12px]',
+  md: 'h-[var(--control-height-md,40px)] px-3.5 text-[13px]',
+  lg: 'h-[var(--control-height-lg,48px)] px-3.5 text-[16px]',
 };
 
 const baseControl =
-  'w-full bg-[var(--color-input-bg)] text-[var(--color-input-text)] border-[1.5px] rounded-[var(--radius-md)] font-mono outline-none ' +
-  'transition-[border-color,box-shadow] focus:border-[var(--color-accent-amber)] focus:shadow-[0_0_0_3px_var(--glow-amber)] ' +
+  'w-full bg-[var(--color-input-bg)] text-[var(--color-input-text)] border rounded-[var(--radius-input)] font-sans outline-none ' +
+  'transition-[border-color,box-shadow] focus:border-[var(--color-border-focus)] focus:shadow-[0_0_0_3px_var(--glow-focus)] ' +
   'disabled:opacity-60 disabled:cursor-not-allowed';
 
 interface Shared {

@@ -2,7 +2,8 @@ import { Loader2 } from 'lucide-react';
 import { ICON } from '../../lib/ui';
 
 const TONE = {
-  amber: 'text-[var(--color-accent-amber)]',
+  primary: 'text-[var(--color-foreground)]',
+  amber: 'text-[var(--color-foreground)]',
   current: 'text-current',
   muted: 'text-[var(--color-muted)]',
 } as const;
@@ -11,7 +12,7 @@ const TONE = {
 // <Loader2 className="animate-spin" .../> at 9+ different sizes.
 export const Spinner = ({
   size = 'md',
-  tone = 'amber',
+  tone = 'primary',
   className = '',
   label,
 }: {

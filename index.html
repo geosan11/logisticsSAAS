@@ -20,8 +20,8 @@
     <meta name="format-detection" content="telephone=no">
 
     <!-- Theme color for Safari toolbar — must match --color-canvas in src/index.css -->
-    <meta name="theme-color" content="#0f1117" media="(prefers-color-scheme: dark)">
-    <meta name="theme-color" content="#eef1f5" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
 
     <title>EHI Logistics SaaS</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -35,6 +35,9 @@
         try {
           var t = localStorage.getItem('ehi-theme') || 'dark';
           document.documentElement.classList.add(t);
+          var d = localStorage.getItem('ehi-density') || 'spacious';
+          document.documentElement.setAttribute('data-density', d);
+          document.documentElement.classList.add('density-' + d);
         } catch(e) {}
       })();
     </script>
@@ -52,7 +55,7 @@
         #splash {
           min-height: 100dvh;
           width: 100%;
-          background: #eef1f5;
+          background: #ffffff;
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -61,21 +64,21 @@
           box-sizing: border-box;
           padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
         }
-        html.dark #splash { background: #0f1117; }
-        #splash .ehi-splash-mark-bg { fill: rgba(201,142,40,0.14); }
-        #splash .ehi-splash-mark-text { fill: #C98E28; }
-        html.dark #splash .ehi-splash-mark-bg { fill: rgba(240,178,48,0.12); }
-        html.dark #splash .ehi-splash-mark-text { fill: #F0B230; }
+        html.dark #splash { background: #000000; }
+        #splash .ehi-splash-mark-bg { fill: rgba(0,0,0,0.06); }
+        #splash .ehi-splash-mark-text { fill: #09090b; }
+        html.dark #splash .ehi-splash-mark-bg { fill: rgba(255,255,255,0.08); }
+        html.dark #splash .ehi-splash-mark-text { fill: #f4f4f5; }
         #splash .ehi-splash-ring {
           width: 32px; height: 32px;
-          border: 3px solid rgba(201,142,40,0.22);
-          border-top-color: #C98E28;
+          border: 2px solid rgba(0,0,0,0.1);
+          border-top-color: #09090b;
           border-radius: 50%;
           animation: spin 0.8s linear infinite;
         }
         html.dark #splash .ehi-splash-ring {
-          border-color: rgba(240,178,48,0.2);
-          border-top-color: #F0B230;
+          border-color: rgba(255,255,255,0.1);
+          border-top-color: #f4f4f5;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
       </style>

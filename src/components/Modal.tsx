@@ -94,7 +94,7 @@ export const Modal: React.FC<ModalProps> = ({
 
   const container =
     containerClassName ??
-    `w-full ${SIZE_MAXW[size] ?? SIZE_MAXW.lg} bg-[var(--color-surface-card)] rounded-2xl border border-[var(--color-border)] shadow-[var(--shadow-modal)] overflow-hidden h-auto max-h-[85vh] flex flex-col`;
+    `w-full ${SIZE_MAXW[size] ?? SIZE_MAXW.lg} bg-[var(--color-surface-card)] rounded-[var(--radius-modal)] border border-[var(--color-border)] shadow-[var(--shadow-modal)] overflow-hidden h-auto max-h-[85vh] flex flex-col`;
 
   // Rendered via a portal directly into document.body -- not nested inside
   // whatever page/tab wrapper happens to render this component. A modal

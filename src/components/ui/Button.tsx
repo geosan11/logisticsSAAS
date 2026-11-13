@@ -16,13 +16,13 @@ export type ButtonSize = 'sm' | 'md' | 'lg';
 
 const VARIANT: Record<ButtonVariant, string> = {
   primary:
-    'bg-[var(--color-accent-amber)] text-[var(--color-on-accent)] shadow-[var(--shadow-amber)] hover:opacity-90 disabled:bg-[var(--color-surface-2)] disabled:text-[var(--color-muted)] disabled:shadow-none',
+    'bg-[var(--color-primary-pill)] text-[var(--color-primary-pill-text)] hover:bg-[var(--color-primary-pill-hover)] shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-card)] disabled:bg-[var(--color-surface-2)] disabled:text-[var(--color-muted)] disabled:shadow-none',
   success:
-    'bg-[var(--color-success)] text-[var(--color-on-accent)] shadow-[var(--shadow-success)] hover:opacity-90 disabled:bg-[var(--color-surface-2)] disabled:text-[var(--color-muted)] disabled:shadow-none',
+    'bg-[var(--color-success)] text-[#ffffff] shadow-[var(--shadow-success)] hover:opacity-90 disabled:bg-[var(--color-surface-2)] disabled:text-[var(--color-muted)] disabled:shadow-none',
   secondary:
-    'bg-transparent border border-[var(--color-border-strong)] text-[var(--color-foreground)] hover:bg-[var(--color-surface-2)] disabled:bg-[var(--color-surface-1)] disabled:text-[var(--color-muted)] disabled:border-[var(--color-border)]',
+    'bg-transparent border border-[var(--color-border-strong)] text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)] disabled:bg-[var(--color-surface-1)] disabled:text-[var(--color-muted)] disabled:border-[var(--color-border)]',
   destructive:
-    'bg-transparent border border-[var(--color-error)] text-[var(--color-error)] hover:bg-[var(--glow-error)] disabled:border-[var(--color-border)] disabled:text-[var(--color-muted)]',
+    'bg-transparent border border-[var(--color-error)] text-[var(--color-error)] hover:bg-[var(--color-error-bg)] disabled:border-[var(--color-border)] disabled:text-[var(--color-muted)]',
   ghost:
     'bg-transparent text-[var(--color-muted)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-foreground)]',
   subtle:
@@ -30,9 +30,9 @@ const VARIANT: Record<ButtonVariant, string> = {
 };
 
 const SIZE: Record<ButtonSize, { cls: string; icon: number }> = {
-  sm: { cls: 'h-8 px-3 text-[12px] gap-1.5', icon: ICON.sm },
-  md: { cls: 'h-10 px-4 text-[13px] gap-2', icon: ICON.md },
-  lg: { cls: 'h-12 px-5 text-[14px] gap-2', icon: ICON.md },
+  sm: { cls: 'h-[var(--control-height-sm,32px)] px-3 text-[12px] gap-1.5', icon: ICON.sm },
+  md: { cls: 'h-[var(--control-height-md,40px)] px-4 text-[13px] gap-2', icon: ICON.md },
+  lg: { cls: 'h-[var(--control-height-lg,48px)] px-5 text-[14px] gap-2', icon: ICON.md },
 };
 
 export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
@@ -73,7 +73,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       aria-busy={loading || undefined}
       className={[
         // :active scale + focus-visible ring come from the global button rules in src/index.css
-        'inline-flex items-center justify-center rounded-[var(--radius-md)] font-bold font-mono',
+        'inline-flex items-center justify-center rounded-[var(--radius-pill)] font-semibold font-sans',
         'whitespace-nowrap select-none transition-all cursor-pointer',
         'disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none',
         fullWidth ? 'w-full' : '',

@@ -23,9 +23,9 @@ export const BackButton = ({
   <button
     onClick={onClick}
     aria-label="Back"
-    className={`flex items-center gap-1.5 h-9 px-3 rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border)] text-[var(--color-muted)] hover:border-[var(--color-accent-amber)] hover:text-[var(--color-accent-amber)] transition-colors cursor-pointer shrink-0 ${className}`}
+    className={`flex items-center gap-1.5 h-9 px-3 rounded-full bg-[var(--color-surface-1)] border border-[var(--color-border)] text-[var(--color-muted)] hover:border-[var(--color-border-strong)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer shrink-0 ${className}`}
   >
     <ArrowLeft size={18} strokeWidth={2.25} />
-    {label && <span className="text-[11px] font-mono font-bold">{label}</span>}
+    {label && <span className="text-[11px] font-sans font-semibold">{label}</span>}
   </button>
 );
