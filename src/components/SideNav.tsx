@@ -18,6 +18,21 @@ import { User, TabView, ExcessBaggageAirline } from "../lib/types";
 import { Theme } from "../lib/useTheme";
 import { getAllowedTabs } from "../lib/permissions";
 import { useLogisticsMode } from "../lib/modeContext";
+import { getHubCode } from "../lib/helpers";
+
+const getRoleDisplay = (role: string) => {
+  switch (role) {
+    case 'cargo_agent': return 'Cargo Agent';
+    case 'baggage_agent': return 'Baggage POS';
+    case 'marketing_agent': return 'Marketing';
+    case 'super_admin': return 'Super Admin';
+    case 'admin': return 'Admin';
+    case 'accountant': return 'Accountant';
+    case 'auditor': return 'Auditor';
+    case 'driver': return 'Driver';
+    default: return 'Agent';
+  }
+};
 
 // Icon lookup for the static views
 const VIEW_ICON: Record<string, any> = {
@@ -191,7 +206,7 @@ export const SideNav = ({
       >
         <div
           className={`flex items-center select-none ${docked ? "" : "cursor-pointer hover:opacity-85"} ${effectiveExpanded ? "gap-2.5 px-1" : "justify-center w-full"}`}
-          style={{ minHeight: 36 }}
+          style={{ minHeight: 44 }}
           title={docked ? undefined : (effectiveExpanded ? "Collapse sidebar rail" : "Expand sidebar rail")}
           onClick={docked ? undefined : handleToggleExpand}
         >
@@ -247,16 +262,15 @@ export const SideNav = ({
             </div>
             <div
               style={{
-                fontSize: 9,
+                fontSize: 9.5,
                 fontWeight: 600,
                 fontFamily: "var(--font-mono)",
                 color: "var(--color-muted)",
-                letterSpacing: "0.05em",
-                textTransform: "uppercase",
-                marginTop: 1,
+                letterSpacing: "0.02em",
+                marginTop: 2,
               }}
             >
-              {user.hub}
+              {getRoleDisplay(user.role)} · {getHubCode(user.hub_code || user.hub)}
             </div>
           </div>
         </div>
@@ -384,7 +398,7 @@ export const SideNav = ({
             className="group hover:bg-[var(--color-surface-hover)] transition-colors select-none text-[var(--color-muted)] hover:text-[var(--color-foreground)]"
             style={{
               width: "100%",
-              minHeight: 38,
+              minHeight: 44,
               padding: effectiveExpanded ? "6px 10px" : "6px 2px",
               justifyContent: effectiveExpanded ? "flex-start" : "center",
               background: "transparent",

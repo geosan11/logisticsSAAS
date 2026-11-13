@@ -89,9 +89,9 @@ export const Header = ({
           borderBottom: '1px solid var(--color-border)',
         }}
       >
-        {/* Left Area: Brand & Role badge */}
+        {/* Left Area: Mobile Brand & Dynamic Slot */}
         <div className="flex items-center gap-2 min-w-0 shrink-0">
-          <div className="flex items-center gap-2 ehi-header-brand shrink-0">
+          <div className="flex md:hidden items-center gap-2 ehi-header-brand shrink-0">
             <img
               src={ehiLogo}
               alt="EHI Multisystems"
@@ -99,20 +99,6 @@ export const Header = ({
               style={{ height: 26, width: 'auto', objectFit: 'contain' }}
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
             />
-            {/* Role chip is visible on sm+; on mobile it stays in user menu to preserve space */}
-            <div
-              className="hidden sm:inline-flex items-center gap-1"
-              style={{
-                background: getRoleColor(user.role).bg,
-                border: `1px solid ${getRoleColor(user.role).border}`,
-                borderRadius: 'var(--radius-pill)',
-                padding: '1px 7px',
-              }}
-            >
-              <span style={{ fontSize: 10, fontWeight: 600, color: getRoleColor(user.role).text }}>
-                {getRoleDisplay(user.role)}
-              </span>
-            </div>
           </div>
 
           {/* Dynamic Slot for Ledger Left Controls (Back button + Title & Entry count) */}
@@ -130,7 +116,7 @@ export const Header = ({
             className="flex items-center gap-1.5 empty:hidden pr-1 border-r border-[var(--color-border)]"
           />
 
-          {/* Logistics Mode Switcher (Air / Road / Intermodal) - Readable text on all viewports */}
+          {/* Logistics Mode Switcher (Air / Road / Intermodal) - Readable text and 44px touch targets */}
           <div
             className="flex items-center p-0.5 rounded-full bg-[var(--color-surface-1)] border border-[var(--color-border)] shrink-0"
             role="group"
@@ -141,13 +127,14 @@ export const Header = ({
               onClick={() => setMode('air')}
               title="Air Logistics Mode"
               aria-pressed={mode === 'air'}
-              className={`h-7 px-2 sm:px-2.5 rounded-full flex items-center gap-1 font-sans text-[10px] font-semibold tracking-wide transition-colors cursor-pointer select-none ${
+              className={`min-h-[44px] px-2.5 sm:px-3 rounded-full flex items-center gap-1 font-sans text-[10px] sm:text-[11px] font-semibold tracking-wide transition-all cursor-pointer select-none ${
                 mode === 'air'
-                  ? 'bg-[var(--color-surface-3)] text-[var(--color-foreground)] border border-[var(--color-border-strong)]'
+                  ? 'bg-[var(--color-surface-3)] text-[var(--color-foreground)] border border-[var(--color-border-strong)] shadow-sm'
                   : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)] border border-transparent'
               }`}
+              style={{ minWidth: 44 }}
             >
-              <Plane size={11} strokeWidth={mode === 'air' ? 2.5 : 2} />
+              <Plane size={12} strokeWidth={mode === 'air' ? 2.5 : 2} className="shrink-0" />
               <span>AIR</span>
             </button>
             <button
@@ -155,13 +142,14 @@ export const Header = ({
               onClick={() => setMode('road')}
               title="Road Logistics Mode"
               aria-pressed={mode === 'road'}
-              className={`h-7 px-2 sm:px-2.5 rounded-full flex items-center gap-1 font-sans text-[10px] font-semibold tracking-wide transition-colors cursor-pointer select-none ${
+              className={`min-h-[44px] px-2.5 sm:px-3 rounded-full flex items-center gap-1 font-sans text-[10px] sm:text-[11px] font-semibold tracking-wide transition-all cursor-pointer select-none ${
                 mode === 'road'
-                  ? 'bg-[var(--color-surface-3)] text-[var(--color-foreground)] border border-[var(--color-border-strong)]'
+                  ? 'bg-[var(--color-surface-3)] text-[var(--color-foreground)] border border-[var(--color-border-strong)] shadow-sm'
                   : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)] border border-transparent'
               }`}
+              style={{ minWidth: 44 }}
             >
-              <Truck size={11} strokeWidth={mode === 'road' ? 2.5 : 2} />
+              <Truck size={12} strokeWidth={mode === 'road' ? 2.5 : 2} className="shrink-0" />
               <span>ROAD</span>
             </button>
             <button
@@ -169,13 +157,14 @@ export const Header = ({
               onClick={() => setMode('intermodal')}
               title="Unified Intermodal Mode (Air & Road)"
               aria-pressed={mode === 'intermodal'}
-              className={`h-7 px-2 sm:px-2.5 rounded-full flex items-center gap-1 font-sans text-[10px] font-semibold tracking-wide transition-colors cursor-pointer select-none ${
+              className={`min-h-[44px] px-2.5 sm:px-3 rounded-full flex items-center gap-1 font-sans text-[10px] sm:text-[11px] font-semibold tracking-wide transition-all cursor-pointer select-none ${
                 mode === 'intermodal'
-                  ? 'bg-[var(--color-surface-3)] text-[var(--color-foreground)] border border-[var(--color-border-strong)]'
+                  ? 'bg-[var(--color-surface-3)] text-[var(--color-foreground)] border border-[var(--color-border-strong)] shadow-sm'
                   : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)] border border-transparent'
               }`}
+              style={{ minWidth: 44 }}
             >
-              <Layers size={11} strokeWidth={mode === 'intermodal' ? 2.5 : 2} />
+              <Layers size={12} strokeWidth={mode === 'intermodal' ? 2.5 : 2} className="shrink-0" />
               <span>ALL</span>
             </button>
           </div>
@@ -187,14 +176,15 @@ export const Header = ({
                 if (onManualSync) onManualSync();
               }}
               title="Click to force sync offline entries"
-              className="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full flex items-center gap-1 bg-[var(--color-warning-bg)] border border-[var(--color-warning-border)] text-[var(--color-warning-fg)] font-mono text-[10px] font-semibold cursor-pointer hover:opacity-90 active:scale-95 transition-all shrink-0"
+              className="min-h-[44px] px-2.5 py-1 rounded-full flex items-center gap-1 bg-[var(--color-warning-bg)] border border-[var(--color-warning-border)] text-[var(--color-warning-fg)] font-mono text-[10px] font-semibold cursor-pointer hover:opacity-90 active:scale-95 transition-all shrink-0"
+              style={{ minWidth: 44 }}
             >
-              <RefreshCw size={10} className="animate-spin" />
+              <RefreshCw size={11} className="animate-spin" />
               <span>{pendingCount}</span>
             </button>
           )}
 
-          {/* Quiet Network Status Dot (Ambient telemetry indicator, not a green action button) */}
+          {/* Quiet Network Status Dot (Ambient telemetry indicator with clear readable label) */}
           <button
             type="button"
             onClick={async () => {
@@ -211,11 +201,12 @@ export const Header = ({
             }}
             title={isOffline ? 'Offline Mode Active — Tap to Reconnect' : 'Live Network Connected — Tap for Offline Simulation'}
             aria-label={isOffline ? 'Offline Mode Active — Tap to Reconnect' : 'Live Network Connected'}
-            className={`h-7 px-1.5 sm:px-2 rounded-full flex items-center gap-1.5 transition-colors cursor-pointer select-none shrink-0 border ${
+            className={`min-h-[44px] px-2 sm:px-2.5 rounded-full flex items-center gap-1.5 transition-colors cursor-pointer select-none shrink-0 border ${
               isOffline
                 ? 'bg-[var(--color-error-bg)] border-[var(--color-error-border)] text-[var(--color-error)]'
                 : 'bg-transparent border-transparent hover:bg-[var(--color-surface-hover)] text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
             }`}
+            style={{ minWidth: 44 }}
           >
             <span className="relative flex h-2 w-2 shrink-0 items-center justify-center">
               {isOffline ? (
@@ -224,7 +215,7 @@ export const Header = ({
                 <span className="inline-flex rounded-full h-2 w-2 bg-[var(--color-success)]" />
               )}
             </span>
-            <span className="text-[10px] font-mono font-medium tracking-tight hidden sm:inline">
+            <span className="text-[10px] font-mono font-medium tracking-tight">
               {isOffline ? 'Offline' : 'Live'}
             </span>
           </button>
@@ -233,14 +224,14 @@ export const Header = ({
           <button
             type="button"
             onClick={onToggleTheme}
-            className="hidden sm:flex w-7 h-7 rounded-full items-center justify-center bg-transparent hover:bg-[var(--color-surface-hover)] text-[var(--color-muted)] hover:text-[var(--color-foreground)] transition-colors cursor-pointer shrink-0"
+            className="hidden sm:flex min-w-[44px] min-h-[44px] rounded-full items-center justify-center bg-transparent hover:bg-[var(--color-surface-hover)] text-[var(--color-muted)] hover:text-[var(--color-foreground)] transition-colors cursor-pointer shrink-0"
             title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             aria-label={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
           >
             {theme === 'dark' ? (
-              <Sun size={14} strokeWidth={2} className="transition-transform duration-200 hover:rotate-45" />
+              <Sun size={15} strokeWidth={2} className="transition-transform duration-200 hover:rotate-45" />
             ) : (
-              <Moon size={14} strokeWidth={2} className="transition-transform duration-200 hover:-rotate-12" />
+              <Moon size={15} strokeWidth={2} className="transition-transform duration-200 hover:-rotate-12" />
             )}
           </button>
 
@@ -252,9 +243,10 @@ export const Header = ({
               title={`${user.name} (${getRoleDisplay(user.role)} · ${getHubCode(user.hub)})`}
               aria-expanded={showDropdown}
               aria-haspopup="true"
-              className="group relative h-8 px-1.5 rounded-full flex items-center gap-1.5 bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] transition-colors cursor-pointer select-none"
+              className="group relative min-h-[44px] px-2 rounded-full flex items-center gap-1.5 bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] transition-colors cursor-pointer select-none"
+              style={{ minWidth: 44 }}
             >
-              <div className="w-6 h-6 rounded-full flex items-center justify-center bg-[var(--color-surface-3)] border border-[var(--color-border-strong)] text-[var(--color-foreground)] font-bold text-[11px] shrink-0">
+              <div className="w-7 h-7 rounded-full flex items-center justify-center bg-[var(--color-surface-3)] border border-[var(--color-border-strong)] text-[var(--color-foreground)] font-bold text-[11px] shrink-0">
                 {user.name.charAt(0).toUpperCase()}
               </div>
 

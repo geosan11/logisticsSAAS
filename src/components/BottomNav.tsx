@@ -154,7 +154,7 @@ const BottomNavTabs = ({
     >
       <nav
         aria-label="Bottom Navigation"
-        className="flex items-center justify-around px-2"
+        className="flex items-center justify-around px-1"
         style={{ minHeight: 56, height: 56 }}
       >
         {tabs.map((tab) => {
@@ -169,7 +169,7 @@ const BottomNavTabs = ({
             <button
               key={tab.id}
               onClick={() => onChangeTab(tab.id)}
-              className="flex-1 flex flex-col items-center justify-center cursor-pointer min-h-[44px] min-w-[44px] py-1 px-1 transition-all"
+              className="flex-1 h-full min-h-[56px] min-w-[44px] flex flex-col items-center justify-center cursor-pointer py-1 px-0.5 transition-all select-none group"
               style={{
                 background: 'transparent',
                 border: 'none',
@@ -177,8 +177,9 @@ const BottomNavTabs = ({
               aria-current={isActive ? 'page' : undefined}
               aria-label={tab.title}
             >
+              {/* Icon Container with subtle pill highlight for active tab */}
               <div
-                className="flex flex-col items-center justify-center py-1 px-3 rounded-full transition-all duration-150"
+                className="w-12 h-7 rounded-full flex items-center justify-center transition-all duration-150"
                 style={{
                   background: isActive ? 'var(--color-surface-3)' : 'transparent',
                   border: isActive
@@ -191,22 +192,27 @@ const BottomNavTabs = ({
               >
                 <Icon
                   size={16}
-                  strokeWidth={isActive ? 2.2 : 1.8}
-                  className="transition-colors"
+                  strokeWidth={isActive ? 2.3 : 1.8}
+                  className="transition-colors group-hover:text-[var(--color-foreground)]"
                 />
-                <span
-                  style={{
-                    fontSize: 10,
-                    fontWeight: isActive ? 600 : 500,
-                    letterSpacing: '-0.01em',
-                    marginTop: 2,
-                    lineHeight: 1,
-                  }}
-                  className="truncate max-w-[64px]"
-                >
-                  {tab.title}
-                </span>
               </div>
+
+              {/* Clean text label below icon */}
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: isActive ? 600 : 500,
+                  letterSpacing: '-0.01em',
+                  marginTop: 2,
+                  lineHeight: 1,
+                  color: isActive
+                    ? 'var(--color-foreground)'
+                    : 'var(--color-muted)',
+                }}
+                className="truncate max-w-[64px] transition-colors group-hover:text-[var(--color-foreground)]"
+              >
+                {tab.title}
+              </span>
             </button>
           );
         })}
