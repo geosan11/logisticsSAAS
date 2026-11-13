@@ -3,7 +3,6 @@ import ehiLogo from '../assets/branding/ehi-logo.png';
 import {
   Home,
   Package,
-  TrendingUp,
   Plane,
   QrCode,
   ArrowDownToLine,
@@ -13,6 +12,7 @@ import {
   LogOut,
   Sun,
   Moon,
+  Radar,
 } from "lucide-react";
 import { User, TabView, ExcessBaggageAirline } from "../lib/types";
 import { Theme } from "../lib/useTheme";
@@ -25,10 +25,10 @@ import { useLogisticsMode } from "../lib/modeContext";
 const VIEW_ICON: Record<string, any> = {
   Tower: Home,
   Cargo: Plane,
-  Packages: Truck,
+  Packages: Package,
   Dispatch: Truck,
   Fleet: Truck,
-  FlightRadar: Plane,
+  FlightRadar: Radar,
   Scan: QrCode,
   Incoming: ArrowDownToLine,
   OutboundArrivals: ArrowUpToLine,
@@ -38,14 +38,14 @@ const VIEW_ICON: Record<string, any> = {
 const VIEW_LABEL: Record<string, string> = {
   Tower: "Dashboard",
   Cargo: "Air Cargo",
-  Packages: "Waybills",
+  Packages: "Package & Parcel Desk",
   Dispatch: "Dispatch",
   Fleet: "Fleet & Fuel",
   FlightRadar: "Flight Radar",
-  Scan: "QR Scanner",
-  Incoming: "Incoming",
-  OutboundArrivals: "Outbound",
+  Incoming: "Incoming to Hub",
+  OutboundArrivals: "Outbound Arrivals",
   MyTrips: "My Trips",
+  Scan: "QR Scanner",
   More: "More",
 };
 export const SideNav = ({
@@ -136,7 +136,7 @@ export const SideNav = ({
     ...(isAir ? toEntries(airPrimary) : []),
     ...(isRoad ? toEntries(roadPrimary) : []),
     ...baggageEntries,
-    ...toEntries(["Scan", "Incoming", "OutboundArrivals", "MyTrips", "More"]),
+    ...toEntries(["Incoming", "OutboundArrivals", "MyTrips", "Scan", "More"]),
   ];
 
   return (
@@ -186,10 +186,10 @@ export const SideNav = ({
             style={{
               width: 36,
               height: 36,
-              borderRadius: 10,
-              background: "rgba(251,191,36,0.12)",
-              border: "1px solid rgba(251,191,36,0.25)",
-              boxShadow: "0 2px 10px rgba(251,191,36,0.15)",
+              borderRadius: "var(--radius-input)",
+              background: "var(--color-surface-2)",
+              border: "1px solid var(--color-border)",
+              boxShadow: "none",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -206,7 +206,7 @@ export const SideNav = ({
                 (e.target as HTMLImageElement).style.display = 'none';
                 const fallback = document.createElement('span');
                 fallback.textContent = 'EHI';
-                fallback.style.cssText = "font-family:'JetBrains Mono',monospace;font-weight:800;font-size:14px;color:#F59E0B;";
+                fallback.style.cssText = "font-family:'JetBrains Mono',monospace;font-weight:800;font-size:14px;color:var(--color-foreground);";
                 (e.target as HTMLImageElement).parentElement?.appendChild(fallback);
               }}
             />
@@ -225,10 +225,10 @@ export const SideNav = ({
           >
             <div
               style={{
-                fontFamily: "var(--font-display)",
-                fontSize: 13.5,
-                fontWeight: 800,
-                color: "var(--color-foreground, #F1F5F9)",
+                fontFamily: "var(--font-sans)",
+                fontSize: 13,
+                fontWeight: 700,
+                color: "var(--color-foreground)",
                 letterSpacing: "-0.01em",
                 lineHeight: 1.1,
               }}
@@ -240,8 +240,8 @@ export const SideNav = ({
                 fontSize: 9,
                 fontWeight: 600,
                 fontFamily: "var(--font-sans)",
-                color: "var(--color-accent-amber)",
-                letterSpacing: "0.08em",
+                color: "var(--color-muted)",
+                letterSpacing: "0.06em",
                 textTransform: "uppercase",
                 marginTop: 2,
               }}
@@ -265,18 +265,18 @@ export const SideNav = ({
         >
           <div
             style={{
-              fontSize: 10.5,
+              fontSize: 11,
               fontWeight: 600,
-              color: "var(--color-foreground, #F1F5F9)",
+              color: "var(--color-foreground)",
             }}
           >
             {user.name}
           </div>
           <div
             style={{
-              fontSize: 8.5,
-              fontFamily: "monospace",
-              color: "var(--color-accent-amber)",
+              fontSize: 9,
+              fontFamily: "var(--font-mono)",
+              color: "var(--color-muted)",
               textTransform: "uppercase",
               letterSpacing: "0.05em",
               marginTop: 1,
@@ -287,7 +287,7 @@ export const SideNav = ({
         </div>
       </div>
 
-      <nav style={{ flex: 1, padding: "4px 8px", display: "flex", flexDirection: "column", gap: 2, minHeight: 0 }}>
+      <nav style={{ flex: 1, padding: "6px 8px", display: "flex", flexDirection: "column", gap: 3, minHeight: 0 }}>
         {visibleTabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = currentTab === tab.id;
@@ -297,46 +297,45 @@ export const SideNav = ({
               key={tab.id}
               onClick={() => onChangeTab(tab.id)}
               title={!effectiveExpanded ? tab.label : undefined}
-              className="group"
+              className="group select-none"
               style={{
                 width: "100%",
+                minHeight: 44,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: effectiveExpanded ? "flex-start" : "center",
                 gap: effectiveExpanded ? 10 : 0,
-                padding: effectiveExpanded ? "5px 8px" : "5px",
-                background: "transparent",
-                border: "none",
-                borderRadius: "var(--radius-md)",
+                padding: effectiveExpanded ? "6px 10px" : "6px",
+                background: isActive ? "var(--color-surface-3)" : "transparent",
+                border: isActive ? "1px solid var(--color-border-strong)" : "1px solid transparent",
+                borderRadius: "var(--radius-pill)",
                 cursor: "pointer",
-                transition: "background-color 0.15s ease",
+                transition: "background-color 0.15s ease, border-color 0.15s ease",
                 textAlign: "left",
               }}
-              onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = "var(--color-surface-2)"; }}
+              onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = "var(--color-surface-hover)"; }}
               onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
             >
               <div
                 style={{
-                  width: 30,
-                  height: 30,
-                  borderRadius: "var(--radius-sm)",
+                  width: 28,
+                  height: 28,
+                  borderRadius: "var(--radius-pill)",
                   display: "flex",
                   justifyContent: "center",
                   alignItems: "center",
                   flexShrink: 0,
-                  background: isActive ? "linear-gradient(135deg, #fde68a 0%, var(--color-accent-amber) 60%, #d97706 100%)" : "transparent",
-                  boxShadow: isActive ? "var(--shadow-amber)" : "none",
                   transition: "all 0.15s ease",
                 }}
               >
                 <Icon
                   size={16}
-                  strokeWidth={isActive ? 2.5 : 2}
-                  style={{ flexShrink: 0, transition: "all 0.15s ease" }}
+                  strokeWidth={isActive ? 2.2 : 1.8}
+                  style={{ flexShrink: 0, transition: "color 0.15s ease" }}
                   className={
                     isActive
-                      ? "text-[var(--color-on-accent)]"
-                      : "text-[var(--color-muted)] group-hover:text-[var(--color-accent-amber)]"
+                      ? "text-[var(--color-foreground)]"
+                      : "text-[var(--color-muted)] group-hover:text-[var(--color-foreground)]"
                   }
                 />
               </div>
@@ -353,10 +352,9 @@ export const SideNav = ({
                 }}
               >
                 <span
-                  className={`${isActive ? "text-[var(--color-accent-amber)]" : "text-[var(--color-muted)] group-hover:text-[var(--color-foreground)]"} transition-colors`}
+                  className={`${isActive ? "text-[var(--color-foreground)] font-semibold" : "text-[var(--color-muted)] group-hover:text-[var(--color-foreground)] font-medium"} transition-colors`}
                   style={{
                     fontSize: 12.5,
-                    fontWeight: isActive ? 700 : 500,
                   }}
                 >
                   {tab.label}
@@ -369,40 +367,41 @@ export const SideNav = ({
 
       <div
         style={{
-          padding: "6px 8px",
+          padding: "8px",
           borderTop: "1px solid var(--color-border)",
           display: "flex",
           flexDirection: "column",
-          gap: "2px",
+          gap: "4px",
           flexShrink: 0,
         }}
       >
         <button
           onClick={onToggleTheme}
           title={!effectiveExpanded ? (theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode") : undefined}
-          className="group hover:bg-[var(--color-surface-2)] transition-colors"
+          className="group hover:bg-[var(--color-surface-hover)] transition-colors select-none"
           style={{
             width: "100%",
-            padding: effectiveExpanded ? "6px 8px" : "6px",
+            minHeight: 44,
+            padding: effectiveExpanded ? "6px 10px" : "6px",
             justifyContent: effectiveExpanded ? "flex-start" : "center",
             background: "transparent",
-            border: "none",
+            border: "1px solid transparent",
             display: "flex",
             alignItems: "center",
             gap: effectiveExpanded ? 10 : 0,
             cursor: "pointer",
-            borderRadius: "var(--radius-md)",
+            borderRadius: "var(--radius-pill)",
           }}
         >
           {theme === "dark" ? (
             <Sun
               size={16}
-              className="text-[var(--color-muted)] group-hover:text-[var(--color-accent-amber)] transition-transform duration-300 group-hover:rotate-45 active:scale-90"
+              className="text-[var(--color-muted)] group-hover:text-[var(--color-foreground)] transition-transform duration-300 group-hover:rotate-45 active:scale-90 shrink-0"
             />
           ) : (
             <Moon
               size={16}
-              className="text-[var(--color-muted)] group-hover:text-[var(--color-accent-amber)] transition-transform duration-300 group-hover:-rotate-12 active:scale-90"
+              className="text-[var(--color-muted)] group-hover:text-[var(--color-foreground)] transition-transform duration-300 group-hover:-rotate-12 active:scale-90 shrink-0"
             />
           )}
           <div
@@ -418,8 +417,8 @@ export const SideNav = ({
             }}
           >
             <span
-              className="text-left text-[var(--color-foreground)] group-hover:text-[var(--color-accent-amber)] transition-colors"
-              style={{ fontSize: 11.5 }}
+              className="text-left text-[var(--color-muted)] group-hover:text-[var(--color-foreground)] font-medium transition-colors"
+              style={{ fontSize: 12 }}
             >
               {theme === "dark" ? "Light Mode" : "Dark Mode"}
             </span>
@@ -429,23 +428,24 @@ export const SideNav = ({
         <button
           onClick={onLogout}
           title={!effectiveExpanded ? "Sign Out" : undefined}
-          className="group hover:bg-[var(--color-surface-2)] transition-colors"
+          className="group hover:bg-[var(--color-surface-hover)] transition-colors select-none"
           style={{
             width: "100%",
-            padding: effectiveExpanded ? "6px 8px" : "6px",
+            minHeight: 44,
+            padding: effectiveExpanded ? "6px 10px" : "6px",
             justifyContent: effectiveExpanded ? "flex-start" : "center",
             background: "transparent",
-            border: "none",
+            border: "1px solid transparent",
             display: "flex",
             alignItems: "center",
             gap: effectiveExpanded ? 10 : 0,
             cursor: "pointer",
-            borderRadius: "var(--radius-md)",
+            borderRadius: "var(--radius-pill)",
           }}
         >
           <LogOut
             size={16}
-            className="text-[var(--color-muted)] group-hover:text-[var(--color-accent-amber)] transition-colors"
+            className="text-[var(--color-muted)] group-hover:text-[var(--color-foreground)] transition-colors shrink-0"
           />
           <div
             style={{
@@ -460,8 +460,8 @@ export const SideNav = ({
             }}
           >
             <span
-              className="text-[var(--color-foreground)] group-hover:text-[var(--color-accent-amber)] transition-colors"
-              style={{ fontSize: 11.5 }}
+              className="text-[var(--color-muted)] group-hover:text-[var(--color-foreground)] font-medium transition-colors"
+              style={{ fontSize: 12 }}
             >
               Sign Out
             </span>

@@ -156,15 +156,15 @@ export const Header = ({
 
   const getRoleColor = (role: string): { bg: string; border: string; text: string } => {
     switch (role) {
-      case 'super_admin': return { bg: 'rgba(251,191,36,0.12)', border: 'rgba(251,191,36,0.3)', text: 'var(--color-accent-amber)' };
-      case 'admin': return { bg: 'rgba(59,130,246,0.12)', border: 'rgba(59,130,246,0.3)', text: 'var(--color-accent-cobalt)' };
-      case 'cargo_agent': return { bg: 'rgba(16,185,129,0.12)', border: 'rgba(16,185,129,0.3)', text: 'var(--color-success)' };
-      case 'baggage_agent': return { bg: 'rgba(139,92,246,0.12)', border: 'rgba(139,92,246,0.3)', text: 'var(--color-purple)' };
-      case 'accountant': return { bg: 'rgba(20,184,166,0.12)', border: 'rgba(20,184,166,0.3)', text: '#14b8a6' };
-      case 'auditor': return { bg: 'rgba(249,115,22,0.12)', border: 'rgba(249,115,22,0.3)', text: '#f97316' };
-      case 'driver': return { bg: 'rgba(100,116,139,0.12)', border: 'rgba(100,116,139,0.3)', text: '#64748b' };
-      case 'marketing_agent': return { bg: 'rgba(16,185,129,0.10)', border: 'rgba(16,185,129,0.25)', text: 'var(--color-success)' };
-      default: return { bg: 'rgba(251,191,36,0.12)', border: 'rgba(251,191,36,0.2)', text: 'var(--color-accent-amber)' };
+      case 'super_admin': return { bg: 'var(--color-surface-2)', border: 'var(--color-border-strong)', text: 'var(--color-foreground)' };
+      case 'admin': return { bg: 'var(--color-surface-2)', border: 'var(--color-border)', text: 'var(--color-foreground)' };
+      case 'cargo_agent': return { bg: 'var(--color-success-bg)', border: 'var(--color-success-border)', text: 'var(--color-success-fg)' };
+      case 'baggage_agent': return { bg: 'var(--color-purple-bg)', border: 'var(--color-purple-border)', text: 'var(--color-purple-fg)' };
+      case 'accountant': return { bg: 'var(--color-info-bg)', border: 'var(--color-info-border)', text: 'var(--color-info-fg)' };
+      case 'auditor': return { bg: 'var(--color-warning-bg)', border: 'var(--color-warning-border)', text: 'var(--color-warning-fg)' };
+      case 'driver': return { bg: 'var(--color-neutral-bg)', border: 'var(--color-neutral-border)', text: 'var(--color-neutral-fg)' };
+      case 'marketing_agent': return { bg: 'var(--color-success-bg)', border: 'var(--color-success-border)', text: 'var(--color-success-fg)' };
+      default: return { bg: 'var(--color-surface-2)', border: 'var(--color-border)', text: 'var(--color-foreground)' };
     }
   };
 
@@ -186,8 +186,8 @@ export const Header = ({
             <img
               src={ehiLogo}
               alt="EHI Multisystems"
-              className="rounded-xl shadow-sm"
-              style={{ height: 36, width: 'auto', objectFit: 'contain' }}
+              className="rounded-lg"
+              style={{ height: 32, width: 'auto', objectFit: 'contain' }}
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
             />
             <div>
@@ -195,7 +195,7 @@ export const Header = ({
                 display: 'inline-flex', alignItems: 'center', gap: 4,
                 background: getRoleColor(user.role).bg,
                 border: `1px solid ${getRoleColor(user.role).border}`,
-                borderRadius: 'var(--radius-full)',
+                borderRadius: 'var(--radius-pill)',
                 padding: '1px 8px', marginTop: 2,
               }}>
                 <span style={{ fontSize: 10, fontWeight: 600, color: getRoleColor(user.role).text }}>
@@ -215,7 +215,7 @@ export const Header = ({
           {quickNavItems.length > 0 && (
             <nav
               aria-label="Quick Navigation"
-              className="hidden md:flex items-center gap-1 p-1 rounded-full bg-[var(--color-surface-1)] border border-[var(--color-border)] shadow-inner shrink-0"
+              className="hidden md:flex items-center gap-1 p-0.5 rounded-full bg-[var(--color-surface-1)] border border-[var(--color-border)] shrink-0"
             >
               {quickNavItems.map((item) => {
                 const Icon = item.icon;
@@ -233,16 +233,16 @@ export const Header = ({
                       if (onCloseOverlay) onCloseOverlay();
                       navigate(item.path);
                     }}
-                    className={`group relative h-7 px-2.5 rounded-full flex items-center justify-center transition-all duration-300 ease-out cursor-pointer select-none shrink-0 ${
+                    className={`group relative h-7 px-2.5 rounded-full flex items-center justify-center transition-colors cursor-pointer select-none shrink-0 ${
                       isActive
-                        ? 'bg-[rgba(251,191,36,0.16)] text-[var(--color-accent-amber)] border border-[rgba(251,191,36,0.38)] shadow-sm'
+                        ? 'bg-[var(--color-surface-3)] text-[var(--color-foreground)] border border-[var(--color-border-strong)]'
                         : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)] border border-transparent'
                     }`}
                   >
                     <Icon
                       size={13}
                       strokeWidth={isActive ? 2.2 : 1.8}
-                      className="shrink-0 transition-transform duration-200 group-hover:scale-110"
+                      className="shrink-0 transition-transform duration-200 group-hover:scale-105"
                     />
                     <span className="font-sans text-[11px] font-semibold tracking-tight whitespace-nowrap ml-1.5">
                       {item.label}
@@ -264,14 +264,14 @@ export const Header = ({
           />
 
           {/* Logistics Mode Switcher (Air / Road / Intermodal) */}
-          <div className="flex items-center p-0.5 rounded-lg bg-[var(--color-surface-1)] border border-[var(--color-border)] shadow-inner shrink-0">
+          <div className="flex items-center p-0.5 rounded-full bg-[var(--color-surface-1)] border border-[var(--color-border)] shrink-0">
             <button
               type="button"
               onClick={() => setMode('air')}
               title="Switch to Air Logistics"
-              className={`h-7 px-2.5 rounded-md flex items-center gap-1 font-sans text-[10px] font-bold tracking-wide transition-all cursor-pointer ${
+              className={`h-7 px-2.5 rounded-full flex items-center gap-1 font-sans text-[10px] font-semibold tracking-wide transition-colors cursor-pointer ${
                 mode === 'air'
-                  ? 'bg-[rgba(59,130,246,0.18)] text-[var(--color-accent-cobalt,#60A5FA)] border border-[rgba(59,130,246,0.35)] shadow-sm'
+                  ? 'bg-[var(--color-surface-3)] text-[var(--color-foreground)] border border-[var(--color-border-strong)]'
                   : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)] border border-transparent'
               }`}
             >
@@ -282,9 +282,9 @@ export const Header = ({
               type="button"
               onClick={() => setMode('road')}
               title="Switch to Road Logistics"
-              className={`h-7 px-2.5 rounded-md flex items-center gap-1 font-sans text-[10px] font-bold tracking-wide transition-all cursor-pointer ${
+              className={`h-7 px-2.5 rounded-full flex items-center gap-1 font-sans text-[10px] font-semibold tracking-wide transition-colors cursor-pointer ${
                 mode === 'road'
-                  ? 'bg-[rgba(16,185,129,0.18)] text-[var(--color-success,#34D399)] border border-[rgba(16,185,129,0.35)] shadow-sm'
+                  ? 'bg-[var(--color-surface-3)] text-[var(--color-foreground)] border border-[var(--color-border-strong)]'
                   : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)] border border-transparent'
               }`}
             >
@@ -295,9 +295,9 @@ export const Header = ({
               type="button"
               onClick={() => setMode('intermodal')}
               title="Intermodal (Unified Air & Road)"
-              className={`h-7 px-2.5 rounded-md flex items-center gap-1 font-sans text-[10px] font-bold tracking-wide transition-all cursor-pointer ${
+              className={`h-7 px-2.5 rounded-full flex items-center gap-1 font-sans text-[10px] font-semibold tracking-wide transition-colors cursor-pointer ${
                 mode === 'intermodal'
-                  ? 'bg-[rgba(251,191,36,0.18)] text-[var(--color-accent-amber,#FBBF24)] border border-[rgba(251,191,36,0.35)] shadow-sm'
+                  ? 'bg-[var(--color-surface-3)] text-[var(--color-foreground)] border border-[var(--color-border-strong)]'
                   : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)] border border-transparent'
               }`}
             >
@@ -306,52 +306,19 @@ export const Header = ({
             </button>
           </div>
 
-          {/* Theme toggle — Frosted Glass Lens Orb */}
+          {/* Theme toggle — Clean monochrome button */}
           <button
+            type="button"
             onClick={onToggleTheme}
-            className="group relative transition-all duration-200 hover:scale-105 active:scale-95 active:translate-y-0.5 cursor-pointer shrink-0"
+            className="w-8 h-8 rounded-full flex items-center justify-center bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] text-[var(--color-muted)] hover:text-[var(--color-foreground)] transition-colors cursor-pointer shrink-0"
             title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-            style={{
-              width: 32, height: 32,
-              borderRadius: 'var(--radius-full)',
-              // Light nav bar is near-white -- a white frosted orb with a white
-              // border vanished on it, so light mode gets a tinted fill + a dark
-              // hairline. Dark mode keeps the original white-glass look.
-              background: theme === 'dark'
-                ? 'radial-gradient(circle at 40% 35%, rgba(255,255,255,0.30) 0%, rgba(255,255,255,0.08) 60%, rgba(100,110,130,0.18) 100%)'
-                : 'radial-gradient(circle at 40% 35%, rgba(255,255,255,0.95) 0%, rgba(226,232,240,0.75) 60%, rgba(148,163,184,0.45) 100%)',
-              border: theme === 'dark'
-                ? '1px solid rgba(255,255,255,0.40)'
-                : '1px solid rgba(15,23,42,0.18)',
-              boxShadow: theme === 'dark'
-                ? '0 3px 9px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.2)'
-                : '0 3px 9px rgba(0,0,0,0.12), inset 0 0 0 1px rgba(255,255,255,0.6)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              position: 'relative', overflow: 'hidden', backdropFilter: 'blur(8px)',
-            }}
+            aria-label={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
           >
-            {/* Radiant Glowing Inner Core */}
-            <div
-              className="transition-all duration-300 group-hover:scale-110"
-              style={{
-                position: 'absolute', width: 19, height: 19, borderRadius: '50%',
-                background: theme === 'dark'
-                  ? 'radial-gradient(circle at 40% 35%, #fde68a 0%, #fbbf24 60%, #b45309 100%)'
-                  : 'radial-gradient(circle at 40% 35%, #60a5fa 0%, #3b82f6 60%, #1d4ed8 100%)',
-                boxShadow: theme === 'dark' ? '0 0 9px rgba(251,191,36,0.7)' : '0 0 9px rgba(59,130,246,0.7)',
-              }}
-            />
-            {/* Top specular lens highlight */}
-            <div style={{
-              position: 'absolute', top: '10%', left: '18%',
-              width: '50%', height: '26%',
-              background: 'radial-gradient(ellipse, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0) 100%)',
-              borderRadius: '50%', filter: 'blur(0.4px)', pointerEvents: 'none',
-            }} />
-            {theme === 'dark'
-              ? <Sun size={13} strokeWidth={2} style={{ color: '#451a03', position: 'relative', zIndex: 1 }} className="group-hover:rotate-45 transition-transform duration-300" />
-              : <Moon size={13} strokeWidth={2} style={{ color: '#ffffff', position: 'relative', zIndex: 1 }} className="group-hover:-rotate-12 transition-transform duration-300" />
-            }
+            {theme === 'dark' ? (
+              <Sun size={14} strokeWidth={2} className="transition-transform duration-200 hover:rotate-45" />
+            ) : (
+              <Moon size={14} strokeWidth={2} className="transition-transform duration-200 hover:-rotate-12" />
+            )}
           </button>
 
           {/* Pending Sync Badge */}
@@ -361,15 +328,16 @@ export const Header = ({
                 if (onManualSync) onManualSync();
               }}
               title="Click to force sync offline entries"
-              className="px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 bg-[rgba(251,191,36,0.15)] border border-[rgba(251,191,36,0.35)] text-[var(--color-accent-amber)] font-mono text-[10px] font-bold animate-pulse cursor-pointer hover:bg-[rgba(251,191,36,0.30)] hover:scale-105 active:scale-95 transition-all shadow-md shrink-0"
+              className="px-2.5 py-1 rounded-full flex items-center gap-1.5 bg-[var(--color-warning-bg)] border border-[var(--color-warning-border)] text-[var(--color-warning-fg)] font-mono text-[10px] font-semibold cursor-pointer hover:opacity-90 active:scale-95 transition-all shrink-0"
             >
               <RefreshCw size={11} className="animate-spin" />
               <span>{pendingCount} Queued</span>
             </button>
           )}
 
-          {/* Wifi — Frosted Glass Lens Orb */}
+          {/* Wifi status button */}
           <button
+            type="button"
             onClick={async () => {
               if (!isOffline) {
                 const ok = await confirm({
@@ -383,93 +351,37 @@ export const Header = ({
               onToggleWifi();
             }}
             title={isOffline ? 'Offline Mode Active — Tap to Reconnect' : 'Network Online — Tap to Switch to Offline Mode'}
-            className="group relative transition-all duration-200 hover:scale-105 active:scale-95 active:translate-y-0.5 cursor-pointer shrink-0"
-            style={{
-              width: 32, height: 32,
-              borderRadius: 'var(--radius-full)',
-              background: theme === 'dark'
-                ? 'radial-gradient(circle at 40% 35%, rgba(255,255,255,0.30) 0%, rgba(255,255,255,0.08) 60%, rgba(100,110,130,0.18) 100%)'
-                : 'radial-gradient(circle at 40% 35%, rgba(255,255,255,0.95) 0%, rgba(226,232,240,0.75) 60%, rgba(148,163,184,0.45) 100%)',
-              border: isOffline
-                ? '1px solid rgba(239,68,68,0.55)'
-                : theme === 'dark' ? '1px solid rgba(255,255,255,0.40)' : '1px solid rgba(15,23,42,0.18)',
-              boxShadow: isOffline
-                ? '0 3px 11px rgba(239,68,68,0.45), inset 0 0 0 1px rgba(255,255,255,0.2)'
-                : '0 3px 9px rgba(0,0,0,0.4), inset 0 0 0 1px rgba(255,255,255,0.2)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              position: 'relative', overflow: 'hidden', backdropFilter: 'blur(8px)',
-            }}
+            aria-label={isOffline ? 'Offline Mode Active — Tap to Reconnect' : 'Network Online — Tap to Switch to Offline Mode'}
+            className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
+              isOffline
+                ? 'bg-[var(--color-error-bg)] border border-[var(--color-error-border)] text-[var(--color-error)]'
+                : 'bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] text-[var(--color-success)]'
+            }`}
           >
-            {/* Inner Glowing Core */}
-            <div
-              className="transition-all duration-300 group-hover:scale-110"
-              style={{
-                position: 'absolute', width: 19, height: 19, borderRadius: '50%',
-                background: isOffline
-                  ? 'radial-gradient(circle at 40% 35%, #fca5a5 0%, #ef4444 60%, #991b1b 100%)'
-                  : 'radial-gradient(circle at 40% 35%, #86efac 0%, #22c55e 60%, #15803d 100%)',
-                boxShadow: isOffline ? '0 0 9px rgba(239,68,68,0.7)' : '0 0 9px rgba(34,197,94,0.7)',
-              }}
-            />
-            {/* Top specular lens highlight */}
-            <div style={{
-              position: 'absolute', top: '10%', left: '18%',
-              width: '50%', height: '26%',
-              background: 'radial-gradient(ellipse, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0) 100%)',
-              borderRadius: '50%', filter: 'blur(0.4px)', pointerEvents: 'none',
-            }} />
-            {isOffline
-              ? <WifiOff size={12} strokeWidth={2.5} style={{ color: '#ffffff', position: 'relative', zIndex: 1 }} className="group-hover:scale-110 transition-transform duration-200" />
-              : <Wifi size={12} strokeWidth={2.5} style={{ color: '#052e16', position: 'relative', zIndex: 1 }} className="group-hover:scale-110 transition-transform duration-200" />
-            }
+            {isOffline ? (
+              <WifiOff size={13} strokeWidth={2.2} />
+            ) : (
+              <Wifi size={13} strokeWidth={2.2} />
+            )}
           </button>
 
-          {/* User Logo / Avatar Icon with Progressive Disclosure that Expands on Hover */}
+          {/* User Button & Dropdown */}
           <div className="relative shrink-0">
             <button
               type="button"
               onClick={() => setShowDropdown(!showDropdown)}
               title={`${user.name} (${getRoleDisplay(user.role)} · ${getHubCode(user.hub)})`}
-              className="group relative h-8 p-1 rounded-full flex items-center transition-all duration-300 ease-out active:scale-95 cursor-pointer select-none"
-              style={{
-                background: theme === 'dark'
-                  ? 'linear-gradient(135deg, rgba(255,255,255,0.14) 0%, rgba(251,191,36,0.12) 100%)'
-                  : 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(254,243,199,0.75) 100%)',
-                border: showDropdown
-                  ? '1.5px solid rgba(251,191,36,0.9)'
-                  : theme === 'dark' ? '1px solid rgba(255,255,255,0.28)' : '1px solid rgba(180,83,9,0.3)',
-                boxShadow: showDropdown
-                  ? '0 0 0 3px rgba(251,191,36,0.25), 0 4px 12px rgba(251,191,36,0.4)'
-                  : '0 2px 8px rgba(0,0,0,0.18), inset 0 0 0 1px rgba(255,255,255,0.2)',
-                backdropFilter: 'blur(8px)',
-              }}
+              className="group relative h-8 px-1.5 rounded-full flex items-center gap-1.5 bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] transition-colors cursor-pointer select-none"
             >
-              {/* Frosted Amber Glass Orb */}
-              <div
-                className="relative w-6 h-6 rounded-full flex items-center justify-center shrink-0 overflow-hidden transition-transform duration-300 group-hover:scale-105"
-                style={{
-                  background: 'radial-gradient(circle at 40% 35%, #fde68a 0%, #fbbf24 60%, #b45309 100%)',
-                  boxShadow: '0 0 10px rgba(251,191,36,0.75)',
-                }}
-              >
-                {/* Top specular lens highlight */}
-                <div style={{
-                  position: 'absolute', top: '10%', left: '18%',
-                  width: '50%', height: '26%',
-                  background: 'radial-gradient(ellipse, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0) 100%)',
-                  borderRadius: '50%', filter: 'blur(0.4px)', pointerEvents: 'none',
-                }} />
-                <span style={{ fontSize: 11, fontWeight: 800, color: '#451a03', position: 'relative', zIndex: 1 }}>
-                  {user.name.charAt(0).toUpperCase()}
-                </span>
+              <div className="w-6 h-6 rounded-full flex items-center justify-center bg-[var(--color-surface-3)] border border-[var(--color-border-strong)] text-[var(--color-foreground)] font-bold text-[11px] shrink-0">
+                {user.name.charAt(0).toUpperCase()}
               </div>
 
-              {/* Progressive Disclosure User Details (Expands on Hover or Dropdown Open) */}
               <div
-                className={`flex items-center overflow-hidden whitespace-nowrap transition-all duration-300 ease-out ${
+                className={`flex items-center overflow-hidden whitespace-nowrap transition-all duration-200 ease-out ${
                   showDropdown
-                    ? 'max-w-[200px] opacity-100 pl-2 pr-1.5'
-                    : 'max-w-0 opacity-0 pl-0 pr-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:pl-2 group-hover:pr-1.5 group-focus-visible:max-w-[200px] group-focus-visible:opacity-100 group-focus-visible:pl-2 group-focus-visible:pr-1.5'
+                    ? 'max-w-[200px] opacity-100 pl-1 pr-1'
+                    : 'max-w-0 opacity-0 pl-0 pr-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:pl-1 group-hover:pr-1 group-focus-visible:max-w-[200px] group-focus-visible:opacity-100 group-focus-visible:pl-1 group-focus-visible:pr-1'
                 }`}
               >
                 <div className="text-left leading-tight mr-1.5">
@@ -477,9 +389,7 @@ export const Header = ({
                     {user.name}
                   </div>
                   <div className="flex items-center gap-1 text-[9px] font-mono text-[var(--color-muted)]">
-                    <span style={{ color: getRoleColor(user.role).text, fontWeight: 700 }}>
-                      {getRoleDisplay(user.role)}
-                    </span>
+                    <span>{getRoleDisplay(user.role)}</span>
                     <span>·</span>
                     <span>{getHubCode(user.hub)}</span>
                   </div>
@@ -487,7 +397,7 @@ export const Header = ({
                 <ChevronDown
                   size={12}
                   className={`text-[var(--color-muted)] shrink-0 transition-transform duration-200 ${
-                    showDropdown ? 'rotate-180 text-[var(--color-accent-amber)]' : ''
+                    showDropdown ? 'rotate-180 text-[var(--color-foreground)]' : ''
                   }`}
                 />
               </div>
@@ -495,27 +405,16 @@ export const Header = ({
 
             {showDropdown && (
               <>
-                {/* Invisible full-viewport click-outside-to-close catcher --
-                    portaled to document.body so it always covers the TRUE
-                    viewport regardless of any ancestor CSS (transform/
-                    filter/will-change) that would otherwise make some
-                    ancestor a containing block for this position:fixed div,
-                    silently shrinking it to that ancestor's own bounds and
-                    breaking click-outside detection with no visual sign
-                    anything's wrong. The visible dropdown menu below is
-                    left as-is -- it's position:absolute, anchored to its
-                    own position:relative parent, which this bug class
-                    doesn't affect. */}
                 {createPortal(
                   <div className="fixed inset-0 z-10" onClick={() => setShowDropdown(false)} />,
                   document.body
                 )}
                 <div
                   style={{
-                    position: 'absolute', right: 0, top: 36, width: 200,
+                    position: 'absolute', right: 0, top: 38, width: 200,
                     background: 'var(--color-surface-1)',
                     border: '1px solid var(--color-border-strong)',
-                    borderRadius: 'var(--radius-md)',
+                    borderRadius: 'var(--radius-card)',
                     boxShadow: 'var(--shadow-dropdown)',
                     zIndex: 20, overflow: 'hidden',
                   }}
@@ -523,19 +422,18 @@ export const Header = ({
                   <div style={{
                     padding: '12px 14px',
                     borderBottom: '1px solid var(--color-border)',
-                    background: 'linear-gradient(135deg, rgba(251,191,36,0.06) 0%, transparent 100%)',
                   }}>
                     <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-foreground)' }}>
                       {user.name}
                     </div>
-                    <div style={{ fontSize: 10, color: 'var(--color-accent-amber)', marginTop: 2 }}>
+                    <div style={{ fontSize: 10, color: 'var(--color-muted)', fontFamily: 'var(--font-mono)', marginTop: 2 }}>
                       {getHubCode(user.hub)}
                     </div>
                   </div>
                   {onToggleStateWideView && (
                     <button
                       onClick={() => { onToggleStateWideView(); setShowDropdown(false); }}
-                      className="group hover:bg-[rgba(59,130,246,0.06)] transition-colors"
+                      className="group hover:bg-[var(--color-surface-hover)] transition-colors"
                       style={{
                         width: '100%', padding: '12px 14px',
                         background: 'transparent', border: 'none',
@@ -545,7 +443,7 @@ export const Header = ({
                       }}
                       title={stateWideView ? 'Showing your hub + sibling hubs in your state. Click to scope to your own hub only.' : 'Showing only your own hub. Click to include sibling hubs in your state.'}
                     >
-                      <Building2 size={18} strokeWidth={1.5} className="text-[var(--color-accent-cobalt)] shrink-0" />
+                      <Building2 size={16} strokeWidth={1.8} className="text-[var(--color-muted)] group-hover:text-[var(--color-foreground)] shrink-0" />
                       <div>
                         <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-foreground)' }}>
                           {stateWideView ? 'State-wide view' : 'My hub only'}
@@ -558,7 +456,7 @@ export const Header = ({
                   )}
                   <button
                     onClick={() => { setShowDropdown(false); onLogout(); }}
-                    className="group hover:bg-[rgba(239,68,68,0.05)] transition-colors"
+                    className="group hover:bg-[var(--color-error-bg)] transition-colors"
                     style={{
                       width: '100%', padding: '12px 14px',
                       background: 'transparent', border: 'none',
@@ -566,8 +464,8 @@ export const Header = ({
                       cursor: 'pointer', color: 'var(--color-error)',
                     }}
                   >
-                    <LogOut size={18} strokeWidth={1.5} className="text-[var(--color-error)] shrink-0" />
-                    <span className="text-[var(--color-error)]" style={{ fontSize: 13, fontWeight: 500 }}>Sign Out</span>
+                    <LogOut size={16} strokeWidth={1.8} className="text-[var(--color-error)] shrink-0" />
+                    <span className="text-[var(--color-error)]" style={{ fontSize: 12, fontWeight: 600 }}>Sign Out</span>
                   </button>
                 </div>
               </>

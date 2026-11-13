@@ -1,30 +1,69 @@
-import { User, TabView } from '../lib/types';
+import { User, TabView, ExcessBaggageAirline } from '../lib/types';
 import { getHubCode } from '../lib/helpers';
-import { Home, Package, Plane, QrCode, MoreHorizontal, Truck, Building, Radar } from 'lucide-react';
+import {
+  Home,
+  Package,
+  Plane,
+  QrCode,
+  MoreHorizontal,
+  Truck,
+  Building,
+  Radar,
+  ArrowDownToLine,
+  ArrowUpToLine,
+} from 'lucide-react';
 import { useLogisticsMode } from '../lib/modeContext';
+import { getAllowedTabs } from '../lib/permissions';
 
 const VIEW_ICON: Record<string, any> = {
-  Tower: Home, Cargo: Plane, Packages: Truck, Dispatch: Truck, Fleet: Truck, FlightRadar: Radar,
-  Scan: QrCode, Incoming: Package, OutboundArrivals: Package, MyTrips: Truck, More: MoreHorizontal,
+  Tower: Home,
+  Cargo: Plane,
+  Packages: Package,
+  Dispatch: Truck,
+  Fleet: Truck,
+  FlightRadar: Radar,
+  Scan: QrCode,
+  Incoming: ArrowDownToLine,
+  OutboundArrivals: ArrowUpToLine,
+  MyTrips: Truck,
+  More: MoreHorizontal,
   GAT: Building,
 };
+
 const VIEW_TITLE: Record<string, string> = {
-  Tower: 'Dashboard', Cargo: 'Air Cargo', Packages: 'Waybills', Dispatch: 'Dispatch', Fleet: 'Fleet', FlightRadar: 'Radar',
-  Scan: 'Scanner', Incoming: 'Incoming', OutboundArrivals: 'Outbound', MyTrips: 'My Trips', More: 'More',
+  Tower: 'Dashboard',
+  Cargo: 'Air Cargo',
+  Packages: 'Packages',
+  Dispatch: 'Dispatch',
+  Fleet: 'Fleet',
+  FlightRadar: 'Radar',
+  Scan: 'Scanner',
+  Incoming: 'Incoming',
+  OutboundArrivals: 'Outbound',
+  MyTrips: 'My Trips',
+  More: 'More',
   GAT: 'GAT',
 };
 
-export const BottomNav = ({ user, currentTab, onChangeTab }: {
+export const BottomNav = ({
+  user,
+  currentTab,
+  onChangeTab,
+  excessBaggageAirlines = [],
+}: {
   user: User;
   currentTab: TabView;
   onChangeTab: (t: TabView) => void;
+  excessBaggageAirlines?: ExcessBaggageAirline[];
 }) => {
-  const { mode, isAir, isRoad } = useLogisticsMode();
+  const { mode } = useLogisticsMode();
+  const allowedTabs = getAllowedTabs(user, excessBaggageAirlines, mode);
+  const allowedSet = new Set(allowedTabs);
   const userHubCode = getHubCode(user.hub_code || user.hub);
 
   if (user.view_overrides != null) {
     const overrideTabs = user.view_overrides
-      .filter((id) => id !== 'GAT' || userHubCode === 'LOS')
+      .filter((id) => (id !== 'GAT' || userHubCode === 'LOS') && allowedSet.has(id as TabView))
       .map((id) => {
         const isBaggage = id.startsWith('Baggage:');
         return {
@@ -33,132 +72,145 @@ export const BottomNav = ({ user, currentTab, onChangeTab }: {
           icon: isBaggage ? Plane : (VIEW_ICON[id] || MoreHorizontal),
         };
       });
-    return <BottomNavTabs tabs={overrideTabs} currentTab={currentTab} onChangeTab={onChangeTab} />;
+
+    const finalTabs = overrideTabs.length > 5
+      ? [...overrideTabs.slice(0, 4), { id: 'More' as TabView, title: 'More', icon: MoreHorizontal }]
+      : overrideTabs;
+    return <BottomNavTabs tabs={finalTabs} currentTab={currentTab} onChangeTab={onChangeTab} />;
   }
 
-  // Curated mode- & role-aware tab sets — max 5 items
-  const home     = { id: 'Tower' as TabView, title: 'Dashboard', icon: Home };
-  const cargo    = { id: 'Cargo' as TabView, title: 'Air Cargo', icon: Plane };
-  const waybills = { id: 'Packages' as TabView, title: 'Waybills', icon: Truck };
-  const dispatch = { id: 'Dispatch' as TabView, title: 'Dispatch', icon: Truck };
-  const radar    = { id: 'FlightRadar' as TabView, title: 'Radar', icon: Radar };
-  const scan     = { id: 'Scan' as TabView, title: 'Scanner', icon: QrCode };
-  const trips    = { id: 'MyTrips' as TabView, title: 'My Trips', icon: Truck };
-  const more     = { id: 'More' as TabView, title: 'More', icon: MoreHorizontal };
+  // Operational tab candidates
+  const home: NavTab = { id: 'Tower', title: 'Dashboard', icon: Home };
+  const cargo: NavTab = { id: 'Cargo', title: 'Air Cargo', icon: Plane };
+  const packages: NavTab = { id: 'Packages', title: 'Packages', icon: Package };
+  const incoming: NavTab = { id: 'Incoming', title: 'Incoming', icon: ArrowDownToLine };
+  const outbound: NavTab = { id: 'OutboundArrivals', title: 'Outbound', icon: ArrowUpToLine };
+  const radar: NavTab = { id: 'FlightRadar', title: 'Radar', icon: Radar };
+  const dispatch: NavTab = { id: 'Dispatch', title: 'Dispatch', icon: Truck };
+  const trips: NavTab = { id: 'MyTrips', title: 'My Trips', icon: Truck };
+  const scan: NavTab = { id: 'Scan', title: 'Scanner', icon: QrCode };
+  const more: NavTab = { id: 'More', title: 'More', icon: MoreHorizontal };
 
-  const getTabsForRole = (role: string) => {
-    if (role === 'driver') {
-      return [home, trips, scan, more];
-    }
+  const baggageTabId = allowedTabs.find((id) => id.startsWith('Baggage:'));
+  const baggageTab: NavTab | undefined = baggageTabId
+    ? {
+        id: baggageTabId,
+        title: baggageTabId.slice('Baggage:'.length),
+        icon: Plane,
+      }
+    : undefined;
 
-    if (mode === 'air') {
-      return [home, cargo, radar, scan, more];
-    }
+  let candidates: NavTab[] = [];
+  if (user.role === 'driver') {
+    candidates = [trips, incoming, outbound, scan, more];
+  } else if (user.role === 'baggage_agent') {
+    candidates = [home, ...(baggageTab ? [baggageTab] : []), incoming, outbound, more];
+  } else if (mode === 'air') {
+    candidates = [home, cargo, radar, incoming, more];
+  } else if (mode === 'road') {
+    candidates = [home, packages, dispatch, incoming, more];
+  } else {
+    // Intermodal
+    candidates = [home, cargo, packages, incoming, more];
+  }
 
-    if (mode === 'road') {
-      return [home, waybills, dispatch, scan, more];
-    }
+  // Filter against allowed permissions
+  const allowedCandidates = candidates.filter((t) => allowedSet.has(t.id));
 
-    // Intermodal (default / both)
-    return [home, cargo, waybills, scan, more];
-  };
+  // Enforce max 5 bottom items; overflow stays reachable via More or SideNav
+  let finalTabs: NavTab[];
+  if (allowedCandidates.length > 5) {
+    const hasMore = allowedCandidates.some((t) => t.id === 'More');
+    const top4 = allowedCandidates.filter((t) => t.id !== 'More').slice(0, 4);
+    finalTabs = hasMore ? [...top4, more] : allowedCandidates.slice(0, 5);
+  } else {
+    finalTabs = allowedCandidates;
+  }
 
-  const tabs = getTabsForRole(user.role);
-  return <BottomNavTabs tabs={tabs} currentTab={currentTab} onChangeTab={onChangeTab} />;
+  return <BottomNavTabs tabs={finalTabs} currentTab={currentTab} onChangeTab={onChangeTab} />;
 };
 
 type NavTab = { id: TabView; title: string; icon: any };
 
-const BottomNavTabs = ({ tabs, currentTab, onChangeTab }: {
+const BottomNavTabs = ({
+  tabs,
+  currentTab,
+  onChangeTab,
+}: {
   tabs: NavTab[];
   currentTab: TabView;
   onChangeTab: (t: TabView) => void;
 }) => {
-  const activeIndex = Math.max(0, tabs.findIndex(tab => tab.id === currentTab));
-
   return (
     <div
-      className="relative w-full shrink-0 z-50"
+      className="w-full shrink-0 z-50 select-none"
       style={{
-        height: 'calc(70px + env(safe-area-inset-bottom))',
+        background: 'var(--color-nav-bg)',
+        borderTop: '1px solid var(--color-border)',
         paddingBottom: 'env(safe-area-inset-bottom)',
-        overflow: 'visible',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
       }}
     >
-      {/* Raised sliding bubble — a real button, not decorative */}
-      <button
-        onClick={() => onChangeTab(tabs[activeIndex].id)}
-        aria-label={tabs[activeIndex]?.title}
-        aria-current="page"
-        className="absolute rounded-full flex items-center justify-center"
-        style={{
-          left: `calc(16px + (100% - 32px) * ${(activeIndex + 0.5) / tabs.length})`,
-          transform: 'translateX(-50%)',
-          bottom: 30,
-          width: 40,
-          height: 40,
-          background: 'radial-gradient(circle at 35% 30%, var(--color-accent-amber), var(--color-accent-amber) 60%, #C98E28 100%)',
-          boxShadow: '0 6px 16px rgba(251,191,36,0.40), 0 0 0 4px var(--color-obsidian)',
-          border: 'none',
-          cursor: 'pointer',
-          zIndex: 2,
-          transition: 'left 300ms cubic-bezier(0.34, 1.4, 0.64, 1), transform 0.1s ease, box-shadow 0.15s ease',
-        }}
+      <nav
+        aria-label="Bottom Navigation"
+        className="flex items-center justify-around px-2"
+        style={{ minHeight: 56, height: 56 }}
       >
-        {(() => {
-          const ActiveIcon = tabs[activeIndex]?.icon;
-          return ActiveIcon ? (
-            <ActiveIcon size={15} strokeWidth={2.25} color="var(--color-on-accent)" />
-          ) : null;
-        })()}
-      </button>
-
-      {/* Glass pill */}
-      <div
-        className="absolute left-4 right-4 bottom-0 flex items-center justify-around rounded-full"
-        style={{
-          height: 56,
-          background: 'var(--color-nav-glass)',
-          backdropFilter: 'blur(18px)',
-          WebkitBackdropFilter: 'blur(18px)',
-          border: '1px solid var(--color-border-strong)',
-          boxShadow: 'var(--shadow-nav)',
-        }}
-      >
-        {tabs.map((tab, i) => {
-          const isActive = i === activeIndex;
+        {tabs.map((tab) => {
+          const isActive =
+            tab.id === currentTab ||
+            (tab.id === 'More' &&
+              !tabs.some((t) => t.id === currentTab) &&
+              currentTab.startsWith('More:'));
           const Icon = tab.icon;
+
           return (
             <button
               key={tab.id}
               onClick={() => onChangeTab(tab.id)}
-              className="group flex-1 h-full flex flex-col items-center justify-center gap-0.5 transition-opacity"
+              className="flex-1 flex flex-col items-center justify-center cursor-pointer min-h-[44px] min-w-[44px] py-1 px-1 transition-all"
               style={{
-                background: 'none',
+                background: 'transparent',
                 border: 'none',
-                cursor: 'pointer',
-                minWidth: 0,
-                opacity: isActive ? 0 : 1,
               }}
               aria-current={isActive ? 'page' : undefined}
               aria-label={tab.title}
             >
-              <div style={{ height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Icon
-                  size={14}
-                  className="text-[var(--color-muted)] group-hover:text-[var(--color-accent-amber)] transition-colors"
-                />
-              </div>
-              <span
-                style={{ fontSize: 8.5, fontWeight: 500, letterSpacing: '0.01em' }}
-                className="text-[var(--color-muted)] group-hover:text-[var(--color-accent-amber)] transition-colors"
+              <div
+                className="flex flex-col items-center justify-center py-1 px-3 rounded-full transition-all duration-150"
+                style={{
+                  background: isActive ? 'var(--color-surface-3)' : 'transparent',
+                  border: isActive
+                    ? '1px solid var(--color-border-strong)'
+                    : '1px solid transparent',
+                  color: isActive
+                    ? 'var(--color-foreground)'
+                    : 'var(--color-muted)',
+                }}
               >
-                {tab.title}
-              </span>
+                <Icon
+                  size={16}
+                  strokeWidth={isActive ? 2.2 : 1.8}
+                  className="transition-colors"
+                />
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: isActive ? 600 : 500,
+                    letterSpacing: '-0.01em',
+                    marginTop: 2,
+                    lineHeight: 1,
+                  }}
+                  className="truncate max-w-[64px]"
+                >
+                  {tab.title}
+                </span>
+              </div>
             </button>
           );
         })}
-      </div>
+      </nav>
     </div>
   );
 };

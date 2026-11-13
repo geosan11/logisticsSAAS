@@ -3375,7 +3375,12 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
       </div>
 
       <div className="ehi-bottomnav-wrapper fixed bottom-0 left-0 right-0 w-full z-50" style={{ overflow: 'visible', background: 'transparent' }}>
-        <BottomNav user={user} currentTab={currentTab} onChangeTab={setCurrentTab} />
+        <BottomNav
+          user={user}
+          currentTab={currentTab}
+          onChangeTab={setCurrentTab}
+          excessBaggageAirlines={excessBaggageAirlines}
+        />
       </div>
 
       {/* Per-stream view-only ledger overlay */}
