@@ -1,107 +1,81 @@
 import { ErrorBoundary } from '../ErrorBoundary';
-import React, { useState, useMemo, useCallback, lazy, Suspense, memo } from 'react';
-
-// Lazy-loaded: this file alone used to eagerly pull in ~29 sub-view modules
-// (AccountingConsole's own further eager sub-imports on top of that) the
-// moment More.tsx loaded -- which, since More.tsx itself is one of
-// EHIApp.tsx's eager top-level imports, meant all of it loaded on every
-// login regardless of whether a user ever opened "More". getActiveSubView()
-// below always renders exactly one of these at a time, so a single
-// <Suspense> around its returned element (not around the AnimatePresence
-// that hosts it) is enough.
-const AccountingConsole = lazy(() => import('./AccountingConsole').then(m => ({ default: m.AccountingConsole })));
-const Reports = lazy(() => import('./Reports').then(m => ({ default: m.Reports })));
-const Settings = lazy(() => import('./Settings').then(m => ({ default: m.Settings })));
-const BankReconciliation = lazy(() => import('./BankReconciliation').then(m => ({ default: m.BankReconciliation })));
-const Fleet = lazy(() => import('./Fleet').then(m => ({ default: m.Fleet })));
-const Forecasting = lazy(() => import('./Forecasting').then(m => ({ default: m.Forecasting })));
-const FraudAlerts = lazy(() => import('./FraudAlerts').then(m => ({ default: m.FraudAlerts })));
-const AuditLog = lazy(() => import('./AuditLog').then(m => ({ default: m.AuditLog })));
-// Wrapped in memo() -- unlike every other lazy-loaded sub-view here, this
-// one fronts the row/card virtualizers (@tanstack/react-virtual) that were
-// the site of a "Maximum update depth exceeded" crash. Without memo, ANY
-// EHIApp.tsx re-render for ANY reason (a toast, an unrelated realtime
-// event, a wallet refresh) forces this entire subtree to re-execute while
-// a user is sitting on the Master Ledger, amplifying whatever reference
-// churn its transactions/expenses/activeShift/shifts props are carrying.
-// EHIApp.tsx's own "History" overlay instance of TransactionLedger
-// (EHIApp.tsx's own memo(TransactionLedgerRaw)) already does this; this
-// mirrors that for the Master Ledger, which never had it.
-const TransactionLedgerRaw = lazy(() => import('./TransactionLedger').then(m => ({ default: m.TransactionLedger })));
-const TransactionLedger = memo(TransactionLedgerRaw);
-const PODLog = lazy(() => import('./PODLog').then(m => ({ default: m.PODLog })));
-const Dispatch = lazy(() => import('./Dispatch').then(m => ({ default: m.Dispatch })));
-const EODReconciliation = lazy(() => import('./EODReconciliation').then(m => ({ default: m.EODReconciliation })));
-const SupportTickets = lazy(() => import('./SupportTickets').then(m => ({ default: m.SupportTickets })));
-
-const PricingConfiguration = lazy(() => import('./PricingConfiguration').then(m => ({ default: m.PricingConfiguration })));
-const HubCargoRates = lazy(() => import('./HubCargoRates').then(m => ({ default: m.HubCargoRates })));
-const AirlineCommissions = lazy(() => import('./AirlineCommissions').then(m => ({ default: m.AirlineCommissions })));
-const ExcessBaggageAirlines = lazy(() => import('./ExcessBaggageAirlines').then(m => ({ default: m.ExcessBaggageAirlines })));
-const CorporateBilling = lazy(() => import('./CorporateBilling').then(m => ({ default: m.CorporateBilling })));
-const OfficeWorkReconciliation = lazy(() => import('./OfficeWorkReconciliation').then(m => ({ default: m.OfficeWorkReconciliation })));
-const ContentTypes = lazy(() => import('./ContentTypes').then(m => ({ default: m.ContentTypes })));
-const ExpenseCategories = lazy(() => import('./ExpenseCategories').then(m => ({ default: m.ExpenseCategories })));
-const Banks = lazy(() => import('./Banks').then(m => ({ default: m.Banks })));
-const SpecialGoodsRates = lazy(() => import('./SpecialGoodsRates').then(m => ({ default: m.SpecialGoodsRates })));
-const MinimumCharges = lazy(() => import('./MinimumCharges').then(m => ({ default: m.MinimumCharges })));
-const FlatTierRates = lazy(() => import('./FlatTierRates').then(m => ({ default: m.FlatTierRates })));
-const SizeTierRates = lazy(() => import('./SizeTierRates').then(m => ({ default: m.SizeTierRates })));
-const RatesList = lazy(() => import('./RatesList').then(m => ({ default: m.RatesList })));
-const CustomerWallets = lazy(() => import('./CustomerWallets').then(m => ({ default: m.CustomerWallets })));
-const GatPrintQueue = lazy(() => import('./GatPrintQueue').then(m => ({ default: m.GatPrintQueue })));
-const DebtCollectionRetrievalLog = lazy(() => import('./DebtCollectionRetrievalLog').then(m => ({ default: m.DebtCollectionRetrievalLog })));
+import React, { useState, useMemo, useCallback, lazy, Suspense, memo, useEffect } from 'react';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { User, TabView, Transaction, Expense, ExcessBaggageAirline, HubShift, CustomerWallet } from '../../lib/types';
-import { fmt } from '../../lib/helpers';
-import { canAccessTab } from '../../lib/permissions';
-import { useLogisticsMode } from '../../lib/modeContext';
 import {
-  FileText as FileTextIcon,
-  Activity as PulseIcon,
-  Database as DatabaseIcon,
-  Shield as ShieldIcon,
-  Settings as GearIcon,
-  LogOut as SignOutIcon,
-  BarChart3 as ChartBarIcon,
-  Layers as StackIcon,
-  Truck as TruckIcon,
-  Brain as BrainIcon,
-  ShieldAlert as ShieldWarningIcon,
-  DollarSign as CurrencyDollarIcon,
-  History as ClockCounterClockwiseIcon,
-  MapPin as MapPinIcon,
-  Percent as PercentIcon,
-  Users as UsersIcon,
-  Plane as AirplaneIcon,
-  CreditCard as CreditCardIcon,
-  Terminal as TerminalIcon,
-  BadgeCheck as SealCheckIcon,
-  CheckCircle as CheckCircleIcon,
-  Upload as UploadSimpleIcon,
-  BookOpen as BookOpenIcon,
-  ClipboardList as ClipboardTextIcon,
-  Receipt as ReceiptIcon,
-  Tag as TagIcon,
-  Landmark as BankIcon,
-  List as ListBulletsIcon,
-  Sparkles as SparkleIcon,
-  Scale as ScalesIcon,
-  Printer as PrinterIcon,
-  HandCoins as HandCoinsIcon,
-  TowerControl as AirTrafficControlIcon,
+  Search,
+  X,
   ChevronRight,
+  ChevronDown,
+  Sun,
+  Moon,
+  Sliders,
+  LogOut as SignOutIcon,
+  Layers,
 } from 'lucide-react';
+
+import {
+  User,
+  TabView,
+  Transaction,
+  Expense,
+  ExcessBaggageAirline,
+  HubShift,
+  CustomerWallet,
+} from '../../lib/types';
+import { useLogisticsMode } from '../../lib/modeContext';
+import { useTheme } from '../../lib/useTheme';
+import { useDensity } from '../../lib/useDensity';
 import { Spinner } from '../ui';
+import { BackButton } from '../BackButton';
 
-const StaffManagement = lazy(() => import('./StaffManagement').then(m => ({ default: m.StaffManagement })));
+import {
+  SETTING_GROUPS,
+  SETTING_ITEMS,
+  MORE_REDIRECT_ALIASES,
+  SettingGroupId,
+  SettingItem,
+  getAccessibleSettings,
+  getAccessibleGroups,
+  searchSettings,
+} from './settingsData';
 
-// Every sub-view inside More is a URL slug under /more/ -- refresh, browser
-// back/forward, and deep-links all work through this instead of 29 separate
-// useState(false) flags. Object keys are what the rest of this file uses to
-// refer to each screen; values are the literal URL segment after "/more/".
-const MORE_SUB_ROUTES = {
+// Lazy-loaded sub-views — exactly one is rendered at a time when activeSub matches.
+const AccountingConsole = lazy(() => import('./AccountingConsole').then((m) => ({ default: m.AccountingConsole })));
+const Reports = lazy(() => import('./Reports').then((m) => ({ default: m.Reports })));
+const SettingsView = lazy(() => import('./Settings').then((m) => ({ default: m.Settings })));
+const BankReconciliation = lazy(() => import('./BankReconciliation').then((m) => ({ default: m.BankReconciliation })));
+const Fleet = lazy(() => import('./Fleet').then((m) => ({ default: m.Fleet })));
+const Forecasting = lazy(() => import('./Forecasting').then((m) => ({ default: m.Forecasting })));
+const FraudAlerts = lazy(() => import('./FraudAlerts').then((m) => ({ default: m.FraudAlerts })));
+const AuditLog = lazy(() => import('./AuditLog').then((m) => ({ default: m.AuditLog })));
+const TransactionLedgerRaw = lazy(() => import('./TransactionLedger').then((m) => ({ default: m.TransactionLedger })));
+const TransactionLedger = memo(TransactionLedgerRaw);
+const PODLog = lazy(() => import('./PODLog').then((m) => ({ default: m.PODLog })));
+const Dispatch = lazy(() => import('./Dispatch').then((m) => ({ default: m.Dispatch })));
+const EODReconciliation = lazy(() => import('./EODReconciliation').then((m) => ({ default: m.EODReconciliation })));
+const SupportTickets = lazy(() => import('./SupportTickets').then((m) => ({ default: m.SupportTickets })));
+const PricingConfiguration = lazy(() => import('./PricingConfiguration').then((m) => ({ default: m.PricingConfiguration })));
+const HubCargoRates = lazy(() => import('./HubCargoRates').then((m) => ({ default: m.HubCargoRates })));
+const AirlineCommissions = lazy(() => import('./AirlineCommissions').then((m) => ({ default: m.AirlineCommissions })));
+const ExcessBaggageAirlines = lazy(() => import('./ExcessBaggageAirlines').then((m) => ({ default: m.ExcessBaggageAirlines })));
+const CorporateBilling = lazy(() => import('./CorporateBilling').then((m) => ({ default: m.CorporateBilling })));
+const OfficeWorkReconciliation = lazy(() => import('./OfficeWorkReconciliation').then((m) => ({ default: m.OfficeWorkReconciliation })));
+const ContentTypes = lazy(() => import('./ContentTypes').then((m) => ({ default: m.ContentTypes })));
+const ExpenseCategories = lazy(() => import('./ExpenseCategories').then((m) => ({ default: m.ExpenseCategories })));
+const Banks = lazy(() => import('./Banks').then((m) => ({ default: m.Banks })));
+const SpecialGoodsRates = lazy(() => import('./SpecialGoodsRates').then((m) => ({ default: m.SpecialGoodsRates })));
+const MinimumCharges = lazy(() => import('./MinimumCharges').then((m) => ({ default: m.MinimumCharges })));
+const FlatTierRates = lazy(() => import('./FlatTierRates').then((m) => ({ default: m.FlatTierRates })));
+const SizeTierRates = lazy(() => import('./SizeTierRates').then((m) => ({ default: m.SizeTierRates })));
+const RatesList = lazy(() => import('./RatesList').then((m) => ({ default: m.RatesList })));
+const CustomerWallets = lazy(() => import('./CustomerWallets').then((m) => ({ default: m.CustomerWallets })));
+const GatPrintQueue = lazy(() => import('./GatPrintQueue').then((m) => ({ default: m.GatPrintQueue })));
+const DebtCollectionRetrievalLog = lazy(() => import('./DebtCollectionRetrievalLog').then((m) => ({ default: m.DebtCollectionRetrievalLog })));
+const StaffManagement = lazy(() => import('./StaffManagement').then((m) => ({ default: m.StaffManagement })));
+
+// Kept for backward compatibility so all direct deep links and bookmarks continue to function.
+export const MORE_SUB_ROUTES = {
   eod: 'eod',
   accounting: 'accounting',
   reports: 'reports',
@@ -134,84 +108,269 @@ const MORE_SUB_ROUTES = {
   customerWallets: 'customer-wallets',
   debtCollectionLog: 'debt-collection-log',
 } as const;
-type MoreSubKey = keyof typeof MORE_SUB_ROUTES;
 
-export const More = ({ user, transactions, expenses, onLogout, onEOD, onAddTx, onFullUpdateTx, onDeleteTx, onAddExpense, onUpdateExpense, onChangeTab, dateRange, onDateRangeChange, excessBaggageAirlines, activeShift, todayShifts, onStartShift, onEndShift, customerWallets, refetchCustomerWallets, ledgerRowsTruncated, onLoadMoreLedgerRows, ledgerRowsLoadingMore }: { user: User; transactions: Transaction[]; expenses: Expense[]; onLogout: () => void; onEOD?: (summary: any) => void; onAddTx: (tx: Transaction) => void; onFullUpdateTx?: (tx: Transaction) => void; onDeleteTx: (type: string, id: string) => void; onAddExpense: (e: Expense) => void; onUpdateExpense?: (expenseId: string, decision: 'approved' | 'rejected') => void; onChangeTab: (t: TabView) => void; dateRange?: { start: string; end: string }; onDateRangeChange?: (range: { start: string; end: string }) => void; excessBaggageAirlines: ExcessBaggageAirline[]; activeShift?: HubShift | null; todayShifts?: HubShift[]; onStartShift?: () => void; onEndShift?: () => void; customerWallets?: CustomerWallet[]; refetchCustomerWallets?: () => void; ledgerRowsTruncated?: boolean; onLoadMoreLedgerRows?: () => void; ledgerRowsLoadingMore?: boolean; }) => {
+export type MoreSubKey = keyof typeof MORE_SUB_ROUTES;
+
+export interface MoreProps {
+  user: User;
+  transactions: Transaction[];
+  expenses: Expense[];
+  onLogout: () => void;
+  onEOD?: (summary: any) => void;
+  onAddTx: (tx: Transaction) => void;
+  onFullUpdateTx?: (tx: Transaction) => void;
+  onDeleteTx: (type: string, id: string) => void;
+  onAddExpense: (e: Expense) => void;
+  onUpdateExpense?: (expenseId: string, decision: 'approved' | 'rejected') => void;
+  onChangeTab: (t: TabView) => void;
+  dateRange?: { start: string; end: string };
+  onDateRangeChange?: (range: { start: string; end: string }) => void;
+  excessBaggageAirlines: ExcessBaggageAirline[];
+  activeShift?: HubShift | null;
+  todayShifts?: HubShift[];
+  onStartShift?: () => void;
+  onEndShift?: () => void;
+  customerWallets?: CustomerWallet[];
+  refetchCustomerWallets?: () => void;
+  ledgerRowsTruncated?: boolean;
+  onLoadMoreLedgerRows?: () => void;
+  ledgerRowsLoadingMore?: boolean;
+}
+
+export const More = ({
+  user,
+  transactions,
+  expenses,
+  onLogout,
+  onEOD,
+  onAddTx,
+  onFullUpdateTx,
+  onDeleteTx,
+  onAddExpense,
+  onUpdateExpense,
+  onChangeTab,
+  dateRange,
+  onDateRangeChange,
+  excessBaggageAirlines,
+  activeShift,
+  todayShifts,
+  onStartShift,
+  onEndShift,
+  customerWallets,
+  refetchCustomerWallets,
+  ledgerRowsTruncated,
+  onLoadMoreLedgerRows,
+  ledgerRowsLoadingMore,
+}: MoreProps) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const prefersReducedMotion = useReducedMotion();
   const { mode } = useLogisticsMode();
-  const canAccess = useCallback((tab: string) => canAccessTab(user, tab, excessBaggageAirlines, mode), [user, excessBaggageAirlines, mode]);
+  const { theme, toggle: toggleTheme } = useTheme();
+  const { setDensity, isCompact, isSpacious } = useDensity();
+
+  // Search query state
+  const [searchQuery, setSearchQuery] = useState('');
+  // Advanced disclosure state inside the opened group
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  // 1 = pushing forward, -1 = back
+  const [direction, setDirection] = useState<1 | -1>(1);
+
+  // Group selection from URL query param ?group=...
+  const selectedGroupId = searchParams.get('group') as SettingGroupId | null;
+
+  // Selected group object
+  const activeGroup = useMemo(
+    () => (selectedGroupId ? SETTING_GROUPS.find((g) => g.id === selectedGroupId) || null : null),
+    [selectedGroupId]
+  );
+
+  // Legacy sub-route resolution from /more/<slug>
   const activeSub: MoreSubKey | null = useMemo(() => {
     const m = location.pathname.match(/^\/more\/([^/]+)/);
     if (!m) return null;
     const slug = m[1];
+
+    // Check if this slug is a redirect alias to a root tab
+    if (MORE_REDIRECT_ALIASES[slug]) {
+      return null;
+    }
+
+    // Check if slug matches a sub-route
     const entry = Object.entries(MORE_SUB_ROUTES).find(([, s]) => s === slug);
     return (entry ? entry[0] : null) as MoreSubKey | null;
   }, [location.pathname]);
-  // 1 = pushing a screen open (slides in from the right, old one exits
-  // left); -1 = Back (closing screen exits right, revealed screen enters
-  // from the left). Read by AnimatePresence/motion.div below whenever
-  // that render actually happens -- unlike the previous approach (which
-  // tried to set a "reveal" flag in the same tick as navigate() and lost
-  // the race against BrowserRouter's startTransition-deferred location
-  // update, see the router-startTransition-gotcha memory), this is just
-  // a passive "which way are we going" flag with no timing dependency.
-  const [direction, setDirection] = useState<1 | -1>(1);
-  const openSub = useCallback((key: MoreSubKey) => {
-    setDirection(1);
-    navigate('/more/' + MORE_SUB_ROUTES[key]);
-  }, [navigate]);
+
+  // Handle redirects for promoted operational screens and tabs mapped under /more/...
+  useEffect(() => {
+    const m = location.pathname.match(/^\/more\/([^/]+)/);
+    if (!m) return;
+    const slug = m[1];
+    const redirectTarget = MORE_REDIRECT_ALIASES[slug];
+    if (redirectTarget) {
+      navigate(redirectTarget, { replace: true });
+    }
+  }, [location.pathname, navigate]);
+
+  const openSub = useCallback(
+    (key: MoreSubKey) => {
+      setDirection(1);
+      navigate('/more/' + MORE_SUB_ROUTES[key]);
+    },
+    [navigate]
+  );
+
   const closeSub = useCallback(() => {
     setDirection(-1);
-    navigate('/more');
-  }, [navigate]);
+    // Return to the previously active group if available, or Settings home
+    if (selectedGroupId) {
+      navigate('/more?group=' + selectedGroupId);
+    } else {
+      navigate('/more');
+    }
+  }, [navigate, selectedGroupId]);
 
-  // Only remaining piece of view-local state -- not a "which screen" flag,
-  // just data carried across the ContentTypes -> SpecialGoodsRates handoff
-  // (see onManageRates/onBack below).
+  const selectGroup = useCallback(
+    (groupId: SettingGroupId | null) => {
+      setDirection(groupId ? 1 : -1);
+      setShowAdvanced(false);
+      setSearchQuery('');
+      if (groupId) {
+        setSearchParams({ group: groupId });
+      } else {
+        setSearchParams({});
+      }
+    },
+    [setSearchParams]
+  );
+
+  // Hand-off state between ContentTypes -> SpecialGoodsRates
   const [specialGoodsPreset, setSpecialGoodsPreset] = useState<string | undefined>(undefined);
 
-  // Same branches as before, unchanged props/JSX per screen -- only the
-  // wrapping shape changed (return a {key, element} pair instead of
-  // returning straight out of the component) so the single AnimatePresence
-  // below can render whichever one is active alongside the menu, instead
-  // of each screen unmounting/remounting the whole component tree.
+  // Accessible settings filtered by user role and active logistics mode
+  const accessibleItems = useMemo(
+    () => getAccessibleSettings(SETTING_ITEMS, user, excessBaggageAirlines, mode),
+    [user, excessBaggageAirlines, mode]
+  );
+
+  // Accessible groups with item count tallies
+  const accessibleGroups = useMemo(
+    () => getAccessibleGroups(SETTING_GROUPS, accessibleItems),
+    [accessibleItems]
+  );
+
+  // Instant search results across all groups
+  const searchResults = useMemo(
+    () => searchSettings(accessibleItems, searchQuery, SETTING_GROUPS),
+    [accessibleItems, searchQuery]
+  );
+
+  // Group-specific item partitions
+  const currentGroupItems = useMemo(() => {
+    if (!selectedGroupId) return { primary: [], advanced: [] };
+    const items = accessibleItems.filter((i) => i.groupId === selectedGroupId);
+    return {
+      primary: items.filter((i) => i.level === 'primary'),
+      advanced: items.filter((i) => i.level === 'advanced'),
+    };
+  }, [accessibleItems, selectedGroupId]);
+
+  const handleItemClick = useCallback(
+    (item: SettingItem) => {
+      if (item.target.type === 'sub') {
+        openSub(item.target.subKey as MoreSubKey);
+      } else {
+        onChangeTab(item.target.tab);
+      }
+    },
+    [openSub, onChangeTab]
+  );
+
+  // Render sub-view component
   const getActiveSubView = (): { key: string; element: React.ReactElement } | null => {
     if (activeSub === 'eod') {
-      return { key: 'eod', element: <EODReconciliation user={user} transactions={transactions} expenses={expenses} onBack={closeSub} onEOD={onEOD || (() => {})} /> };
+      return {
+        key: 'eod',
+        element: (
+          <EODReconciliation
+            user={user}
+            transactions={transactions}
+            expenses={expenses}
+            onBack={closeSub}
+            onEOD={onEOD || (() => {})}
+          />
+        ),
+      };
     }
 
     if (activeSub === 'accounting') {
-      return { key: 'accounting', element: <AccountingConsole user={user} transactions={transactions} expenses={expenses} onBack={closeSub} onAddExpense={onAddExpense} onUpdateExpense={onUpdateExpense} onOpenBankRecon={() => openSub('bankRecon')} onFullUpdateTx={onFullUpdateTx} dateRange={dateRange} onDateRangeChange={onDateRangeChange} /> };
+      return {
+        key: 'accounting',
+        element: (
+          <AccountingConsole
+            user={user}
+            transactions={transactions}
+            expenses={expenses}
+            onBack={closeSub}
+            onAddExpense={onAddExpense}
+            onUpdateExpense={onUpdateExpense}
+            onOpenBankRecon={() => openSub('bankRecon')}
+            onFullUpdateTx={onFullUpdateTx}
+            dateRange={dateRange}
+            onDateRangeChange={onDateRangeChange}
+          />
+        ),
+      };
     }
 
     if (activeSub === 'reports') {
-      return { key: 'reports', element: <Reports user={user} transactions={transactions} onBack={closeSub} /> };
+      return {
+        key: 'reports',
+        element: <Reports user={user} transactions={transactions} onBack={closeSub} />,
+      };
     }
 
     if (activeSub === 'settings') {
-      return { key: 'settings', element: <Settings user={user} onBack={closeSub} onOpenAirlineCommissions={() => openSub('airlineCommissions')} /> };
+      return {
+        key: 'settings',
+        element: (
+          <SettingsView
+            user={user}
+            onBack={closeSub}
+            onOpenAirlineCommissions={() => openSub('airlineCommissions')}
+          />
+        ),
+      };
     }
 
     if (activeSub === 'bankRecon') {
-      return { key: 'bankRecon', element: (
-        <BankReconciliation
-          transactions={transactions}
-          onBack={closeSub}
-          user={user}
-          onConfirm={({ matchedIds }) => {
-            if (onFullUpdateTx) {
-              matchedIds.forEach(id => {
-                const tx = transactions.find(t => t.id === id);
-                if (tx) {
-                  onFullUpdateTx({ ...tx, paymentConfirmed: true, confirmedAt: new Date().toLocaleTimeString('en-NG'), confirmedBy: user.name });
-                }
-              });
-            }
-          }}
-        />
-      ) };
+      return {
+        key: 'bankRecon',
+        element: (
+          <BankReconciliation
+            transactions={transactions}
+            onBack={closeSub}
+            user={user}
+            onConfirm={({ matchedIds }) => {
+              if (onFullUpdateTx) {
+                matchedIds.forEach((id) => {
+                  const tx = transactions.find((t) => t.id === id);
+                  if (tx) {
+                    onFullUpdateTx({
+                      ...tx,
+                      paymentConfirmed: true,
+                      confirmedAt: new Date().toLocaleTimeString('en-NG'),
+                      confirmedBy: user.name,
+                    });
+                  }
+                });
+              }
+            }}
+          />
+        ),
+      };
     }
 
     if (activeSub === 'fleet') {
@@ -231,66 +390,53 @@ export const More = ({ user, transactions, expenses, onLogout, onEOD, onAddTx, o
     }
 
     if (activeSub === 'ledger') {
-      return { key: 'ledger', element: (
-        // Scoped separately from the app-wide ErrorBoundary in EHIApp.tsx
-        // (which wraps every tab and, until now, was the only thing
-        // catching a Ledger crash -- its fallback offers nothing but a
-        // full window.location.reload(), which drops the user back to
-        // whatever tab they started on and looks like the whole app broke
-        // over one screen). This one shows the actual error and offers
-        // "Back" (closeSub, same as the ledger's own Back button) or "Try
-        // Again" (remounts just the ledger) instead.
-        <ErrorBoundary fallback={(error, reset) => (
-          <div className="flex flex-col items-center justify-center h-full gap-3 p-8 text-center bg-[var(--color-canvas)]">
-            <div className="text-[var(--color-error-fg)] font-bold text-[14px]">The ledger hit a snag.</div>
-            <div className="text-[var(--color-muted)] font-mono text-[11px] max-w-md break-words">
-              {error.message || 'An unexpected error occurred.'}
-            </div>
-            <div className="flex items-center gap-2 mt-2">
-              <button
-                onClick={reset}
-                className="px-4 py-2 bg-[var(--color-accent-amber)] text-[var(--color-on-accent)] rounded-lg text-[12px] font-bold cursor-pointer"
-              >
-                Try Again
-              </button>
-              <button
-                onClick={closeSub}
-                className="px-4 py-2 bg-[var(--color-surface-2)] border border-[var(--color-border)] text-[var(--color-foreground)] rounded-lg text-[12px] font-bold cursor-pointer"
-              >
-                Back
-              </button>
-            </div>
-          </div>
-        )}>
-          <TransactionLedger
-            user={user}
-            transactions={transactions}
-            expenses={expenses}
-            onBack={closeSub}
-            onUpdateTx={onFullUpdateTx || onAddTx}
-            onDeleteTx={onDeleteTx}
-            dateRange={dateRange}
-            onDateRangeChange={onDateRangeChange}
-            activeShift={activeShift}
-            shifts={todayShifts}
-            // Master Ledger no longer shows the Start/End Day button/status bar
-            // -- omitting onStartShift/onEndShift (rather than adding a new
-            // hide-this-bar prop) is enough: TransactionLedger.tsx's shift bar
-            // only renders when onStartShift, onEndShift, or shiftAutoManaged is
-            // truthy, and none of those are passed here. activeShift/shifts stay
-            // wired so the "current shift" date-boundary fallback and inline
-            // SHIFT STARTED/ENDED row markers (both separate features) are
-            // unaffected -- Baggage/Marketing keep their own Start/End Day
-            // exactly as before via EHIApp.tsx's per-department streamLedger
-            // overlay, which isn't touched by this.
-            customerWallets={customerWallets}
-            refetchCustomerWallets={refetchCustomerWallets}
-            ledgerRowsTruncated={ledgerRowsTruncated}
-            onLoadMoreLedgerRows={onLoadMoreLedgerRows}
-            ledgerRowsLoadingMore={ledgerRowsLoadingMore}
-          />
-        </ErrorBoundary>
-      ) };
+      return {
+        key: 'ledger',
+        element: (
+          <ErrorBoundary
+            fallback={(error, reset) => (
+              <div className="flex flex-col items-center justify-center h-full gap-3 p-8 text-center bg-[var(--color-canvas)]">
+                <div className="text-[var(--color-error)] font-bold text-[14px]">The ledger hit a snag.</div>
+                <div className="text-[var(--color-muted)] font-mono text-[11px] max-w-md break-words">
+                  {error.message || 'An unexpected error occurred.'}
+                </div>
+                <div className="flex items-center gap-2 mt-2">
+                  <button
+                    onClick={reset}
+                    className="min-h-[44px] px-4 py-2 bg-[var(--color-primary-pill)] text-[var(--color-primary-pill-text)] rounded-full text-[12px] font-bold cursor-pointer"
+                  >
+                    Try Again
+                  </button>
+                  <button
+                    onClick={closeSub}
+                    className="min-h-[44px] px-4 py-2 bg-[var(--color-surface-2)] border border-[var(--color-border)] text-[var(--color-foreground)] rounded-full text-[12px] font-bold cursor-pointer"
+                  >
+                    Back
+                  </button>
+                </div>
+              </div>
+            )}
+          >
+            <TransactionLedger
+              user={user}
+              transactions={transactions}
+              expenses={expenses}
+              onBack={closeSub}
+              onUpdateTx={onFullUpdateTx || onAddTx}
+              onDeleteTx={onDeleteTx}
+              dateRange={dateRange}
+              onDateRangeChange={onDateRangeChange}
+              activeShift={activeShift}
+              shifts={todayShifts}
+              customerWallets={customerWallets}
+              refetchCustomerWallets={refetchCustomerWallets}
+              ledgerRowsTruncated={ledgerRowsTruncated}
+              onLoadMoreLedgerRows={onLoadMoreLedgerRows}
+              ledgerRowsLoadingMore={ledgerRowsLoadingMore}
+            />
+          </ErrorBoundary>
+        ),
+      };
     }
 
     if (activeSub === 'gatPrintQueue') {
@@ -306,7 +452,10 @@ export const More = ({ user, transactions, expenses, onLogout, onEOD, onAddTx, o
     }
 
     if (activeSub === 'debtCollectionLog') {
-      return { key: 'debtCollectionLog', element: <DebtCollectionRetrievalLog transactions={transactions} onBack={closeSub} /> };
+      return {
+        key: 'debtCollectionLog',
+        element: <DebtCollectionRetrievalLog transactions={transactions} onBack={closeSub} />,
+      };
     }
 
     if (activeSub === 'dispatch') {
@@ -338,17 +487,40 @@ export const More = ({ user, transactions, expenses, onLogout, onEOD, onAddTx, o
     }
 
     if (activeSub === 'contentTypes') {
-      return { key: 'contentTypes', element: (
-        <ContentTypes onBack={closeSub} onManageRates={(contentTypeId, rateType) => {
-          if (rateType === 'flat') { openSub('flatTierRates'); }
-          else if (rateType === 'size') { openSub('sizeTierRates'); }
-          else { setSpecialGoodsPreset(contentTypeId); openSub('specialGoodsRates'); }
-        }} />
-      ) };
+      return {
+        key: 'contentTypes',
+        element: (
+          <ContentTypes
+            onBack={closeSub}
+            onManageRates={(contentTypeId, rateType) => {
+              if (rateType === 'flat') {
+                openSub('flatTierRates');
+              } else if (rateType === 'size') {
+                openSub('sizeTierRates');
+              } else {
+                setSpecialGoodsPreset(contentTypeId);
+                openSub('specialGoodsRates');
+              }
+            }}
+          />
+        ),
+      };
     }
 
     if (activeSub === 'specialGoodsRates') {
-      return { key: 'specialGoodsRates', element: <SpecialGoodsRates user={user} onBack={() => { setSpecialGoodsPreset(undefined); closeSub(); }} presetContentTypeId={specialGoodsPreset} /> };
+      return {
+        key: 'specialGoodsRates',
+        element: (
+          <SpecialGoodsRates
+            user={user}
+            onBack={() => {
+              setSpecialGoodsPreset(undefined);
+              closeSub();
+            }}
+            presetContentTypeId={specialGoodsPreset}
+          />
+        ),
+      };
     }
 
     if (activeSub === 'minimumCharges') {
@@ -364,22 +536,25 @@ export const More = ({ user, transactions, expenses, onLogout, onEOD, onAddTx, o
     }
 
     if (activeSub === 'ratesList') {
-      return { key: 'ratesList', element: (
-        <RatesList
-          onBack={closeSub}
-          onOpenConfig={(target) => {
-            if (target === 'pricing') openSub('pricing');
-            else if (target === 'hubRates') openSub('hubCargoRates');
-            else if (target === 'excessBaggage') openSub('excessBaggageAirlines');
-            else if (target === 'contentTypes') openSub('contentTypes');
-            else if (target === 'specialGoods') openSub('specialGoodsRates');
-            else if (target === 'minimumCharges') openSub('minimumCharges');
-            else if (target === 'airlineCommissions') openSub('airlineCommissions');
-            else if (target === 'flatTier') openSub('flatTierRates');
-            else if (target === 'sizeTier') openSub('sizeTierRates');
-          }}
-        />
-      ) };
+      return {
+        key: 'ratesList',
+        element: (
+          <RatesList
+            onBack={closeSub}
+            onOpenConfig={(target) => {
+              if (target === 'pricing') openSub('pricing');
+              else if (target === 'hubRates') openSub('hubCargoRates');
+              else if (target === 'excessBaggage') openSub('excessBaggageAirlines');
+              else if (target === 'contentTypes') openSub('contentTypes');
+              else if (target === 'specialGoods') openSub('specialGoodsRates');
+              else if (target === 'minimumCharges') openSub('minimumCharges');
+              else if (target === 'airlineCommissions') openSub('airlineCommissions');
+              else if (target === 'flatTier') openSub('flatTierRates');
+              else if (target === 'sizeTier') openSub('sizeTierRates');
+            }}
+          />
+        ),
+      };
     }
 
     if (activeSub === 'expenseCategories') {
@@ -402,47 +577,7 @@ export const More = ({ user, transactions, expenses, onLogout, onEOD, onAddTx, o
   };
 
   const activeView = getActiveSubView();
-
-
-  const MenuItem = ({
-    icon: Icon,
-    title,
-    subtitle,
-    onClick,
-    disabled = false,
-  }: {
-    icon: any;
-    title: any;
-    subtitle: string;
-    onClick: () => void;
-    disabled?: boolean;
-  }) => (
-    <button
-      onClick={onClick}
-      className={`w-full flex items-center gap-3 py-3.5 px-3.5 transition-colors text-left ${
-        disabled
-          ? 'opacity-40 cursor-not-allowed'
-          : 'hover:bg-[var(--color-surface-1)] cursor-pointer group'
-      }`}
-    >
-      <Icon size={18} className="text-[var(--color-muted)] group-hover:text-[var(--color-accent-amber)] transition-colors shrink-0" />
-      <div className="text-left flex-1 min-w-0">
-        <div className="text-[13px] font-bold font-sans text-[var(--color-foreground)] group-hover:text-[var(--color-accent-amber)] transition-colors flex items-center gap-1.5">
-          {title}
-        </div>
-        <div className="text-[10px] font-mono text-[var(--color-muted)] truncate">{subtitle}</div>
-      </div>
-      {!disabled && (
-        <ChevronRight size={16} strokeWidth={1.5} className="text-[var(--color-muted)] shrink-0" />
-      )}
-    </button>
-  );
-
-  const SectionLabel = ({ label }: { label: string }) => (
-    <div className="text-[9px] font-mono text-[var(--color-muted)] tracking-[0.12em] uppercase pt-5 pb-2 px-1">
-      ▸ {label}
-    </div>
-  );
+  const isLedgerView = activeView?.key === 'ledger';
 
   const slideVariants = {
     enter: (dir: 1 | -1) => ({ x: dir === 1 ? '100%' : '-100%' }),
@@ -450,421 +585,410 @@ export const More = ({ user, transactions, expenses, onLogout, onEOD, onAddTx, o
     exit: (dir: 1 | -1) => ({ x: dir === 1 ? '-100%' : '100%' }),
   };
 
-  // The Ledger is the one screen here backed by @tanstack/react-virtual
-  // (thousands of rows, ResizeObserver-based dynamic height measurement
-  // via measureElement). Animating its container's transform over 0.5s
-  // while that measurement is actively settling triggered a runaway
-  // resize -> re-render -> re-measure cycle in production (React error
-  // #185, "Maximum update depth exceeded") -- popLayout's flow change on
-  // enter/exit plus the virtualizer's own remeasurement never converged
-  // in time. Skipping the animation (instant transition) for this one
-  // screen removes the transform-during-measurement window entirely;
-  // every other (non-virtualized) sub-view keeps the normal slide.
-  const isLedgerView = activeView?.key === 'ledger';
-
   return (
-    <div style={{ position: 'relative', overflow: 'hidden', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+    <div className="relative flex-1 min-h-0 flex flex-col overflow-hidden bg-[var(--color-canvas)]">
       <AnimatePresence initial={false} mode="popLayout" custom={direction}>
         <motion.div
-          key={activeView?.key ?? 'more-menu'}
+          key={activeView?.key ?? (selectedGroupId ? `group-${selectedGroupId}` : 'settings-home')}
           custom={direction}
           variants={slideVariants}
           initial="enter"
           animate="center"
           exit="exit"
-          transition={{ duration: (prefersReducedMotion || isLedgerView) ? 0 : 0.5, ease: [0.4, 0, 0.2, 1] }}
-          style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}
+          transition={{ duration: prefersReducedMotion || isLedgerView ? 0 : 0.25, ease: [0.16, 1, 0.3, 1] }}
+          className="flex-1 min-h-0 flex flex-col overflow-y-auto"
         >
           {activeView ? (
-            <Suspense fallback={(
-              <div className="flex items-center justify-center h-full py-20">
-                <Spinner size="lg" tone="muted" />
-              </div>
-            )}>
+            <Suspense
+              fallback={
+                <div className="flex items-center justify-center h-full py-20">
+                  <Spinner size="lg" tone="muted" />
+                </div>
+              }
+            >
               {activeView.element}
             </Suspense>
           ) : (
-            <div className="p-4 pb-8 select-none">
+            <div className="w-full max-w-4xl mx-auto p-4 sm:p-6 space-y-6 pb-20 select-none">
+              {/* Top Search Bar */}
+              <div className="relative">
+                <Search
+                  size={18}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-muted)] pointer-events-none"
+                />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search all settings, tariffs, tools & logs..."
+                  className="w-full min-h-[44px] pl-10 pr-10 rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border)] text-[var(--color-foreground)] placeholder-[var(--color-muted)] text-[13px] font-sans focus:outline-none focus:border-[var(--color-border-strong)] transition-colors shadow-sm"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    aria-label="Clear search"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 min-w-[44px] min-h-[44px] flex items-center justify-center text-[var(--color-muted)] hover:text-[var(--color-foreground)] cursor-pointer"
+                  >
+                    <X size={16} />
+                  </button>
+                )}
+              </div>
 
-      {/* Daily Operations */}
-      <SectionLabel label="Daily Operations" />
-      <div className="ehi-card divide-y divide-[var(--color-border)] overflow-hidden">
-        {canAccess('Incoming') && (
-          <MenuItem
-            icon={SealCheckIcon}
-            title="Incoming to Hub"
-            subtitle="Manage arriving cargo"
-            onClick={() => onChangeTab('Incoming')}
-          />
-        )}
-        {canAccess('OutboundArrivals') && (
-          <MenuItem
-            icon={CheckCircleIcon}
-            title="Outbound Arrivals"
-            subtitle="Confirm dispatched shipments arrived"
-            onClick={() => onChangeTab('OutboundArrivals')}
-          />
-        )}
-        {canAccess('More:EODClose') && (
-          <MenuItem
-            icon={FileTextIcon}
-            title="EOD Daily Close"
-            subtitle="Generate and dispatch end of day reports"
-            onClick={() => openSub('eod')}
-          />
-        )}
-        {canAccess('More:TransactionLedger') && (
-          <MenuItem
-            icon={PulseIcon}
-            title="Transaction Ledger"
-            subtitle={`${transactions.length} entries — view, search and export`}
-            onClick={() => openSub('ledger')}
-          />
-        )}
-        {canAccess('More:DebtCollectionLog') && (
-          <MenuItem
-            icon={HandCoinsIcon}
-            title="Debt Collection & Retrieval Log"
-            subtitle="Every debt payment and cargo retrieval, one line each"
-            onClick={() => openSub('debtCollectionLog')}
-          />
-        )}
-        {canAccess('More:GatPrintQueue') && (
-          <MenuItem
-            icon={PrinterIcon}
-            title="GAT Print Queue"
-            subtitle="Batch-print tags & receipts for GAT sales"
-            onClick={() => openSub('gatPrintQueue')}
-          />
-        )}
-        {canAccess('FlightRadar') && (
-          <MenuItem
-            icon={AirTrafficControlIcon}
-            title="Flight Radar"
-            subtitle="Live status for tracked flights -- delayed, diverted, cancelled, landed"
-            onClick={() => onChangeTab('FlightRadar')}
-          />
-        )}
-        {excessBaggageAirlines.filter(a => canAccess(`Baggage:${a.name}`)).map(a => (
-          <MenuItem
-            key={a.id}
-            icon={AirplaneIcon}
-            title={`${a.name} POS`}
-            subtitle="Excess baggage counter"
-            onClick={() => onChangeTab(`Baggage:${a.name}`)}
-          />
-        ))}
-        {canAccess('Packages') && (
-          <MenuItem
-            icon={TruckIcon}
-            title="Package & Parcel Desk"
-            subtitle="Flat-fee package and parcel counter"
-            onClick={() => onChangeTab('Packages')}
-          />
-        )}
-      </div>
+              {/* View 1: Active Search Results */}
+              {searchQuery.trim().length > 0 ? (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--color-muted)]">
+                      Matching Settings ({searchResults.length})
+                    </span>
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="text-[11px] font-mono text-[var(--color-muted)] hover:text-[var(--color-foreground)] cursor-pointer"
+                    >
+                      Clear
+                    </button>
+                  </div>
 
-      {/* Finance */}
-      <SectionLabel label="Finance" />
-      <div className="ehi-card divide-y divide-[var(--color-border)] overflow-hidden">
-        <MenuItem
-          icon={ListBulletsIcon}
-          title="Rates Directory"
-          subtitle="View every configured rate — read-only, edit from each config screen"
-          onClick={() => { if (canAccess('More:RatesList')) openSub('ratesList'); }}
-          disabled={!canAccess('More:RatesList')}
-        />
-        <MenuItem
-          icon={CreditCardIcon}
-          title="Credit & Debit"
-          subtitle="View receivables and payables (Airline commissions)"
-          onClick={() => onChangeTab('Credit & Debit')}
-          disabled={!canAccess('Credit & Debit')}
-        />
-        <MenuItem
-          icon={StackIcon}
-          title={
-            <span className="flex items-center gap-1.5">
-              Bank Reconciliation
-              <span className="text-[8px] font-mono bg-[var(--color-surface-2)] text-[var(--color-muted)] group-hover:text-[var(--color-accent-amber)] px-1.5 py-0.5 rounded tracking-wide font-black uppercase transition-colors">CSV AUTO</span>
-            </span>
-          }
-          subtitle="Match bank deposits with system payment ledgers"
-          onClick={() => { if (canAccess('More:BankReconciliation')) openSub('bankRecon'); }}
-          disabled={!canAccess('More:BankReconciliation')}
-        />
-        <MenuItem
-          icon={DatabaseIcon}
-          title="Central Accounting ERP"
-          subtitle="Check balance sheets and cash flows dashboard"
-          onClick={() => { if (canAccess('More:AccountingConsole')) openSub('accounting'); }}
-          disabled={!canAccess('More:AccountingConsole')}
-        />
-        <MenuItem
-          icon={ChartBarIcon}
-          title="Advanced Reports"
-          subtitle="Operational audits and trend sheets"
-          onClick={() => { if (canAccess('More:Reports')) openSub('reports'); }}
-          disabled={!canAccess('More:Reports')}
-        />
-        <MenuItem
-          icon={AirplaneIcon}
-          title="Airline Sales & Weight Breakdown"
-          subtitle="View total sales (₦) and total weight (KG) per airline by date & time range"
-          onClick={() => onChangeTab('AirlinePerformance')}
-          disabled={!canAccess('More:AirlinePerformance')}
-        />
-        <MenuItem
-          icon={PercentIcon}
-          title="Airline Commissions"
-          subtitle="Set percentage cuts for partner airlines"
-          onClick={() => { if (canAccess('More:AirlineCommissions')) openSub('airlineCommissions'); }}
-          disabled={!canAccess('More:AirlineCommissions')}
-        />
-        <MenuItem
-          icon={ReceiptIcon}
-          title="Corporate Client Billing"
-          subtitle="Generate a shipment statement for a corporate account"
-          onClick={() => { if (canAccess('More:CorporateBilling')) openSub('corporateBilling'); }}
-          disabled={!canAccess('More:CorporateBilling')}
-        />
-        <MenuItem
-          icon={ReceiptIcon}
-          title="Office Work Reconciliation"
-          subtitle="Link & reprice mis-entered corporate debts"
-          onClick={() => { if (canAccess('More:OfficeWorkReconcile')) openSub('officeReconcile'); }}
-          disabled={!canAccess('More:OfficeWorkReconcile')}
-        />
-        <MenuItem
-          icon={CurrencyDollarIcon}
-          title="Customer Credit Wallets"
-          subtitle="Manage customer advance balances, top-ups, and credit history"
-          onClick={() => { if (canAccess('More:CustomerWallets')) openSub('customerWallets'); }}
-          disabled={!canAccess('More:CustomerWallets')}
-        />
-      </div>
+                  {searchResults.length === 0 ? (
+                    <div className="ehi-card p-8 text-center space-y-2">
+                      <Search size={32} className="mx-auto text-[var(--color-muted)] opacity-30" />
+                      <div className="text-[14px] font-bold text-[var(--color-foreground)]">
+                        No settings found
+                      </div>
+                      <div className="text-[12px] font-mono text-[var(--color-muted)]">
+                        No tools match "{searchQuery}". Try keywords like tariff, ledger, wallet, or staff.
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="ehi-card divide-y divide-[var(--color-border)] overflow-hidden">
+                      {searchResults.map((item) => {
+                        const Icon = item.icon;
+                        return (
+                          <button
+                            key={item.id}
+                            onClick={() => handleItemClick(item)}
+                            className="w-full flex items-center gap-3.5 py-3.5 px-4 text-left hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer group min-h-[52px]"
+                          >
+                            <div className="w-8 h-8 rounded-lg bg-[var(--color-surface-2)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-muted)] group-hover:text-[var(--color-foreground)] shrink-0 transition-colors">
+                              <Icon size={16} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[13px] font-bold text-[var(--color-foreground)] truncate">
+                                  {item.title}
+                                </span>
+                                {item.badge && (
+                                  <span className="text-[9px] font-mono bg-[var(--color-surface-2)] text-[var(--color-muted)] px-1.5 py-0.5 rounded uppercase font-bold shrink-0">
+                                    {item.badge}
+                                  </span>
+                                )}
+                                {item.level === 'advanced' && (
+                                  <span className="text-[9px] font-mono uppercase px-1.5 py-0.2 rounded bg-[var(--color-surface-2)] text-[var(--color-muted)] border border-[var(--color-border)] shrink-0">
+                                    Advanced
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[11px] font-mono text-[var(--color-muted)] truncate mt-0.5">
+                                {item.subtitle}
+                              </div>
+                            </div>
+                            <div className="hidden sm:flex items-center gap-2 shrink-0">
+                              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[var(--color-surface-2)] text-[var(--color-muted)] border border-[var(--color-border)]">
+                                {item.groupTitle}
+                              </span>
+                              <ChevronRight size={16} className="text-[var(--color-muted)]" />
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ) : selectedGroupId && activeGroup ? (
+                /* View 2: Opened Group View (Progressive Disclosure Sub-Page) */
+                <div className="space-y-4">
+                  {/* Group Navigation Bar */}
+                  <div className="flex items-center justify-between gap-3">
+                    <BackButton
+                      onClick={() => selectGroup(null)}
+                      label="Settings"
+                      className="min-h-[44px]"
+                    />
+                    <span className="text-[11px] font-mono text-[var(--color-muted)]">
+                      {currentGroupItems.primary.length + currentGroupItems.advanced.length} items
+                    </span>
+                  </div>
 
-      {/* Intelligence */}
-      <SectionLabel label="Intelligence" />
-      <div className="ehi-card divide-y divide-[var(--color-border)] overflow-hidden">
-        <MenuItem
-          icon={BrainIcon}
-          title={
-            <span className="flex items-center gap-1.5">
-              Demand Forecasting AI
-              <span className="text-[8px] font-mono bg-[var(--color-surface-2)] text-[var(--color-muted)] group-hover:text-[var(--color-accent-amber)] px-1.5 py-0.5 rounded tracking-wide font-black uppercase transition-colors">Gemini Intel</span>
-            </span>
-          }
-          subtitle="Capacity heatmap and busy periods projections"
-          onClick={() => { if (canAccess('More:Forecasting')) openSub('forecasting'); }}
-          disabled={!canAccess('More:Forecasting')}
-        />
-        <MenuItem
-          icon={ShieldWarningIcon}
-          title={
-            <span className="flex items-center gap-2">
-              Fraud &amp; Anomalies Feed
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--color-muted)] group-hover:bg-[var(--color-accent-amber)] opacity-75 transition-colors"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--color-muted)] group-hover:bg-[var(--color-accent-amber)] transition-colors"></span>
-              </span>
-            </span>
-          }
-          subtitle="Track sudden debt spikes and duplicated AWBs"
-          onClick={() => { if (canAccess('More:FraudAlerts')) openSub('fraudAlerts'); }}
-          disabled={!canAccess('More:FraudAlerts')}
-        />
-        <MenuItem
-          icon={ClockCounterClockwiseIcon}
-          title="Revision Audit Log"
-          subtitle="Strict NDPR/Financial compliance trace log"
-          onClick={() => { if (canAccess('More:AuditLog')) openSub('auditLog'); }}
-          disabled={!canAccess('More:AuditLog')}
-        />
-      </div>
+                  {/* Group Header */}
+                  <div className="ehi-card p-5 space-y-1">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-[var(--color-surface-2)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-foreground)] shrink-0">
+                        {React.createElement(activeGroup.icon, { size: 18 })}
+                      </div>
+                      <h2 className="text-[16px] font-bold text-[var(--color-foreground)] font-sans">
+                        {activeGroup.title}
+                      </h2>
+                    </div>
+                    <p className="text-[12px] font-mono text-[var(--color-muted)] pl-[42px]">
+                      {activeGroup.description}
+                    </p>
+                  </div>
 
-      {/* Fleet & Logistics */}
-      <SectionLabel label="Fleet & Logistics" />
-      <div className="ehi-card divide-y divide-[var(--color-border)] overflow-hidden">
-        <MenuItem
-          icon={TruckIcon}
-          title="Fleet Management"
-          subtitle="Vehicles registration, service scheduler, fuel expense log"
-          onClick={() => { if (canAccess('More:Fleet')) openSub('fleet'); }}
-          disabled={!canAccess('More:Fleet')}
-        />
-        <MenuItem
-          icon={ShieldIcon}
-          title="Proof of Delivery Log"
-          subtitle="GPS trace, signatures and photo evidence"
-          onClick={() => { if (canAccess('More:PODLog')) openSub('podLog'); }}
-          disabled={!canAccess('More:PODLog')}
-        />
-        <MenuItem
-          icon={MapPinIcon}
-          title="Dispatch & Fleet Tracking"
-          subtitle="Live driver tracking on active routes"
-          onClick={() => { if (canAccess('More:Dispatch')) openSub('dispatch'); }}
-          disabled={!canAccess('More:Dispatch')}
-        />
-      </div>
+                  {/* Primary Items List */}
+                  <div className="space-y-2">
+                    <div className="text-[9px] font-mono text-[var(--color-muted)] tracking-wider uppercase px-1">
+                      Primary Tools
+                    </div>
+                    <div className="ehi-card divide-y divide-[var(--color-border)] overflow-hidden">
+                      {currentGroupItems.primary.map((item) => {
+                        const Icon = item.icon;
+                        return (
+                          <button
+                            key={item.id}
+                            onClick={() => handleItemClick(item)}
+                            className="w-full flex items-center gap-3.5 py-3.5 px-4 text-left hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer group min-h-[52px]"
+                          >
+                            <div className="w-8 h-8 rounded-lg bg-[var(--color-surface-2)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-muted)] group-hover:text-[var(--color-foreground)] shrink-0 transition-colors">
+                              <Icon size={16} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[13px] font-bold text-[var(--color-foreground)] truncate">
+                                  {item.title}
+                                </span>
+                                {item.badge && (
+                                  <span className="text-[9px] font-mono bg-[var(--color-surface-2)] text-[var(--color-muted)] px-1.5 py-0.5 rounded uppercase font-bold shrink-0">
+                                    {item.badge}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[11px] font-mono text-[var(--color-muted)] truncate mt-0.5">
+                                {item.subtitle}
+                              </div>
+                            </div>
+                            <ChevronRight size={16} className="text-[var(--color-muted)] shrink-0" />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
 
-      {/* Data */}
-      <SectionLabel label="Data & Records" />
-      <div className="ehi-card divide-y divide-[var(--color-border)] overflow-hidden">
-        <MenuItem
-          icon={BookOpenIcon}
-          title="Airline Balance Ledger"
-          subtitle="Per-airline running Credit / Debit / Cheque Raise ledger"
-          onClick={() => onChangeTab('AirlineLedger')}
-          disabled={!canAccess('AirlineLedger')}
-        />
-        <MenuItem
-          icon={ClipboardTextIcon}
-          title="Weight Manifest"
-          subtitle="Daily dispatch weight tracking per flight and route"
-          onClick={() => onChangeTab('WeightManifest')}
-          disabled={!canAccess('WeightManifest')}
-        />
-        <MenuItem
-          icon={UploadSimpleIcon}
-          title="Import Historical Data"
-          subtitle="Bulk import ledger records from CSV spreadsheets"
-          onClick={() => onChangeTab('DataImport')}
-          disabled={!canAccess('DataImport')}
-        />
-      </div>
+                  {/* Advanced Disclosure Inside Group */}
+                  {currentGroupItems.advanced.length > 0 && (
+                    <div className="space-y-2 pt-2">
+                      <button
+                        onClick={() => setShowAdvanced(!showAdvanced)}
+                        className="w-full flex items-center justify-between py-3 px-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] text-left cursor-pointer min-h-[44px] transition-colors"
+                      >
+                        <span className="flex items-center gap-2 text-[12px] font-bold text-[var(--color-foreground)]">
+                          {showAdvanced ? (
+                            <ChevronDown size={16} className="text-[var(--color-muted)]" />
+                          ) : (
+                            <ChevronRight size={16} className="text-[var(--color-muted)]" />
+                          )}
+                          Advanced System Options
+                          <span className="text-[10px] font-mono text-[var(--color-muted)] font-normal">
+                            ({currentGroupItems.advanced.length})
+                          </span>
+                        </span>
+                        <span className="text-[11px] font-mono text-[var(--color-muted)]">
+                          {showAdvanced ? 'Hide' : 'Show'}
+                        </span>
+                      </button>
 
-      {/* Administration */}
-      <SectionLabel label="Administration" />
-      <div className="ehi-card divide-y divide-[var(--color-border)] overflow-hidden">
-        <MenuItem
-          icon={AirplaneIcon}
-          title="Airline Logos"
-          subtitle="Manage uploaded logos for all partner airlines"
-          onClick={() => onChangeTab('AirlineLogos')}
-          disabled={!canAccess('AirlineLogos')}
-        />
-        <MenuItem
-          icon={TerminalIcon}
-          title="IT Debug Console"
-          subtitle="Live system logs, debugging and diagnostics"
-          onClick={() => onChangeTab('IT Debug')}
-          disabled={!canAccess('IT Debug')}
-        />
-        <MenuItem
-          icon={CurrencyDollarIcon}
-          title="Pricing & Rates Configuration"
-          subtitle="B2B client rates and retail standard tariffs"
-          onClick={() => { if (canAccess('More:PricingConfiguration')) openSub('pricing'); }}
-          disabled={!canAccess('More:PricingConfiguration')}
-        />
-        <MenuItem
-          icon={CurrencyDollarIcon}
-          title="Hub Cargo Rates"
-          subtitle="Per-hub, per-airline rate overrides on the standard tariff"
-          onClick={() => { if (canAccess('More:HubCargoRates')) openSub('hubCargoRates'); }}
-          disabled={!canAccess('More:HubCargoRates')}
-        />
-        <MenuItem
-          icon={AirplaneIcon}
-          title="Excess Baggage Airlines"
-          subtitle="Add airlines and set their free allowance / rate per KG"
-          onClick={() => { if (canAccess('More:ExcessBaggageAirlines')) openSub('excessBaggageAirlines'); }}
-          disabled={!canAccess('More:ExcessBaggageAirlines')}
-        />
-        <MenuItem
-          icon={TagIcon}
-          title="Content Types"
-          subtitle="Cargo/package content categories staff pick from at intake"
-          onClick={() => { if (canAccess('More:ContentTypes')) openSub('contentTypes'); }}
-          disabled={!canAccess('More:ContentTypes')}
-        />
-        <MenuItem
-          icon={SparkleIcon}
-          title="Special Goods Rates"
-          subtitle="Per-airline, weight-tiered rates for flagged content types"
-          onClick={() => { if (canAccess('More:SpecialGoodsRates')) openSub('specialGoodsRates'); }}
-          disabled={!canAccess('More:SpecialGoodsRates')}
-        />
-        <MenuItem
-          icon={ScalesIcon}
-          title="Minimum Charges"
-          subtitle="Flat weight-bracket floor per airline + route"
-          onClick={() => { if (canAccess('More:MinimumCharges')) openSub('minimumCharges'); }}
-          disabled={!canAccess('More:MinimumCharges')}
-        />
-        <MenuItem
-          icon={ReceiptIcon}
-          title="Flat Tier Rates"
-          subtitle="Flat weight-bracket pricing (Bumper & Burnet)"
-          onClick={() => { if (canAccess('More:FlatTierRates')) openSub('flatTierRates'); }}
-          disabled={!canAccess('More:FlatTierRates')}
-        />
-        <MenuItem
-          icon={ReceiptIcon}
-          title="Size Tier Rates"
-          subtitle="Flat screen-size-bracket pricing (Plasma TV)"
-          onClick={() => { if (canAccess('More:SizeTierRates')) openSub('sizeTierRates'); }}
-          disabled={!canAccess('More:SizeTierRates')}
-        />
-        <MenuItem
-          icon={ReceiptIcon}
-          title="Expense Categories"
-          subtitle="Categories staff log expenses against, plus monthly budgets"
-          onClick={() => { if (canAccess('More:ExpenseCategories')) openSub('expenseCategories'); }}
-          disabled={!canAccess('More:ExpenseCategories')}
-        />
-        <MenuItem
-          icon={BankIcon}
-          title="Banks"
-          subtitle="Bank list used in Transfer/POS payment dropdowns"
-          onClick={() => { if (canAccess('More:Banks')) openSub('banks'); }}
-          disabled={!canAccess('More:Banks')}
-        />
-        <MenuItem
-          icon={GearIcon}
-          title="Platform Settings"
-          subtitle="Automation and route pricing configuration"
-          onClick={() => { if (canAccess('More:Settings')) openSub('settings'); }}
-          disabled={!canAccess('More:Settings')}
-        />
-      </div>
+                      {showAdvanced && (
+                        <div className="ehi-card divide-y divide-[var(--color-border)] overflow-hidden">
+                          {currentGroupItems.advanced.map((item) => {
+                            const Icon = item.icon;
+                            return (
+                              <button
+                                key={item.id}
+                                onClick={() => handleItemClick(item)}
+                                className="w-full flex items-center gap-3.5 py-3.5 px-4 text-left hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer group min-h-[52px]"
+                              >
+                                <div className="w-8 h-8 rounded-lg bg-[var(--color-surface-2)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-muted)] group-hover:text-[var(--color-foreground)] shrink-0 transition-colors">
+                                  <Icon size={16} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[13px] font-bold text-[var(--color-foreground)] truncate">
+                                      {item.title}
+                                    </span>
+                                    {item.badge && (
+                                      <span className="text-[9px] font-mono bg-[var(--color-surface-2)] text-[var(--color-muted)] px-1.5 py-0.5 rounded uppercase font-bold shrink-0">
+                                        {item.badge}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-[11px] font-mono text-[var(--color-muted)] truncate mt-0.5">
+                                    {item.subtitle}
+                                  </div>
+                                </div>
+                                <ChevronRight size={16} className="text-[var(--color-muted)] shrink-0" />
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* View 3: Settings Home Page (6 Groups + Appearance) */
+                <div className="space-y-6">
+                  {/* Appearance & Density Control */}
+                  <div className="ehi-card p-4 space-y-3.5">
+                    <div className="flex items-center justify-between pb-2 border-b border-[var(--color-border)]">
+                      <div>
+                        <div className="text-[13px] font-bold text-[var(--color-foreground)] font-sans">
+                          Appearance & Display
+                        </div>
+                        <div className="text-[11px] font-mono text-[var(--color-muted)]">
+                          Theme and touch density for counter terminals
+                        </div>
+                      </div>
+                    </div>
 
-      {/* Support & Account */}
-      <SectionLabel label="Support & Account" />
-      <div className="ehi-card divide-y divide-[var(--color-border)] overflow-hidden">
-        {canAccess('More:StaffManagement') && (
-          <MenuItem
-            icon={UsersIcon}
-            title="Staff Management"
-            subtitle="Add staff, assign hubs, set roles, deactivate accounts"
-            onClick={() => openSub('staff')}
-          />
-        )}
-        {canAccess('More:SupportTickets') && (
-          <MenuItem
-            icon={ShieldWarningIcon}
-            title="Help Desk & Issue Resolution"
-            subtitle="Report operational complaints or bugs"
-            onClick={() => openSub('support')}
-          />
-        )}
-      </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* Theme Toggle */}
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border)] min-h-[44px]">
+                        <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                          {theme === 'dark' ? (
+                            <Moon size={18} className="text-[var(--color-muted)] shrink-0" />
+                          ) : (
+                            <Sun size={18} className="text-[var(--color-muted)] shrink-0" />
+                          )}
+                          <div className="min-w-0">
+                            <div className="text-[12px] font-bold text-[var(--color-foreground)] truncate">
+                              Theme
+                            </div>
+                            <div className="text-[10px] font-mono text-[var(--color-muted)] truncate">
+                              {theme === 'dark' ? 'Dark Mode (OLED)' : 'Light Mode (High Contrast)'}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center bg-[var(--color-surface-2)] p-0.5 rounded-full border border-[var(--color-border-strong)] shrink-0">
+                          <button
+                            onClick={() => theme !== 'dark' && toggleTheme()}
+                            className={`min-h-[36px] min-w-[44px] px-3 rounded-full text-[11px] font-semibold transition-colors cursor-pointer ${
+                              theme === 'dark'
+                                ? 'bg-[var(--color-primary-pill)] text-[var(--color-primary-pill-text)]'
+                                : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
+                            }`}
+                          >
+                            Dark
+                          </button>
+                          <button
+                            onClick={() => theme !== 'light' && toggleTheme()}
+                            className={`min-h-[36px] min-w-[44px] px-3 rounded-full text-[11px] font-semibold transition-colors cursor-pointer ${
+                              theme === 'light'
+                                ? 'bg-[var(--color-primary-pill)] text-[var(--color-primary-pill-text)]'
+                                : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
+                            }`}
+                          >
+                            Light
+                          </button>
+                        </div>
+                      </div>
 
-      <button
-        onClick={onLogout}
-        className="ehi-card w-full mt-3 flex items-center gap-3 py-3.5 px-3.5 cursor-pointer group text-left hover:bg-[var(--color-surface-1)] transition-colors"
-      >
-        <SignOutIcon size={18} className="text-[var(--color-error)] shrink-0" />
-        <div className="text-left flex-1">
-          <div className="text-[13px] font-bold font-sans text-[var(--color-error)]">Sign Out</div>
-          <div className="text-[10px] font-mono text-[var(--color-muted)] opacity-80">{user.name} &middot; {user.hub}</div>
-        </div>
-      </button>
+                      {/* Density Toggle */}
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border)] min-h-[44px]">
+                        <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                          <Sliders size={18} className="text-[var(--color-muted)] shrink-0" />
+                          <div className="min-w-0">
+                            <div className="text-[12px] font-bold text-[var(--color-foreground)] truncate">
+                              Density
+                            </div>
+                            <div className="text-[10px] font-mono text-[var(--color-muted)] truncate">
+                              {isSpacious ? 'Spacious (CF-31 Touch)' : 'Compact (Dense Data)'}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center bg-[var(--color-surface-2)] p-0.5 rounded-full border border-[var(--color-border-strong)] shrink-0">
+                          <button
+                            onClick={() => !isSpacious && setDensity('spacious')}
+                            className={`min-h-[36px] min-w-[44px] px-3 rounded-full text-[11px] font-semibold transition-colors cursor-pointer ${
+                              isSpacious
+                                ? 'bg-[var(--color-primary-pill)] text-[var(--color-primary-pill-text)]'
+                                : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
+                            }`}
+                          >
+                            Spacious
+                          </button>
+                          <button
+                            onClick={() => !isCompact && setDensity('compact')}
+                            className={`min-h-[36px] min-w-[44px] px-3 rounded-full text-[11px] font-semibold transition-colors cursor-pointer ${
+                              isCompact
+                                ? 'bg-[var(--color-primary-pill)] text-[var(--color-primary-pill-text)]'
+                                : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
+                            }`}
+                          >
+                            Compact
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
-    </div>
-    )}
+                  {/* 6 Structured Groups */}
+                  <div className="space-y-3">
+                    <div className="text-[9px] font-mono text-[var(--color-muted)] tracking-wider uppercase px-1">
+                      System Categories
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {accessibleGroups.map((group) => {
+                        const Icon = group.icon;
+                        return (
+                          <button
+                            key={group.id}
+                            onClick={() => selectGroup(group.id)}
+                            className="ehi-card p-4 flex items-center justify-between gap-3 text-left hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer group min-h-[72px]"
+                          >
+                            <div className="flex items-center gap-3.5 min-w-0">
+                              <div className="w-10 h-10 rounded-xl bg-[var(--color-surface-2)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-foreground)] shrink-0 group-hover:border-[var(--color-border-strong)] transition-colors">
+                                <Icon size={20} />
+                              </div>
+                              <div className="min-w-0">
+                                <div className="text-[14px] font-bold text-[var(--color-foreground)] font-sans truncate">
+                                  {group.title}
+                                </div>
+                                <div className="text-[11px] font-mono text-[var(--color-muted)] line-clamp-1 mt-0.5">
+                                  {group.description}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="text-[11px] font-mono px-2.5 py-1 rounded-full bg-[var(--color-surface-2)] text-[var(--color-foreground)] border border-[var(--color-border)] font-semibold">
+                                {group.count} {group.count === 1 ? 'tool' : 'tools'}
+                              </span>
+                              <ChevronRight size={16} className="text-[var(--color-muted)]" />
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Clean Sign Out Action */}
+                  <button
+                    onClick={onLogout}
+                    className="ehi-card w-full flex items-center gap-3 py-3.5 px-4 cursor-pointer group text-left hover:bg-[var(--color-surface-hover)] transition-colors min-h-[52px]"
+                  >
+                    <SignOutIcon size={18} className="text-[var(--color-error)] shrink-0" />
+                    <div className="text-left flex-1 min-w-0">
+                      <div className="text-[13px] font-bold font-sans text-[var(--color-error)]">
+                        Sign Out
+                      </div>
+                      <div className="text-[10px] font-mono text-[var(--color-muted)] truncate opacity-80">
+                        {user.name} &middot; {user.hub}
+                      </div>
+                    </div>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </motion.div>
       </AnimatePresence>
     </div>
