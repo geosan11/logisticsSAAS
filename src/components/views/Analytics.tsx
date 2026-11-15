@@ -449,14 +449,14 @@ export const Analytics = ({
         </div>
 
         {/* Quiet secondary toolbar */}
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
           {/* Hub Selector */}
-          <div className="relative">
+          <div className="relative shrink-0">
             <select
               value={selectedHub}
               onChange={(e) => setSelectedHub(e.target.value)}
               aria-label="Select hub or terminal"
-              className="bg-[var(--color-surface-1)] text-[var(--color-foreground)] text-[12px] font-sans font-medium min-h-[44px] h-11 pl-3.5 pr-8 rounded-xl border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-border-strong)] appearance-none cursor-pointer transition-colors"
+              className="bg-[var(--color-surface-1)] text-[var(--color-foreground)] text-[12px] font-sans font-medium min-h-[44px] h-11 pl-3.5 pr-8 max-w-[175px] truncate rounded-xl border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-border-strong)] appearance-none cursor-pointer transition-colors"
             >
               {activeHubs.map((hub) => (
                 <option key={hub.id} value={hub.id}>
@@ -473,7 +473,7 @@ export const Analytics = ({
           {/* Flights Radar Shortcut */}
           <button
             onClick={() => window.dispatchEvent(new CustomEvent('ehi-nav', { detail: 'FlightRadar' }))}
-            className={`min-h-[44px] h-11 px-3.5 rounded-xl border text-[12px] font-sans font-medium flex items-center gap-2 transition-colors cursor-pointer ${
+            className={`min-h-[44px] h-11 px-3 rounded-xl border text-[12px] font-sans font-medium flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 ${
               flightAttentionCount > 0
                 ? 'bg-[var(--color-error-bg)] border-[var(--color-error-border)] text-[var(--color-error)] font-semibold'
                 : 'bg-[var(--color-surface-1)] border-[var(--color-border)] text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)]'
@@ -494,13 +494,13 @@ export const Analytics = ({
             )}
           </button>
 
-          {/* Grouped Secondary Export Actions */}
-          <div className="flex items-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] overflow-hidden">
+          {/* Grouped Secondary Export Actions (Unified & Compact) */}
+          <div className="flex items-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] shrink-0 overflow-hidden">
             <button
               onClick={exportExcelReport}
               title="Export current summary and entries to Excel"
               aria-label="Export to Excel"
-              className="min-h-[44px] h-11 px-3.5 text-[12px] font-sans font-medium text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)] flex items-center gap-1.5 transition-colors cursor-pointer border-r border-[var(--color-border)]"
+              className="min-h-[44px] h-11 px-3 text-[12px] font-sans font-medium text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)] flex items-center gap-1.5 transition-colors cursor-pointer border-r border-[var(--color-border)]"
             >
               <FileSpreadsheet size={15} className="text-[var(--color-muted)]" />
               <span>Excel</span>
@@ -509,7 +509,7 @@ export const Analytics = ({
               onClick={handleDownloadPDF}
               title="Download PDF report"
               aria-label="Download PDF report"
-              className="min-h-[44px] h-11 px-3.5 text-[12px] font-sans font-medium text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)] flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="min-h-[44px] h-11 px-3 text-[12px] font-sans font-medium text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)] flex items-center gap-1.5 transition-colors cursor-pointer"
             >
               <Download size={15} className="text-[var(--color-muted)]" />
               <span>PDF</span>
@@ -524,32 +524,37 @@ export const Analytics = ({
           isCompact ? 'p-2.5' : 'p-3'
         }`}
       >
-        {/* Segmented Period Tabs */}
-        <div className="flex items-center gap-1 bg-[var(--color-surface-1)] p-1 rounded-xl border border-[var(--color-border)] flex-wrap">
-          {([
-            ['shift', 'Current shift'],
-            ['today', 'Today'],
-            ['7days', '7 days'],
-            ['month', 'This month'],
-            ['custom', 'Custom'],
-          ] as const).map(([id, label]) => (
-            <button
-              key={id}
-              onClick={() => handlePeriodChange(id)}
-              className={`min-h-[38px] px-3.5 py-1.5 text-[12px] font-sans rounded-lg transition-colors cursor-pointer ${
-                period === id
-                  ? 'bg-[var(--color-surface-3)] text-[var(--color-foreground)] font-semibold border border-[var(--color-border-strong)] shadow-xs'
-                  : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)]'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+        {/* Period Selector & Loading Telemetry */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Segmented Period Tabs */}
+          <div className="flex items-center gap-1 bg-[var(--color-surface-1)] p-1 rounded-xl border border-[var(--color-border)] flex-wrap">
+            {([
+              ['shift', 'Current shift'],
+              ['today', 'Today'],
+              ['7days', '7 days'],
+              ['month', 'This month'],
+              ['custom', 'Custom'],
+            ] as const).map(([id, label]) => (
+              <button
+                key={id}
+                onClick={() => handlePeriodChange(id)}
+                className={`min-h-[44px] px-3.5 py-2 text-[12px] font-sans rounded-lg transition-colors cursor-pointer ${
+                  period === id
+                    ? 'bg-[var(--color-surface-3)] text-[var(--color-foreground)] font-semibold border border-[var(--color-border-strong)] shadow-xs'
+                    : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)]'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Quiet Loading Telemetry (Outside Pill Group) */}
           {dataLoading && (
-            <span className="flex items-center gap-1.5 px-2 text-[11px] font-sans text-[var(--color-muted)]">
-              <Loader2 size={13} className="animate-spin" />
-              <span>Loading…</span>
-            </span>
+            <div className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-sans text-[var(--color-muted)] shrink-0">
+              <Loader2 size={13} className="animate-spin text-[var(--color-muted)]" />
+              <span>Updating…</span>
+            </div>
           )}
         </div>
 
@@ -584,10 +589,10 @@ export const Analytics = ({
         <div className="relative flex-1 lg:max-w-xs">
           <input
             type="text"
-            placeholder="Filter by customer, route, AWB..."
+            placeholder="Filter entries..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full min-h-[44px] h-11 pl-9 pr-9 bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-xl text-[13px] font-sans text-[var(--color-foreground)] placeholder:text-[var(--color-muted)] focus:outline-none focus:border-[var(--color-border-strong)] transition-colors"
+            className="w-full min-h-[44px] h-11 pl-9 pr-10 bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-xl text-[13px] font-sans text-[var(--color-foreground)] placeholder:text-[var(--color-muted)] focus:outline-none focus:border-[var(--color-border-strong)] transition-colors"
           />
           <Search
             size={15}
@@ -598,9 +603,9 @@ export const Analytics = ({
               type="button"
               onClick={() => setSearchQuery('')}
               aria-label="Clear filter"
-              className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-[var(--color-muted)] hover:text-[var(--color-foreground)] rounded-lg cursor-pointer"
+              className="absolute right-1 top-1/2 -translate-y-1/2 min-w-[40px] min-h-[40px] w-10 h-10 flex items-center justify-center text-[var(--color-muted)] hover:text-[var(--color-foreground)] rounded-lg cursor-pointer"
             >
-              <X size={14} />
+              <X size={15} />
             </button>
           )}
         </div>
@@ -639,7 +644,7 @@ export const Analytics = ({
               : 'bg-[var(--color-surface-card)] border-[var(--color-border)]'
           }`}
         >
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-1">
             <span
               className={`text-[12px] font-medium font-sans ${
                 summary.unpaidDebt > 0 ? 'text-[var(--color-error)]' : 'text-[var(--color-muted)]'
@@ -648,7 +653,7 @@ export const Analytics = ({
               Unpaid credit
             </span>
             {summary.unpaidDebt > 0 && (
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[var(--color-error)]/15 text-[var(--color-error)] font-sans">
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[var(--color-error)]/15 text-[var(--color-error)] font-sans shrink-0">
                 Needs collection
               </span>
             )}
@@ -941,7 +946,10 @@ export const Analytics = ({
                       <td className="py-3 px-3.5 text-center text-[var(--color-muted)] text-[12px] tabular-nums">
                         {i + 1}
                       </td>
-                      <td className="py-3 px-3.5 font-medium text-[var(--color-foreground)]">
+                      <td
+                        className="py-3 px-3.5 font-medium text-[var(--color-foreground)] truncate max-w-[180px] sm:max-w-xs"
+                        title={c.name}
+                      >
                         {c.name}
                       </td>
                       <td className="py-3 px-3.5 text-[var(--color-muted)] text-[12px]">
