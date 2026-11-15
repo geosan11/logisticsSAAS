@@ -51,7 +51,7 @@ export const TerminalSwitch = ({ value, onChange }: { value: Terminal; onChange:
         type="button"
         onClick={() => onChange(t)}
         aria-pressed={value === t}
-        className={`min-h-[38px] h-full px-3 text-[12px] font-sans font-medium rounded-full transition-colors cursor-pointer select-none flex items-center justify-center ${
+        className={`min-h-[40px] h-10 px-3.5 text-[12px] font-sans font-medium rounded-full transition-colors cursor-pointer select-none flex items-center justify-center ${
           value === t
             ? 'bg-[var(--color-surface-3)] text-[var(--color-foreground)] font-semibold border border-[var(--color-border-strong)] shadow-xs'
             : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)]'

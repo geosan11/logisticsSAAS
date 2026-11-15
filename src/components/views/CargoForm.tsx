@@ -61,6 +61,7 @@ import {
   BarChart2,
   X,
   Radar,
+  Phone,
 } from "lucide-react";
 import {
   sendReceiptWhatsApp,
@@ -2473,16 +2474,16 @@ export const CargoForm = ({
 
           <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap sm:flex-nowrap shrink-0">
             {isAdmin && (
-              <div className="flex items-center gap-1.5 px-2.5 min-h-[44px] h-11 bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-full shrink-0">
-                <span className="text-[11px] font-sans text-[var(--color-muted)]">Hub</span>
+              <label className="flex items-center gap-1.5 px-3 min-h-[44px] h-11 bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-full shrink-0 cursor-pointer transition-colors">
+                <span className="text-[11px] font-sans text-[var(--color-muted)] select-none">Hub</span>
                 <select
-                  value={adminSelectedHubId}
+                  value={adminSelectedHubId || user.hub_id}
                   onChange={(e) => setAdminSelectedHubId(e.target.value)}
-                  className="bg-transparent text-[var(--color-foreground)] font-sans font-medium text-[12px] focus:outline-none cursor-pointer max-w-[125px] truncate"
+                  className="bg-transparent text-[var(--color-foreground)] font-sans font-medium text-[12px] focus:outline-none cursor-pointer max-w-[125px] truncate h-full"
                 >
                   {hubList.map(h => <option key={h.id} value={h.id}>{h.code}/{h.name}</option>)}
                 </select>
-              </div>
+              </label>
             )}
 
             {userHubCode === 'LOS' && !forcedTerminal && (
@@ -2547,31 +2548,8 @@ export const CargoForm = ({
 
       {/* RETAIL CARGO LAYOUT */}
       {activePortal === "retail" && (
-        <div className="p-4 grid gap-6 md:grid-cols-[1fr_280px] items-start">
+        <div className={`p-4 grid items-start ${isCompact ? 'gap-3.5 md:grid-cols-[1fr_250px]' : 'gap-4 sm:gap-5 md:grid-cols-[1fr_260px] lg:grid-cols-[1fr_280px]'}`}>
           <div>
-            <div className="flex items-center justify-between gap-3 mb-4">
-              <div className="min-w-0">
-                <h2 className="text-[15px] font-sans font-semibold text-[var(--color-foreground)]">
-                  Retail entry
-                </h2>
-                <p className="text-[12px] font-sans text-[var(--color-muted)]">
-                  Log immediate shipment with cash, transfer, POS, or wallet
-                </p>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                {onShowHistory && (
-                  <button
-                    type="button"
-                    onClick={onShowHistory}
-                    className="flex items-center gap-1.5 min-h-[44px] h-11 px-3.5 bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-full text-[13px] font-sans font-medium text-[var(--color-foreground)] hover:bg-[var(--color-surface-2)] transition-colors cursor-pointer"
-                  >
-                    <ClipboardList size={14} className="text-[var(--color-muted)]" />
-                    <span>History</span>
-                  </button>
-                )}
-              </div>
-            </div>
-
             {batchItems.length > 0 && (
               <div className="mb-4 rounded-xl border border-[var(--color-border-strong)] bg-[var(--color-surface-2)] px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
                 <div className="flex items-center gap-2 text-[12px] font-sans text-[var(--color-foreground)]">
@@ -2593,10 +2571,20 @@ export const CargoForm = ({
             <div className={spaceYClass}>
               {/* GROUP 1: CONSIGNMENT & ROUTING */}
               <div className={`rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] ${cardPadClass}`}>
-                <div className="border-b border-[var(--color-border)] pb-2.5">
+                <div className="border-b border-[var(--color-border)] pb-2.5 flex items-center justify-between">
                   <h3 className="text-[14px] font-sans font-semibold text-[var(--color-foreground)]">
                     Consignment &amp; routing
                   </h3>
+                  {onShowHistory && (
+                    <button
+                      type="button"
+                      onClick={onShowHistory}
+                      className="flex items-center gap-1.5 min-h-[36px] px-3 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-full text-[12px] font-sans font-medium text-[var(--color-foreground)] transition-colors cursor-pointer"
+                    >
+                      <ClipboardList size={14} className="text-[var(--color-muted)]" />
+                      <span>History</span>
+                    </button>
+                  )}
                 </div>
 
                 <div>
@@ -2636,7 +2624,7 @@ export const CargoForm = ({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    {renderLabel(UserIcon, "Sender phone (optional)")}
+                    {renderLabel(Phone, "Sender phone (optional)")}
                     <input
                       id="retail-sender-phone"
                       name="sender-phone"
@@ -2648,7 +2636,7 @@ export const CargoForm = ({
                     />
                   </div>
                   <div>
-                    {renderLabel(UserIcon, "Consignee phone (optional)")}
+                    {renderLabel(Phone, "Consignee phone (optional)")}
                     <input
                       id="retail-consignee-phone"
                       name="consignee-phone"
@@ -2665,13 +2653,13 @@ export const CargoForm = ({
                 {activeWallet && (
                   <div className="p-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-2)] flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <Coins size={16} className="text-emerald-500 shrink-0" />
+                      <Coins size={16} className="text-[var(--color-success)] shrink-0" />
                       <div className="min-w-0">
                         <div className="text-[12px] font-sans font-medium text-[var(--color-foreground)]">
                           Wallet balance available
                         </div>
                         <div className="text-[11px] font-sans text-[var(--color-muted)] truncate">
-                          {activeWallet.customer_name} has <span className="font-semibold text-emerald-500 tabular-nums">₦{fmt(activeWallet.balance)}</span> credit
+                          {activeWallet.customer_name} has <span className="font-semibold text-[var(--color-success)] tabular-nums">₦{fmt(activeWallet.balance)}</span> credit
                         </div>
                       </div>
                     </div>
@@ -2774,7 +2762,14 @@ export const CargoForm = ({
                   </div>
 
                   <div>
-                    {renderLabel(Radar, flightAutoFilled ? "Flight no. (auto-filled)" : "Flight no. (optional)")}
+                    <div className="flex items-center justify-between">
+                      {renderLabel(Radar, "Flight number (optional)")}
+                      {flightAutoFilled && (
+                        <span className="text-[10px] font-sans font-medium text-[var(--color-muted)] px-1.5 py-0.5 rounded bg-[var(--color-surface-2)] border border-[var(--color-border)] mb-1.5">
+                          Auto-filled
+                        </span>
+                      )}
+                    </div>
                     <input
                       id="retail-flight-number"
                       name="flight-number"
@@ -2805,15 +2800,14 @@ export const CargoForm = ({
                   </div>
 
                   <div>
-                    {renderLabel(Hash, "AWB / Tag no. (auto-generated)")}
+                    {renderLabel(Hash, "AWB / tag number (auto-generated)")}
                     <input
                       id="retail-awb"
                       name="awb"
                       type="text"
                       value={awb || "Loading…"}
                       readOnly
-                      className={`${formInputClass} font-sans tabular-nums opacity-60 cursor-not-allowed`}
-                      style={{ backgroundColor: 'var(--color-surface-3)', color: 'var(--color-muted)' }}
+                      className={`${formInputClass} font-mono font-medium tabular-nums bg-[var(--color-surface-2)] text-[var(--color-foreground)] select-all cursor-default`}
                     />
                   </div>
                 </div>
@@ -2842,11 +2836,11 @@ export const CargoForm = ({
                   </div>
                   <div>
                     <div className="flex items-center justify-between">
-                      {renderLabel(Scale, "Weight (KG)")}
+                      {renderLabel(Scale, "Weight (kg)")}
                       <button
                         type="button"
                         onClick={() => setShowDims(!showDims)}
-                        className="min-h-[32px] px-2.5 py-1 text-[11px] font-sans font-medium text-[var(--color-muted)] hover:text-[var(--color-foreground)] bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg transition-colors cursor-pointer flex items-center gap-1"
+                        className="min-h-[36px] px-3 py-1 text-[11px] font-sans font-medium text-[var(--color-muted)] hover:text-[var(--color-foreground)] bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-full transition-colors cursor-pointer flex items-center gap-1 mb-1.5"
                       >
                         {showDims ? "Hide dimensions" : "+ Dimensions (cm)"}
                       </button>
@@ -3277,7 +3271,7 @@ export const CargoForm = ({
                 </div>
 
                 {successMessage && (
-                  <div className="p-3 text-[12px] font-sans font-medium text-emerald-500 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl flex items-center gap-2">
+                  <div className="p-3 text-[12px] font-sans font-medium text-[var(--color-success)] bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl flex items-center gap-2">
                     <CheckCircle size={15} />
                     <span>{successMessage}</span>
                   </div>
@@ -3302,7 +3296,7 @@ export const CargoForm = ({
                   </div>
 
                   <div>
-                    {renderLabel(MessageSquare, "Client phone (optional)")}
+                    {renderLabel(Phone, "Client phone (optional)")}
                     <input
                       type="tel"
                       placeholder="e.g. +234, +44, +1"
@@ -3333,8 +3327,7 @@ export const CargoForm = ({
                       type="text"
                       value={intakeAwb}
                       readOnly
-                      className={`${formInputClass} font-sans tabular-nums opacity-60 cursor-not-allowed`}
-                      style={{ backgroundColor: 'var(--color-surface-3)', color: 'var(--color-muted)' }}
+                      className={`${formInputClass} font-mono font-medium tabular-nums bg-[var(--color-surface-2)] text-[var(--color-foreground)] select-all cursor-default`}
                     />
                   </div>
 
@@ -3644,7 +3637,7 @@ export const CargoForm = ({
                         {isAuthorizedRole ? (
                           <div className="pt-2 border-t border-[var(--color-border)]">
                             <label htmlFor="cargo-custom-rate-overwrite" className="text-[11px] text-[var(--color-muted)] block mb-1">
-                              Admin custom rate override (₦/KG){!contractRateForSelectedIntake ? ' — required, no contract rate' : ''}:
+                              Admin custom rate override (₦/KG){!contractRateForSelectedIntake ? ' — required, no contract rate' : ''}
                             </label>
                             <input
                               id="cargo-custom-rate-overwrite"
@@ -3693,7 +3686,7 @@ export const CargoForm = ({
                       <div className="text-[11px] text-[var(--color-muted)] bg-[var(--color-surface-2)] p-3 rounded-xl border border-[var(--color-border)] leading-snug flex items-start gap-2">
                         <Zap size={14} className="shrink-0 mt-0.5 text-[var(--color-muted)]" />
                         <span>
-                          If "Debt" is selected, the invoice amount will automatically post to the client's monthly balance.
+                          If debt is selected, the invoice amount will automatically post to the client's monthly balance.
                         </span>
                       </div>
                     </div>
@@ -3816,11 +3809,11 @@ export const CargoForm = ({
                   <div className="space-y-2 text-[13px] font-sans">
                     <div className="flex justify-between"><span className="text-[var(--color-muted)]">Total sales</span><span className="font-semibold text-[var(--color-foreground)] tabular-nums">{fmt(closeTotalSales)}</span></div>
                     <div className="flex justify-between"><span className="text-[var(--color-muted)]">Cash sales</span><span className="text-[var(--color-foreground)] tabular-nums">{fmt(closeCashSales)}</span></div>
-                    {closeDebtCashRecoveredToday > 0 && <div className="flex justify-between text-emerald-500"><span>Debt recovered (cash)</span><span className="tabular-nums">+ {fmt(closeDebtCashRecoveredToday)}</span></div>}
+                    {closeDebtCashRecoveredToday > 0 && <div className="flex justify-between text-[var(--color-success)]"><span>Debt recovered (cash)</span><span className="tabular-nums">+ {fmt(closeDebtCashRecoveredToday)}</span></div>}
                     <div className="flex justify-between"><span className="text-[var(--color-muted)]">POS sales</span><span className="text-[var(--color-foreground)] tabular-nums">{fmt(closePosSales)}</span></div>
                     <div className="flex justify-between"><span className="text-[var(--color-muted)]">Bank transfer</span><span className="text-[var(--color-foreground)] tabular-nums">{fmt(closeTransferSales)}</span></div>
                     {closeDebtSales > 0 && <div className="flex justify-between border-t border-[var(--color-border)] pt-2"><span className="text-[var(--color-warning)]">Unpaid credit sales (debt)</span><span className="text-[var(--color-warning)] font-semibold tabular-nums">{fmt(closeDebtSales)}</span></div>}
-                    {closeDebtTotalRecoveredToday > 0 && <div className="flex justify-between"><span className="text-emerald-500">Debt collected today</span><span className="text-emerald-500 font-semibold tabular-nums">{fmt(closeDebtTotalRecoveredToday)}</span></div>}
+                    {closeDebtTotalRecoveredToday > 0 && <div className="flex justify-between"><span className="text-[var(--color-success)]">Debt collected today</span><span className="text-[var(--color-success)] font-semibold tabular-nums">{fmt(closeDebtTotalRecoveredToday)}</span></div>}
                   </div>
                   <div className="bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-2xl p-4">
                     <div className="flex justify-between items-center">
