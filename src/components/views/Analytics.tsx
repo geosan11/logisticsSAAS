@@ -3,6 +3,7 @@ import { User, Transaction, Expense } from '../../lib/types';
 import { fmt, getShiftBoundary, sanitizeSpreadsheetRows, lagosBusinessDate } from '../../lib/helpers';
 import { supabase } from '../../lib/supabase';
 import { useToast } from '../../lib/ToastContext';
+import { useDensity } from '../../lib/useDensity';
 import {
   TrendingUp,
   Package,
@@ -14,7 +15,8 @@ import {
   Calendar,
   Download,
   DollarSign,
-  Filter,
+  Search,
+  X,
   FileSpreadsheet,
   CheckCircle2,
   Radar,
@@ -22,6 +24,7 @@ import {
   CreditCard,
   Banknote,
   Building2,
+  ArrowLeft,
 } from 'lucide-react';
 
 export const Analytics = ({
@@ -43,6 +46,7 @@ export const Analytics = ({
   const [activeView, setActiveView] = useState<'summary' | 'customers' | 'past_shifts'>('summary');
   const [searchQuery, setSearchQuery] = useState('');
   const { showToast } = useToast();
+  const { isCompact } = useDensity();
 
   // Custom Date Range State
   const defaultShift = useMemo(() => {
@@ -428,25 +432,31 @@ export const Analytics = ({
   };
 
   return (
-    <div className="flex flex-col p-4 md:p-6 space-y-5 pb-24 select-none">
-      {/* ── 1. Simple Top Header & Actions ───────────────────────────── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-[var(--color-border)] pb-3">
+    <div
+      className={`flex flex-col w-full pb-24 select-none ${
+        isCompact ? 'p-3 sm:p-4 space-y-3.5' : 'p-4 md:p-6 space-y-5'
+      }`}
+    >
+      {/* ── 1. Unified Quiet Header & Actions ───────────────────────── */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-[var(--color-border)] pb-3.5">
         <div>
-          <span className="text-[10px] font-mono text-[var(--color-accent-amber)] tracking-[0.12em] uppercase font-bold">
-            ▸ BUSINESS OVERVIEW
-          </span>
-          <h2 className="text-[18px] font-bold font-sans text-[var(--color-foreground)] tracking-tight">
-            Sales &amp; Collections Summary
+          <h2 className="text-[20px] font-semibold font-sans text-[var(--color-foreground)] tracking-tight">
+            Sales &amp; Collections
           </h2>
+          <p className="text-[12px] text-[var(--color-muted)] mt-0.5 font-sans">
+            Shift summary, collection breakdown, and financial reconciliation
+          </p>
         </div>
 
+        {/* Quiet secondary toolbar */}
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Hub Filter */}
+          {/* Hub Selector */}
           <div className="relative">
             <select
               value={selectedHub}
               onChange={(e) => setSelectedHub(e.target.value)}
-              className="bg-[var(--color-surface-1)] text-[var(--color-foreground)] text-[11px] font-mono h-9 sm:h-8 pl-3 pr-7 rounded-lg border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent-amber)] appearance-none cursor-pointer"
+              aria-label="Select hub or terminal"
+              className="bg-[var(--color-surface-1)] text-[var(--color-foreground)] text-[12px] font-sans font-medium min-h-[44px] h-11 pl-3.5 pr-8 rounded-xl border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-border-strong)] appearance-none cursor-pointer transition-colors"
             >
               {activeHubs.map((hub) => (
                 <option key={hub.id} value={hub.id}>
@@ -454,209 +464,328 @@ export const Analytics = ({
                 </option>
               ))}
             </select>
-            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--color-muted)] pointer-events-none" size={12} />
+            <ChevronDown
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--color-muted)] pointer-events-none"
+              size={14}
+            />
           </div>
 
+          {/* Flights Radar Shortcut */}
           <button
             onClick={() => window.dispatchEvent(new CustomEvent('ehi-nav', { detail: 'FlightRadar' }))}
-            className="h-9 sm:h-8 px-3 border rounded-lg text-[11px] font-mono font-bold flex items-center gap-1.5 cursor-pointer"
-            style={
+            className={`min-h-[44px] h-11 px-3.5 rounded-xl border text-[12px] font-sans font-medium flex items-center gap-2 transition-colors cursor-pointer ${
               flightAttentionCount > 0
-                ? { background: 'var(--color-error-bg)', borderColor: 'var(--color-error-border)', color: 'var(--color-error)' }
-                : { background: 'var(--color-surface-1)', borderColor: 'var(--color-border)', color: 'var(--color-foreground)' }
+                ? 'bg-[var(--color-error-bg)] border-[var(--color-error-border)] text-[var(--color-error)] font-semibold'
+                : 'bg-[var(--color-surface-1)] border-[var(--color-border)] text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)]'
+            }`}
+            title={
+              flightAttentionCount > 0
+                ? `${flightAttentionCount} flight(s) delayed, diverted or cancelled`
+                : 'Open Flight Radar'
             }
+            aria-label="Open Flight Radar"
           >
-            <Radar size={14} />
-            <span className="hidden sm:inline">Flights</span>
-            {flightAttentionCount > 0 && <span>({flightAttentionCount})</span>}
+            <Radar size={15} className={flightAttentionCount > 0 ? 'text-[var(--color-error)]' : 'text-[var(--color-muted)]'} />
+            <span>Flights</span>
+            {flightAttentionCount > 0 && (
+              <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-[var(--color-error)] text-white">
+                {flightAttentionCount}
+              </span>
+            )}
           </button>
 
-          <button
-            onClick={exportExcelReport}
-            className="h-9 sm:h-8 px-3 bg-[var(--color-success-bg)] text-[var(--color-success)] border border-[var(--color-success-border)] rounded-lg text-[11px] font-mono font-bold flex items-center gap-1.5 cursor-pointer"
-          >
-            <FileSpreadsheet size={14} />
-            <span className="hidden sm:inline">Excel</span>
-          </button>
-
-          <button
-            onClick={handleDownloadPDF}
-            className="h-9 sm:h-8 px-3 bg-[var(--color-surface-1)] text-[var(--color-foreground)] border border-[var(--color-border)] rounded-lg text-[11px] font-mono font-bold flex items-center gap-1.5 cursor-pointer"
-          >
-            <Download size={14} className="text-[var(--color-accent-amber)]" />
-            <span className="hidden sm:inline">PDF</span>
-          </button>
+          {/* Grouped Secondary Export Actions */}
+          <div className="flex items-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] overflow-hidden">
+            <button
+              onClick={exportExcelReport}
+              title="Export current summary and entries to Excel"
+              aria-label="Export to Excel"
+              className="min-h-[44px] h-11 px-3.5 text-[12px] font-sans font-medium text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)] flex items-center gap-1.5 transition-colors cursor-pointer border-r border-[var(--color-border)]"
+            >
+              <FileSpreadsheet size={15} className="text-[var(--color-muted)]" />
+              <span>Excel</span>
+            </button>
+            <button
+              onClick={handleDownloadPDF}
+              title="Download PDF report"
+              aria-label="Download PDF report"
+              className="min-h-[44px] h-11 px-3.5 text-[12px] font-sans font-medium text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)] flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <Download size={15} className="text-[var(--color-muted)]" />
+              <span>PDF</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* ── 2. Time Period & Search Bar ──────────────────────────────── */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-xl p-3">
-        <div className="flex items-center gap-1 bg-[var(--color-surface-1)] p-1 rounded-lg border border-[var(--color-border)] flex-wrap">
+      {/* ── 2. Filter & Time Period Toolbar ─────────────────────────── */}
+      <div
+        className={`flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-2xl ${
+          isCompact ? 'p-2.5' : 'p-3'
+        }`}
+      >
+        {/* Segmented Period Tabs */}
+        <div className="flex items-center gap-1 bg-[var(--color-surface-1)] p-1 rounded-xl border border-[var(--color-border)] flex-wrap">
           {([
-            ['shift', 'Current Shift'],
+            ['shift', 'Current shift'],
             ['today', 'Today'],
-            ['7days', '7 Days'],
-            ['month', 'This Month'],
+            ['7days', '7 days'],
+            ['month', 'This month'],
             ['custom', 'Custom'],
           ] as const).map(([id, label]) => (
             <button
               key={id}
               onClick={() => handlePeriodChange(id)}
-              className={`px-3 py-1 text-[11px] font-mono font-bold rounded-md cursor-pointer ${
+              className={`min-h-[38px] px-3.5 py-1.5 text-[12px] font-sans rounded-lg transition-colors cursor-pointer ${
                 period === id
-                  ? 'bg-[var(--color-accent-amber)] text-[var(--color-on-accent)]'
-                  : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
+                  ? 'bg-[var(--color-surface-3)] text-[var(--color-foreground)] font-semibold border border-[var(--color-border-strong)] shadow-xs'
+                  : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)]'
               }`}
             >
               {label}
             </button>
           ))}
           {dataLoading && (
-            <span className="flex items-center gap-1 pl-2 text-[10px] font-mono text-[var(--color-muted)]">
-              <Loader2 size={11} className="animate-spin" />
-              Loading…
+            <span className="flex items-center gap-1.5 px-2 text-[11px] font-sans text-[var(--color-muted)]">
+              <Loader2 size={13} className="animate-spin" />
+              <span>Loading…</span>
             </span>
           )}
         </div>
 
+        {/* Custom Date Range Controls (shown only when Custom is active) */}
         {period === 'custom' && (
-          <div className="flex items-center gap-2 text-[11px] font-mono text-[var(--color-muted)] flex-wrap">
+          <div className="flex items-center gap-2 text-[12px] font-sans text-[var(--color-muted)] flex-wrap">
             <input
               type="datetime-local"
               value={customStart}
               onChange={(e) => setCustomStart(e.target.value)}
-              className="bg-[var(--color-surface-1)] text-[var(--color-foreground)] px-2 py-1 rounded border border-[var(--color-border)] text-[11px]"
+              aria-label="Custom range start"
+              className="bg-[var(--color-surface-1)] text-[var(--color-foreground)] min-h-[44px] h-11 px-3 rounded-xl border border-[var(--color-border)] text-[12px] font-sans focus:outline-none focus:border-[var(--color-border-strong)]"
             />
-            <span>to</span>
+            <span className="text-[12px] text-[var(--color-muted)]">to</span>
             <input
               type="datetime-local"
               value={customEnd}
               onChange={(e) => setCustomEnd(e.target.value)}
-              className="bg-[var(--color-surface-1)] text-[var(--color-foreground)] px-2 py-1 rounded border border-[var(--color-border)] text-[11px]"
+              aria-label="Custom range end"
+              className="bg-[var(--color-surface-1)] text-[var(--color-foreground)] min-h-[44px] h-11 px-3 rounded-xl border border-[var(--color-border)] text-[12px] font-sans focus:outline-none focus:border-[var(--color-border-strong)]"
             />
             <button
               onClick={handleCustomRangeApply}
-              className="px-3 py-1 bg-[var(--color-accent-amber)] text-[var(--color-on-accent)] rounded text-[11px] font-bold cursor-pointer"
+              className="min-h-[44px] h-11 px-4 bg-[var(--color-surface-3)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] border border-[var(--color-border-strong)] rounded-xl text-[12px] font-semibold cursor-pointer transition-colors"
             >
               Apply
             </button>
           </div>
         )}
 
-        <div className="relative flex-1 max-w-xs">
+        {/* Search input with 44px tap target */}
+        <div className="relative flex-1 lg:max-w-xs">
           <input
             type="text"
             placeholder="Filter by customer, route, AWB..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full h-9 sm:h-8 pl-8 pr-3 bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-lg text-[11px] font-sans text-[var(--color-foreground)] focus:outline-none focus:border-[var(--color-accent-amber)]"
+            className="w-full min-h-[44px] h-11 pl-9 pr-9 bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-xl text-[13px] font-sans text-[var(--color-foreground)] placeholder:text-[var(--color-muted)] focus:outline-none focus:border-[var(--color-border-strong)] transition-colors"
           />
-          <Filter size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-muted)] pointer-events-none" />
+          <Search
+            size={15}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-muted)] pointer-events-none"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              aria-label="Clear filter"
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-[var(--color-muted)] hover:text-[var(--color-foreground)] rounded-lg cursor-pointer"
+            >
+              <X size={14} />
+            </button>
+          )}
         </div>
       </div>
 
-      {/* ── 3. Four Simple Headline Cards ────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        {/* Card 1: Money Collected */}
-        <div className="bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-xl p-4 border-l-4 border-l-[var(--color-success)]">
-          <div className="text-[11px] font-mono text-[var(--color-muted)] uppercase">Money Collected (Paid)</div>
-          <div className="text-[22px] font-bold font-mono text-[var(--color-success)] my-1">
+      {/* ── 3. Four Core Stat Cards (Manager Priority Hierarchy) ────── */}
+      <div
+        className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 ${
+          isCompact ? 'gap-2.5' : 'gap-3 sm:gap-4'
+        }`}
+      >
+        {/* Priority 1: Money Collected (Primary cash/liquid in hand) */}
+        <div
+          className={`bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-2xl flex flex-col justify-between ${
+            isCompact ? 'p-3.5' : 'p-4 sm:p-5'
+          }`}
+        >
+          <div className="text-[12px] font-medium text-[var(--color-muted)] font-sans">
+            Money collected
+          </div>
+          <div className="text-[24px] sm:text-[26px] font-semibold text-[var(--color-foreground)] tabular-nums my-1.5 tracking-tight font-sans">
             ₦{fmt(summary.collectedTotal)}
           </div>
-          <div className="text-[11px] font-mono text-[var(--color-muted)]">
+          <div className="text-[11px] text-[var(--color-text-secondary)] font-sans">
             {summary.totalShipments.toLocaleString()} shipments · {summary.totalKg.toLocaleString()} KG
           </div>
         </div>
 
-        {/* Card 2: Total Sales Booked */}
-        <div className="bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-xl p-4 border-l-4 border-l-[var(--color-accent-amber)]">
-          <div className="text-[11px] font-mono text-[var(--color-muted)] uppercase">Total Sales Booked</div>
-          <div className="text-[22px] font-bold font-mono text-[var(--color-foreground)] my-1">
-            ₦{fmt(summary.grossBooked)}
+        {/* Priority 2: Unpaid Credit (Debt attention - Color ONLY when problem exists) */}
+        <div
+          className={`border rounded-2xl flex flex-col justify-between transition-colors ${
+            isCompact ? 'p-3.5' : 'p-4 sm:p-5'
+          } ${
+            summary.unpaidDebt > 0
+              ? 'bg-[var(--color-error-bg)] border-[var(--color-error-border)]'
+              : 'bg-[var(--color-surface-card)] border-[var(--color-border)]'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span
+              className={`text-[12px] font-medium font-sans ${
+                summary.unpaidDebt > 0 ? 'text-[var(--color-error)]' : 'text-[var(--color-muted)]'
+              }`}
+            >
+              Unpaid credit
+            </span>
+            {summary.unpaidDebt > 0 && (
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[var(--color-error)]/15 text-[var(--color-error)] font-sans">
+                Needs collection
+              </span>
+            )}
           </div>
-          <div className="text-[11px] font-mono text-[var(--color-muted)]">
-            Includes paid sales + credit bookings
-          </div>
-        </div>
-
-        {/* Card 3: Unpaid Credit / Debt */}
-        <div className="bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-xl p-4 border-l-4 border-l-[var(--color-error)]">
-          <div className="text-[11px] font-mono text-[var(--color-muted)] uppercase">Unpaid Credit (Debt)</div>
-          <div className="text-[22px] font-bold font-mono text-[var(--color-error)] my-1">
+          <div
+            className={`text-[24px] sm:text-[26px] font-semibold tabular-nums my-1.5 tracking-tight font-sans ${
+              summary.unpaidDebt > 0 ? 'text-[var(--color-error)]' : 'text-[var(--color-foreground)]'
+            }`}
+          >
             ₦{fmt(summary.unpaidDebt)}
           </div>
-          <div className="text-[11px] font-mono text-[var(--color-muted)]">
-            {summary.debtCount} unpaid credit {summary.debtCount === 1 ? 'entry' : 'entries'}
+          <div
+            className={`text-[11px] font-sans ${
+              summary.unpaidDebt > 0 ? 'text-[var(--color-error)]/80' : 'text-[var(--color-text-secondary)]'
+            }`}
+          >
+            {summary.debtCount} unpaid {summary.debtCount === 1 ? 'entry' : 'entries'}
           </div>
         </div>
 
-        {/* Card 4: Expenses & Net */}
-        <div className="bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-xl p-4 border-l-4 border-l-[var(--color-accent-cobalt)]">
-          <div className="text-[11px] font-mono text-[var(--color-muted)] uppercase">Net After Expenses</div>
-          <div className="text-[22px] font-bold font-mono text-[var(--color-accent-cobalt)] my-1">
+        {/* Priority 3: Net After Expenses (Liquid Net Position) */}
+        <div
+          className={`border rounded-2xl flex flex-col justify-between transition-colors ${
+            isCompact ? 'p-3.5' : 'p-4 sm:p-5'
+          } ${
+            summary.netCashAfterExpenses < 0
+              ? 'bg-[var(--color-error-bg)] border-[var(--color-error-border)]'
+              : 'bg-[var(--color-surface-card)] border-[var(--color-border)]'
+          }`}
+        >
+          <div
+            className={`text-[12px] font-medium font-sans ${
+              summary.netCashAfterExpenses < 0 ? 'text-[var(--color-error)]' : 'text-[var(--color-muted)]'
+            }`}
+          >
+            Net after expenses
+          </div>
+          <div
+            className={`text-[24px] sm:text-[26px] font-semibold tabular-nums my-1.5 tracking-tight font-sans ${
+              summary.netCashAfterExpenses < 0 ? 'text-[var(--color-error)]' : 'text-[var(--color-foreground)]'
+            }`}
+          >
             ₦{fmt(summary.netCashAfterExpenses)}
           </div>
-          <div className="text-[11px] font-mono text-[var(--color-muted)]">
+          <div
+            className={`text-[11px] font-sans ${
+              summary.netCashAfterExpenses < 0
+                ? 'text-[var(--color-error)]/80'
+                : 'text-[var(--color-text-secondary)]'
+            }`}
+          >
             Expenses: ₦{fmt(summary.totalExpenses)} ({summary.expenseCount})
+          </div>
+        </div>
+
+        {/* Priority 4: Total Sales Booked (Gross volume: paid + credit) */}
+        <div
+          className={`bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-2xl flex flex-col justify-between ${
+            isCompact ? 'p-3.5' : 'p-4 sm:p-5'
+          }`}
+        >
+          <div className="text-[12px] font-medium text-[var(--color-muted)] font-sans">
+            Total sales booked
+          </div>
+          <div className="text-[24px] sm:text-[26px] font-semibold text-[var(--color-foreground)] tabular-nums my-1.5 tracking-tight font-sans">
+            ₦{fmt(summary.grossBooked)}
+          </div>
+          <div className="text-[11px] text-[var(--color-text-secondary)] font-sans">
+            Paid sales plus credit bookings
           </div>
         </div>
       </div>
 
-      {/* ── 4. Simple 3-Button View Switcher ─────────────────────────── */}
-      <div className="flex items-center gap-2 border-b border-[var(--color-border)] pb-2 overflow-x-auto no-scrollbar">
+      {/* ── 4. View Switcher Tabs ──────────────────────────────────── */}
+      <div className="flex items-center gap-2 border-b border-[var(--color-border)] pb-2.5 overflow-x-auto no-scrollbar">
         {([
-          ['summary', 'Department & Payment Breakdown', DollarSign],
-          ['customers', `Top Customers (${summary.topCustomers.length})`, Building2],
-          ['past_shifts', 'Past Closed Shifts', Calendar],
+          ['summary', 'Breakdown', DollarSign],
+          ['customers', `Top customers (${summary.topCustomers.length})`, Building2],
+          ['past_shifts', 'Closed shifts', Calendar],
         ] as const).map(([id, label, Icon]) => (
           <button
             key={id}
             onClick={() => setActiveView(id)}
-            className={`px-3 sm:px-3.5 py-2 rounded-lg text-[11px] sm:text-[12px] font-sans font-bold flex items-center gap-1.5 sm:gap-2 cursor-pointer shrink-0 whitespace-nowrap ${
+            className={`min-h-[44px] px-4 py-2 rounded-xl text-[13px] font-sans font-medium flex items-center gap-2 transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
               activeView === id
-                ? 'bg-[var(--color-accent-amber)] text-[var(--color-on-accent)]'
-                : 'bg-[var(--color-surface-card)] text-[var(--color-muted)] hover:text-[var(--color-foreground)] border border-[var(--color-border)]'
+                ? 'bg-[var(--color-surface-3)] text-[var(--color-foreground)] font-semibold border border-[var(--color-border-strong)]'
+                : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)] border border-transparent'
             }`}
           >
-            <Icon size={14} className="shrink-0" />
+            <Icon size={15} className="shrink-0 text-[var(--color-muted)]" />
             <span>{label}</span>
           </button>
         ))}
       </div>
 
-      {/* ── View 1: Department & Payment Method Breakdown ────────────── */}
+      {/* ── View 1: Department & Payment Method Breakdown ──────────── */}
       {activeView === 'summary' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Left: Sales by Department */}
-          <div className="bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-xl p-4 space-y-3">
-            <h3 className="text-[14px] font-bold font-sans text-[var(--color-foreground)] border-b border-[var(--color-border)] pb-2">
-              1. Money Collected by Department
-            </h3>
+          <div
+            className={`bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-2xl space-y-3.5 ${
+              isCompact ? 'p-3.5' : 'p-4 sm:p-5'
+            }`}
+          >
+            <div className="border-b border-[var(--color-border)] pb-2.5">
+              <h3 className="text-[14px] font-semibold font-sans text-[var(--color-foreground)]">
+                Money collected by department
+              </h3>
+              <p className="text-[11px] text-[var(--color-muted)] mt-0.5 font-sans">
+                Paid revenue across station operational desks
+              </p>
+            </div>
 
             <div className="space-y-2.5">
               {([
-                { key: 'cargo', icon: Package, color: 'var(--color-accent-amber)' },
-                { key: 'baggage', icon: Plane, color: 'var(--color-accent-cobalt)' },
-                { key: 'marketing', icon: TrendingUp, color: 'var(--color-success)' },
-                { key: 'package', icon: Sparkles, color: 'var(--color-purple)' },
-              ] as const).map(({ key, icon: Icon, color }) => {
+                { key: 'cargo', icon: Package },
+                { key: 'baggage', icon: Plane },
+                { key: 'marketing', icon: TrendingUp },
+                { key: 'package', icon: Sparkles },
+              ] as const).map(({ key, icon: Icon }) => {
                 const d = summary.depts[key];
                 const pct = summary.collectedTotal > 0 ? Math.round((d.revenue / summary.collectedTotal) * 100) : 0;
                 return (
                   <div
                     key={key}
-                    className="p-3 bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-lg space-y-1.5"
+                    className="p-3.5 bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-xl space-y-2"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="flex items-center gap-2 text-[13px] font-bold text-[var(--color-foreground)]">
-                        <Icon size={15} style={{ color }} />
-                        {d.label}
+                      <span className="flex items-center gap-2.5 text-[13px] font-medium text-[var(--color-foreground)] font-sans">
+                        <Icon size={16} className="text-[var(--color-muted)]" />
+                        <span>{d.label}</span>
                       </span>
-                      <span className="text-[15px] font-bold font-mono" style={{ color }}>
+                      <span className="text-[14px] font-semibold text-[var(--color-foreground)] tabular-nums font-sans">
                         ₦{fmt(d.revenue)}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between text-[11px] font-mono text-[var(--color-muted)]">
+                    <div className="flex items-center justify-between text-[11px] text-[var(--color-muted)] font-sans">
                       <span>
                         {d.count} {d.count === 1 ? 'entry' : 'entries'}
                         {d.kg > 0 ? ` · ${d.kg.toLocaleString()} KG` : ''}
@@ -664,7 +793,10 @@ export const Analytics = ({
                       <span>{pct}% of total</span>
                     </div>
                     <div className="w-full bg-[var(--color-border)] h-1.5 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
+                      <div
+                        className="h-full rounded-full bg-[var(--color-foreground)]/40 transition-all duration-300"
+                        style={{ width: `${pct}%` }}
+                      />
                     </div>
                   </div>
                 );
@@ -672,103 +804,163 @@ export const Analytics = ({
             </div>
           </div>
 
-          {/* Right: How Customers Paid */}
-          <div className="bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-xl p-4 space-y-3">
-            <h3 className="text-[14px] font-bold font-sans text-[var(--color-foreground)] border-b border-[var(--color-border)] pb-2">
-              2. How Customers Paid
-            </h3>
+          {/* Right: How Customers Paid (Monochrome & Consistent) */}
+          <div
+            className={`bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-2xl space-y-3.5 ${
+              isCompact ? 'p-3.5' : 'p-4 sm:p-5'
+            }`}
+          >
+            <div className="border-b border-[var(--color-border)] pb-2.5">
+              <h3 className="text-[14px] font-semibold font-sans text-[var(--color-foreground)]">
+                How customers paid
+              </h3>
+              <p className="text-[11px] text-[var(--color-muted)] mt-0.5 font-sans">
+                Collection method breakdown and unconfirmed deposits
+              </p>
+            </div>
 
-            <div className="space-y-2.5 font-mono text-[12px]">
-              <div className="flex items-center justify-between p-3 bg-[var(--color-surface-1)] rounded-lg border border-[var(--color-border)]">
-                <span className="flex items-center gap-2 text-[var(--color-foreground)] font-sans font-medium">
-                  <Banknote size={16} className="text-[var(--color-success)]" />
-                  Cash
+            <div className="space-y-2.5 text-[13px]">
+              {/* Cash */}
+              <div className="flex items-center justify-between p-3.5 bg-[var(--color-surface-1)] rounded-xl border border-[var(--color-border)]">
+                <span className="flex items-center gap-2.5 text-[var(--color-foreground)] font-medium font-sans">
+                  <Banknote size={16} className="text-[var(--color-muted)]" />
+                  <span>Cash</span>
                 </span>
-                <span className="text-[15px] font-bold text-[var(--color-success)]">₦{fmt(summary.cashTotal)}</span>
+                <span className="text-[14px] font-semibold text-[var(--color-foreground)] tabular-nums font-sans">
+                  ₦{fmt(summary.cashTotal)}
+                </span>
               </div>
 
-              <div className="flex items-center justify-between p-3 bg-[var(--color-surface-1)] rounded-lg border border-[var(--color-border)]">
+              {/* Bank Transfer */}
+              <div className="flex items-center justify-between p-3.5 bg-[var(--color-surface-1)] rounded-xl border border-[var(--color-border)]">
                 <div>
-                  <div className="flex items-center gap-2 text-[var(--color-foreground)] font-sans font-medium">
-                    <CheckCircle2 size={16} className="text-[var(--color-accent-cobalt)]" />
-                    Bank Transfer
+                  <div className="flex items-center gap-2.5 text-[var(--color-foreground)] font-medium font-sans">
+                    <CheckCircle2 size={16} className="text-[var(--color-muted)]" />
+                    <span>Bank transfer</span>
                   </div>
                   {summary.unconfirmedTransferTotal > 0 && (
-                    <div className="text-[10px] text-[var(--color-warning)] mt-0.5">
+                    <div className="text-[11px] text-[var(--color-warning)] font-medium mt-0.5 font-sans">
                       ₦{fmt(summary.unconfirmedTransferTotal)} awaiting bank confirmation
                     </div>
                   )}
                 </div>
-                <span className="text-[15px] font-bold text-[var(--color-accent-cobalt)]">
+                <span className="text-[14px] font-semibold text-[var(--color-foreground)] tabular-nums font-sans">
                   ₦{fmt(summary.transferTotal)}
                 </span>
               </div>
 
-              <div className="flex items-center justify-between p-3 bg-[var(--color-surface-1)] rounded-lg border border-[var(--color-border)]">
-                <span className="flex items-center gap-2 text-[var(--color-foreground)] font-sans font-medium">
-                  <CreditCard size={16} className="text-[var(--color-accent-amber)]" />
-                  POS Terminal
+              {/* POS Terminal */}
+              <div className="flex items-center justify-between p-3.5 bg-[var(--color-surface-1)] rounded-xl border border-[var(--color-border)]">
+                <span className="flex items-center gap-2.5 text-[var(--color-foreground)] font-medium font-sans">
+                  <CreditCard size={16} className="text-[var(--color-muted)]" />
+                  <span>POS terminal</span>
                 </span>
-                <span className="text-[15px] font-bold text-[var(--color-accent-amber)]">₦{fmt(summary.posTotal)}</span>
+                <span className="text-[14px] font-semibold text-[var(--color-foreground)] tabular-nums font-sans">
+                  ₦{fmt(summary.posTotal)}
+                </span>
               </div>
 
-              <div className="flex items-center justify-between p-3 bg-[var(--color-surface-1)] rounded-lg border border-[var(--color-border)]">
-                <span className="flex items-center gap-2 text-[var(--color-foreground)] font-sans font-medium">
-                  <Wallet size={16} className="text-[var(--color-purple)]" />
-                  Customer Wallet
+              {/* Customer Wallet */}
+              <div className="flex items-center justify-between p-3.5 bg-[var(--color-surface-1)] rounded-xl border border-[var(--color-border)]">
+                <span className="flex items-center gap-2.5 text-[var(--color-foreground)] font-medium font-sans">
+                  <Wallet size={16} className="text-[var(--color-muted)]" />
+                  <span>Customer wallet</span>
                 </span>
-                <span className="text-[15px] font-bold text-[var(--color-purple)]">₦{fmt(summary.walletTotal)}</span>
+                <span className="text-[14px] font-semibold text-[var(--color-foreground)] tabular-nums font-sans">
+                  ₦{fmt(summary.walletTotal)}
+                </span>
               </div>
 
-              <div className="flex items-center justify-between p-3 bg-[var(--color-error-bg)] rounded-lg border border-[var(--color-error-border)]">
-                <span className="flex items-center gap-2 text-[var(--color-error)] font-sans font-bold">
-                  <AlertCircle size={16} />
-                  Unpaid Credit (Debt Owed)
+              {/* Unpaid Credit (Debt) - Signals Problem Only If > 0 */}
+              <div
+                className={`flex items-center justify-between p-3.5 rounded-xl border transition-colors ${
+                  summary.unpaidDebt > 0
+                    ? 'bg-[var(--color-error-bg)] border-[var(--color-error-border)]'
+                    : 'bg-[var(--color-surface-1)] border-[var(--color-border)]'
+                }`}
+              >
+                <span
+                  className={`flex items-center gap-2.5 font-sans font-medium ${
+                    summary.unpaidDebt > 0 ? 'text-[var(--color-error)] font-semibold' : 'text-[var(--color-foreground)]'
+                  }`}
+                >
+                  <AlertCircle
+                    size={16}
+                    className={summary.unpaidDebt > 0 ? 'text-[var(--color-error)]' : 'text-[var(--color-muted)]'}
+                  />
+                  <span>Unpaid credit (debt owed)</span>
                 </span>
-                <span className="text-[15px] font-bold text-[var(--color-error)]">₦{fmt(summary.unpaidDebt)}</span>
+                <span
+                  className={`text-[14px] font-semibold tabular-nums font-sans ${
+                    summary.unpaidDebt > 0 ? 'text-[var(--color-error)]' : 'text-[var(--color-foreground)]'
+                  }`}
+                >
+                  ₦{fmt(summary.unpaidDebt)}
+                </span>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── View 2: Top Customers Table ──────────────────────────────── */}
+      {/* ── View 2: Top Customers Table ────────────────────────────── */}
       {activeView === 'customers' && (
-        <div className="bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-xl overflow-hidden">
-          <div className="p-4 border-b border-[var(--color-border)]">
-            <h3 className="text-[14px] font-bold text-[var(--color-foreground)]">Top Customers in Selected Period</h3>
-            <p className="text-[11px] text-[var(--color-muted)]">Ranked by total business volume (paid + credit)</p>
+        <div className="bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-2xl overflow-hidden">
+          <div className="p-4 sm:p-5 border-b border-[var(--color-border)]">
+            <h3 className="text-[15px] font-semibold text-[var(--color-foreground)] font-sans">
+              Top customers in selected period
+            </h3>
+            <p className="text-[12px] text-[var(--color-muted)] mt-0.5 font-sans">
+              Ranked by total business volume (paid sales plus outstanding credit)
+            </p>
           </div>
           {summary.topCustomers.length === 0 ? (
-            <div className="p-8 text-center text-[12px] font-mono text-[var(--color-muted)]">
+            <div className="p-12 text-center text-[13px] font-sans text-[var(--color-muted)]">
               No customer records found for this period.
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left font-mono text-[12px]">
+              <table className="w-full text-left font-sans text-[13px]">
                 <thead>
-                  <tr className="bg-[var(--color-surface-1)] text-[var(--color-muted)] border-b border-[var(--color-border)] text-[10px] uppercase">
-                    <th className="py-2.5 px-3">#</th>
-                    <th className="py-2.5 px-3">Customer</th>
-                    <th className="py-2.5 px-3">Dept</th>
-                    <th className="py-2.5 px-3 text-center">Shipments</th>
-                    <th className="py-2.5 px-3 text-right">Weight</th>
-                    <th className="py-2.5 px-3 text-right">Paid (₦)</th>
-                    <th className="py-2.5 px-3 text-right">Unpaid Debt (₦)</th>
+                  <tr className="bg-[var(--color-surface-1)] text-[var(--color-muted)] border-b border-[var(--color-border)] text-[11px] font-medium">
+                    <th className="py-3 px-3.5 w-12 text-center">#</th>
+                    <th className="py-3 px-3.5">Customer</th>
+                    <th className="py-3 px-3.5">Department</th>
+                    <th className="py-3 px-3.5 text-center">Shipments</th>
+                    <th className="py-3 px-3.5 text-right">Weight</th>
+                    <th className="py-3 px-3.5 text-right">Paid</th>
+                    <th className="py-3 px-3.5 text-right">Unpaid debt</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--color-border)]">
                   {summary.topCustomers.map((c, i) => (
-                    <tr key={c.name} className="hover:bg-[var(--color-surface-hover)]">
-                      <td className="py-2.5 px-3 text-[var(--color-muted)]">{i + 1}</td>
-                      <td className="py-2.5 px-3 font-sans font-bold text-[var(--color-foreground)]">{c.name}</td>
-                      <td className="py-2.5 px-3 text-[var(--color-muted)]">{c.dept}</td>
-                      <td className="py-2.5 px-3 text-center text-[var(--color-foreground)]">{c.shipments}</td>
-                      <td className="py-2.5 px-3 text-right text-[var(--color-foreground)]">{c.kg.toLocaleString()} KG</td>
-                      <td className="py-2.5 px-3 text-right font-bold text-[var(--color-success)]">₦{fmt(c.paid)}</td>
+                    <tr
+                      key={c.name}
+                      className="hover:bg-[var(--color-surface-hover)] transition-colors min-h-[44px]"
+                    >
+                      <td className="py-3 px-3.5 text-center text-[var(--color-muted)] text-[12px] tabular-nums">
+                        {i + 1}
+                      </td>
+                      <td className="py-3 px-3.5 font-medium text-[var(--color-foreground)]">
+                        {c.name}
+                      </td>
+                      <td className="py-3 px-3.5 text-[var(--color-muted)] text-[12px]">
+                        {c.dept}
+                      </td>
+                      <td className="py-3 px-3.5 text-center text-[var(--color-foreground)] tabular-nums">
+                        {c.shipments}
+                      </td>
+                      <td className="py-3 px-3.5 text-right text-[var(--color-foreground)] tabular-nums">
+                        {c.kg.toLocaleString()} KG
+                      </td>
+                      <td className="py-3 px-3.5 text-right font-medium text-[var(--color-foreground)] tabular-nums">
+                        ₦{fmt(c.paid)}
+                      </td>
                       <td
-                        className={`py-2.5 px-3 text-right font-bold ${
-                          c.debt > 0 ? 'text-[var(--color-error)]' : 'text-[var(--color-muted)]'
+                        className={`py-3 px-3.5 text-right tabular-nums ${
+                          c.debt > 0
+                            ? 'font-semibold text-[var(--color-error)]'
+                            : 'text-[var(--color-muted)]'
                         }`}
                       >
                         {c.debt > 0 ? `₦${fmt(c.debt)}` : '—'}
@@ -782,67 +974,72 @@ export const Analytics = ({
         </div>
       )}
 
-      {/* ── View 3: Past Closed Shifts ───────────────────────────────── */}
+      {/* ── View 3: Past Closed Shifts ─────────────────────────────── */}
       {activeView === 'past_shifts' && (
         <div className="space-y-4">
           {selectedPastShift ? (
             <div className="space-y-4">
               <button
                 onClick={() => setSelectedPastShift(null)}
-                className="flex items-center gap-1.5 text-[12px] font-bold text-[var(--color-muted)] hover:text-[var(--color-foreground)] cursor-pointer"
+                className="inline-flex items-center gap-2 min-h-[44px] px-3.5 py-2 text-[13px] font-medium text-[var(--color-muted)] hover:text-[var(--color-foreground)] bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-xl cursor-pointer transition-colors"
               >
-                <ChevronDown className="rotate-90" size={16} /> Back to Closed Shifts
+                <ArrowLeft size={16} />
+                <span>Back to closed shifts</span>
               </button>
 
-              <div className="bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-xl p-5 space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[var(--color-border)]">
+              <div
+                className={`bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-2xl space-y-4 ${
+                  isCompact ? 'p-4' : 'p-5'
+                }`}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[var(--color-border)]">
                   <div>
-                    <h3 className="text-[15px] font-bold text-[var(--color-foreground)] flex items-center gap-2">
-                      Shift Summary
+                    <h3 className="text-[16px] font-semibold text-[var(--color-foreground)] flex items-center gap-2.5 font-sans">
+                      <span>Shift summary</span>
                       {selectedPastShift.department && selectedPastShift.department !== 'all' && (
-                        <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-[var(--color-info-bg)] text-[var(--color-accent-cobalt)]">
+                        <span className="text-[11px] font-sans font-medium px-2 py-0.5 rounded-full bg-[var(--color-surface-3)] text-[var(--color-foreground)] border border-[var(--color-border-strong)]">
                           {selectedPastShift.department}
                         </span>
                       )}
                     </h3>
-                    <div className="text-[11px] font-mono text-[var(--color-muted)]">
+                    <div className="text-[12px] font-sans text-[var(--color-muted)] mt-1">
                       {new Date(selectedPastShift.started_at).toLocaleString()} —{' '}
                       {new Date(selectedPastShift.ended_at).toLocaleString()}
                     </div>
                   </div>
-                  <div className="text-[11px] font-mono text-[var(--color-muted)]">
-                    Opened: {selectedPastShift.opened_by} · Closed: {selectedPastShift.closed_by}
+                  <div className="text-[12px] font-sans text-[var(--color-muted)]">
+                    Opened by {selectedPastShift.opened_by} · Closed by {selectedPastShift.closed_by}
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-3 font-mono">
-                  <div className="bg-[var(--color-surface-1)] p-3 rounded-lg">
-                    <div className="text-[10px] text-[var(--color-muted)]">Total Sales</div>
-                    <div className="text-[16px] font-bold text-[var(--color-success)]">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                  <div className="bg-[var(--color-surface-1)] border border-[var(--color-border)] p-3.5 rounded-xl">
+                    <div className="text-[11px] text-[var(--color-muted)] font-medium font-sans">Total sales</div>
+                    <div className="text-[16px] font-semibold text-[var(--color-foreground)] tabular-nums mt-1 font-sans">
                       ₦{fmt(selectedPastShift.sales_summary?.totalSales || 0)}
                     </div>
                   </div>
-                  <div className="bg-[var(--color-surface-1)] p-3 rounded-lg">
-                    <div className="text-[10px] text-[var(--color-muted)]">Cash</div>
-                    <div className="text-[16px] font-bold text-[var(--color-accent-amber)]">
+                  <div className="bg-[var(--color-surface-1)] border border-[var(--color-border)] p-3.5 rounded-xl">
+                    <div className="text-[11px] text-[var(--color-muted)] font-medium font-sans">Cash</div>
+                    <div className="text-[16px] font-medium text-[var(--color-foreground)] tabular-nums mt-1 font-sans">
                       ₦{fmt(selectedPastShift.sales_summary?.cashSales || 0)}
                     </div>
                   </div>
-                  <div className="bg-[var(--color-surface-1)] p-3 rounded-lg">
-                    <div className="text-[10px] text-[var(--color-muted)]">Transfer</div>
-                    <div className="text-[16px] font-bold text-[var(--color-accent-cobalt)]">
+                  <div className="bg-[var(--color-surface-1)] border border-[var(--color-border)] p-3.5 rounded-xl">
+                    <div className="text-[11px] text-[var(--color-muted)] font-medium font-sans">Transfer</div>
+                    <div className="text-[16px] font-medium text-[var(--color-foreground)] tabular-nums mt-1 font-sans">
                       ₦{fmt(selectedPastShift.sales_summary?.transferSales || 0)}
                     </div>
                   </div>
-                  <div className="bg-[var(--color-surface-1)] p-3 rounded-lg">
-                    <div className="text-[10px] text-[var(--color-muted)]">POS</div>
-                    <div className="text-[16px] font-bold text-[var(--color-success)]">
+                  <div className="bg-[var(--color-surface-1)] border border-[var(--color-border)] p-3.5 rounded-xl">
+                    <div className="text-[11px] text-[var(--color-muted)] font-medium font-sans">POS</div>
+                    <div className="text-[16px] font-medium text-[var(--color-foreground)] tabular-nums mt-1 font-sans">
                       ₦{fmt(selectedPastShift.sales_summary?.posSales || 0)}
                     </div>
                   </div>
-                  <div className="bg-[var(--color-surface-1)] p-3 rounded-lg">
-                    <div className="text-[10px] text-[var(--color-muted)]">Entries</div>
-                    <div className="text-[16px] font-bold text-[var(--color-foreground)]">
+                  <div className="bg-[var(--color-surface-1)] border border-[var(--color-border)] p-3.5 rounded-xl">
+                    <div className="text-[11px] text-[var(--color-muted)] font-medium font-sans">Entries</div>
+                    <div className="text-[16px] font-medium text-[var(--color-foreground)] tabular-nums mt-1 font-sans">
                       {selectedPastShift.sales_summary?.totalTxCount || 0}
                     </div>
                   </div>
@@ -850,33 +1047,35 @@ export const Analytics = ({
               </div>
             </div>
           ) : loadingShifts ? (
-            <div className="flex justify-center p-8">
+            <div className="flex justify-center p-12">
               <Loader2 className="animate-spin text-[var(--color-muted)]" size={24} />
             </div>
           ) : pastShifts.length === 0 ? (
-            <div className="text-center p-8 text-[var(--color-muted)] font-mono text-[12px]">No closed shifts found.</div>
+            <div className="text-center p-12 text-[var(--color-muted)] font-sans text-[13px]">
+              No closed shifts found.
+            </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {pastShifts.map((s, i) => (
                 <div
                   key={s.id || i}
                   onClick={() => setSelectedPastShift(s)}
-                  className="bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-xl p-4 cursor-pointer hover:border-[var(--color-accent-amber)]"
+                  className="bg-[var(--color-surface-card)] border border-[var(--color-border)] hover:border-[var(--color-border-strong)] rounded-2xl p-4 cursor-pointer transition-colors min-h-[44px]"
                 >
                   <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-2 mb-2">
-                    <span className="text-[12px] font-bold text-[var(--color-foreground)]">
+                    <span className="text-[13px] font-semibold text-[var(--color-foreground)] font-sans">
                       {new Date(s.started_at).toLocaleDateString()}
                     </span>
                     {s.department && s.department !== 'all' && (
-                      <span className="text-[9px] font-mono font-bold uppercase px-1.5 py-0.5 rounded bg-[var(--color-info-bg)] text-[var(--color-accent-cobalt)]">
+                      <span className="text-[10px] font-sans font-medium px-2 py-0.5 rounded-full bg-[var(--color-surface-3)] text-[var(--color-foreground)] border border-[var(--color-border-strong)]">
                         {s.department}
                       </span>
                     )}
                   </div>
-                  <div className="text-[18px] font-bold font-mono text-[var(--color-success)]">
+                  <div className="text-[18px] font-semibold text-[var(--color-foreground)] tabular-nums">
                     ₦{fmt(s.sales_summary?.totalSales || 0)}
                   </div>
-                  <div className="text-[11px] font-mono text-[var(--color-muted)] mt-1">
+                  <div className="text-[12px] font-sans text-[var(--color-muted)] mt-1">
                     {s.sales_summary?.totalTxCount || 0} entries · Closed by {s.closed_by}
                   </div>
                 </div>
