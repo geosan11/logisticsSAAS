@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { CustomerWallet } from '../lib/types';
 import { fmt } from '../lib/helpers';
-import { Search, Wallet, Plus, Check, UserCheck, X } from 'lucide-react';
+import { Search, Wallet, Plus, X } from 'lucide-react';
 
 interface CustomerWalletPickerProps {
   wallets: CustomerWallet[];
@@ -42,22 +42,22 @@ export const CustomerWalletPicker: React.FC<CustomerWalletPickerProps> = ({
     <>
     <div className="relative w-full">
       {selectedWallet ? (
-        <div className="p-3 bg-[rgba(251,191,36,0.08)] border border-[var(--color-accent-amber)] rounded-xl flex items-center justify-between gap-3">
+        <div className="p-3 bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-2xl flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-lg bg-[var(--color-accent-amber)] text-[var(--color-on-accent)] flex items-center justify-center font-bold shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-[var(--color-surface-2)] text-[var(--color-foreground)] flex items-center justify-center font-bold shrink-0 border border-[var(--color-border)]">
               <Wallet size={16} />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <span className="text-[12px] font-bold font-sans text-[var(--color-foreground)] truncate">
+                <span className="text-[13px] font-semibold font-sans text-[var(--color-foreground)] truncate">
                   {selectedWallet.customer_name}
                 </span>
-                <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-[rgba(16,185,129,0.15)] text-[var(--color-success)] uppercase">
-                  Active Credit
+                <span className="text-[10px] font-sans font-medium px-2 py-0.5 rounded-full bg-[rgba(34,197,94,0.12)] text-[var(--color-success)]">
+                  Active credit
                 </span>
               </div>
-              <div className="text-[11px] font-mono text-[var(--color-accent-amber)] font-bold">
-                Available: ₦{fmt(selectedWallet.balance)}
+              <div className="text-[12px] font-sans text-[var(--color-muted)] mt-0.5">
+                Available: <span className="font-semibold text-[var(--color-foreground)] tabular-nums">₦{fmt(selectedWallet.balance)}</span>
               </div>
             </div>
           </div>
@@ -65,17 +65,18 @@ export const CustomerWalletPicker: React.FC<CustomerWalletPickerProps> = ({
             <button
               type="button"
               onClick={() => setIsOpen(true)}
-              className="px-2.5 py-1 text-[11px] font-mono font-semibold text-[var(--color-muted)] hover:text-[var(--color-foreground)] bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] rounded-lg border border-[var(--color-border)] transition-colors cursor-pointer"
+              className="min-h-[44px] h-11 px-3 text-[12px] font-sans font-medium text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)] bg-[var(--color-surface-2)] rounded-xl border border-[var(--color-border)] transition-colors cursor-pointer"
             >
               Change
             </button>
             <button
               type="button"
               onClick={() => onSelectWallet(null)}
-              className="p-1 text-[var(--color-muted)] hover:text-[var(--color-error)] rounded-lg transition-colors cursor-pointer"
+              className="min-w-[44px] min-h-[44px] w-11 h-11 flex items-center justify-center text-[var(--color-muted)] hover:text-[var(--color-error)] rounded-xl hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
               title="Deselect wallet"
+              aria-label="Deselect wallet"
             >
-              <X size={15} />
+              <X size={16} />
             </button>
           </div>
         </div>
@@ -84,24 +85,25 @@ export const CustomerWalletPicker: React.FC<CustomerWalletPickerProps> = ({
           <button
             type="button"
             onClick={() => setIsOpen(true)}
-            className="flex-1 py-2.5 px-3 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] border border-[var(--color-border)] rounded-xl flex items-center justify-between text-left transition-all cursor-pointer group"
+            className="flex-1 min-h-[44px] h-11 py-2 px-3.5 bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-xl flex items-center justify-between text-left transition-colors cursor-pointer"
           >
-            <div className="flex items-center gap-2">
-              <Wallet size={16} className="text-[var(--color-accent-amber)] group-hover:scale-110 transition-transform" />
-              <span className="text-[12px] font-sans font-medium text-[var(--color-foreground)]">
-                {currentCustomerName ? `Select Wallet for "${currentCustomerName}"` : 'Select / Search Customer Wallet'}
+            <div className="flex items-center gap-2 min-w-0">
+              <Wallet size={15} className="text-[var(--color-muted)] shrink-0" />
+              <span className="text-[13px] font-sans text-[var(--color-foreground)] truncate">
+                {currentCustomerName ? `Select wallet for "${currentCustomerName}"` : 'Select customer credit wallet'}
               </span>
             </div>
-            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-[var(--color-surface-3)] text-[var(--color-accent-amber)] border border-[rgba(251,191,36,0.2)]">
-              {wallets.length} Active
+            <span className="text-[11px] font-sans font-medium px-2 py-0.5 rounded-full bg-[var(--color-surface-3)] text-[var(--color-muted)] shrink-0">
+              {wallets.length} active
             </span>
           </button>
           {onOpenCreateModal && (
             <button
               type="button"
               onClick={() => onOpenCreateModal(currentCustomerName)}
-              className="p-2.5 bg-[rgba(251,191,36,0.1)] hover:bg-[var(--color-accent-amber)] text-[var(--color-accent-amber)] hover:text-[var(--color-on-accent)] border border-[rgba(251,191,36,0.25)] rounded-xl transition-all cursor-pointer shrink-0"
-              title="Create New Credit Wallet"
+              className="min-h-[44px] min-w-[44px] h-11 w-11 flex items-center justify-center bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] border border-[var(--color-border)] rounded-xl transition-colors cursor-pointer shrink-0"
+              title="Create new credit wallet"
+              aria-label="Create new credit wallet"
             >
               <Plus size={16} />
             </button>
@@ -110,52 +112,47 @@ export const CustomerWalletPicker: React.FC<CustomerWalletPickerProps> = ({
       )}
     </div>
 
-    {/* Wallet Search Modal / Dropdown Overlay -- portaled to document.body
-        (only this overlay, not the always-visible selector above, which
-        must stay in normal layout flow). Same containing-block hazard as
-        Modal.tsx / ReviewEntryModal.tsx: any ancestor of wherever this
-        picker is embedded (CargoForm.tsx, PackageForm.tsx, etc.) that sets
-        transform/filter/will-change/perspective would otherwise break its
-        centering. */}
+    {/* Wallet Search Modal / Dropdown Overlay -- portaled to document.body */}
     {isOpen && createPortal(
         <div
-          className={`fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 ${
+          className={`fixed inset-0 z-[9999] ehi-scrim flex items-center justify-center p-4 ${
             isClosing ? 'animate-modal-backdrop-out' : 'animate-modal-backdrop-in'
           }`}
           onClick={(e) => {
             if (e.target === e.currentTarget) closeModal();
           }}
         >
-          <div className={`w-full max-w-md bg-[var(--color-surface-1)] border border-[var(--color-border-strong)] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] ${
+          <div className={`w-full max-w-md bg-[var(--color-surface-card)] border border-[var(--color-border-strong)] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] ${
             isClosing ? 'animate-modal-slide-out' : 'animate-modal-slide-in'
           }`}>
             {/* Modal Header */}
-            <div className="p-4 bg-[var(--color-surface-2)] border-b border-[var(--color-border)] flex items-center justify-between">
+            <div className="p-4 border-b border-[var(--color-border)] flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Wallet className="text-[var(--color-accent-amber)]" size={18} />
-                <h3 className="text-[14px] font-mono font-bold text-[var(--color-foreground)]">
-                  Customer Credit Wallets
+                <Wallet className="text-[var(--color-muted)]" size={17} />
+                <h3 className="text-[14px] font-sans font-semibold text-[var(--color-foreground)]">
+                  Customer credit wallets
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={closeModal}
-                className="p-1 text-[var(--color-muted)] hover:text-[var(--color-foreground)] rounded-lg cursor-pointer"
+                aria-label="Close"
+                className="p-1.5 text-[var(--color-muted)] hover:text-[var(--color-foreground)] rounded-lg cursor-pointer transition-colors"
               >
-                <X size={18} />
+                <X size={17} />
               </button>
             </div>
 
             {/* Search Input */}
-            <div className="p-3 border-b border-[var(--color-border)] bg-[var(--color-obsidian)]">
+            <div className="p-3 border-b border-[var(--color-border)] bg-[var(--color-surface-1)]">
               <div className="relative">
-                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-muted)]" />
+                <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-muted)]" />
                 <input
                   type="text"
-                  placeholder="Search customer name or phone..."
+                  placeholder="Search customer name or phone…"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 bg-[var(--color-surface-2)] text-[12px] font-mono text-[var(--color-foreground)] border border-[var(--color-border)] rounded-xl focus:border-[var(--color-accent-amber)] outline-none"
+                  className="w-full min-h-[44px] h-11 pl-10 pr-3.5 bg-[var(--color-surface-2)] text-[13px] font-sans text-[var(--color-foreground)] border border-[var(--color-border)] rounded-xl focus:border-[var(--color-border-strong)] outline-none"
                   autoFocus
                 />
               </div>
@@ -174,30 +171,30 @@ export const CustomerWalletPicker: React.FC<CustomerWalletPickerProps> = ({
                         onSelectWallet(w);
                         setIsOpen(false);
                       }}
-                      className={`w-full p-3 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
+                      className={`w-full min-h-[44px] p-3 rounded-xl border text-left flex items-center justify-between transition-colors cursor-pointer ${
                         isSelected
-                          ? 'bg-[rgba(251,191,36,0.12)] border-[var(--color-accent-amber)]'
-                          : 'bg-[var(--color-surface-2)] border-[var(--color-border)] hover:border-[var(--color-accent-amber)]'
+                          ? 'bg-[var(--color-surface-3)] border-[var(--color-border-strong)]'
+                          : 'bg-[var(--color-surface-1)] border-[var(--color-border)] hover:bg-[var(--color-surface-hover)]'
                       }`}
                     >
-                      <div className="min-w-0">
-                        <div className="text-[13px] font-bold font-sans text-[var(--color-foreground)] truncate">
+                      <div className="min-w-0 pr-2">
+                        <div className="text-[13px] font-semibold font-sans text-[var(--color-foreground)] truncate">
                           {w.customer_name}
                         </div>
                         {w.customer_phone && (
-                          <div className="text-[10px] font-mono text-[var(--color-muted)]">
+                          <div className="text-[11px] font-sans text-[var(--color-muted)]">
                             {w.customer_phone}
                           </div>
                         )}
-                        <div className="text-[10px] font-mono text-[var(--color-muted)] mt-0.5">
-                          Source: {w.source_type.replace('_', ' ')}
+                        <div className="text-[10px] font-sans text-[var(--color-muted)] mt-0.5 capitalize">
+                          {w.source_type.replace('_', ' ')}
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <div className="text-[13px] font-mono font-bold text-[var(--color-accent-amber)]">
+                        <div className="text-[13px] font-sans font-bold text-[var(--color-foreground)] tabular-nums">
                           ₦{fmt(w.balance)}
                         </div>
-                        <div className="text-[10px] font-mono text-[var(--color-success)] uppercase">
+                        <div className="text-[10px] font-sans text-[var(--color-success)]">
                           Available
                         </div>
                       </div>
@@ -206,8 +203,8 @@ export const CustomerWalletPicker: React.FC<CustomerWalletPickerProps> = ({
                 })
               ) : (
                 <div className="py-8 text-center space-y-3">
-                  <div className="text-[12px] font-mono text-[var(--color-muted)]">
-                    No active credit wallet found for "{searchTerm}"
+                  <div className="text-[12px] font-sans text-[var(--color-muted)]">
+                    No active credit wallet found for &quot;{searchTerm}&quot;
                   </div>
                   {onOpenCreateModal && (
                     <button
@@ -216,9 +213,9 @@ export const CustomerWalletPicker: React.FC<CustomerWalletPickerProps> = ({
                         setIsOpen(false);
                         onOpenCreateModal(searchTerm);
                       }}
-                      className="px-4 py-2 bg-[var(--color-accent-amber)] text-[var(--color-on-accent)] text-[12px] font-mono font-bold rounded-xl shadow-md cursor-pointer hover:opacity-90 inline-flex items-center gap-1.5"
+                      className="min-h-[44px] h-11 px-4 bg-white text-black hover:bg-neutral-200 dark:bg-white dark:text-black dark:hover:bg-neutral-200 text-[12px] font-sans font-semibold rounded-full shadow-xs cursor-pointer inline-flex items-center gap-1.5 transition-colors"
                     >
-                      <Plus size={14} /> Create Wallet for "{searchTerm || 'Customer'}"
+                      <Plus size={14} /> Create wallet for &quot;{searchTerm || 'Customer'}&quot;
                     </button>
                   )}
                 </div>
@@ -226,12 +223,12 @@ export const CustomerWalletPicker: React.FC<CustomerWalletPickerProps> = ({
             </div>
 
             {/* Footer */}
-            <div className="p-3 bg-[var(--color-surface-2)] border-t border-[var(--color-border)] flex items-center justify-between text-[11px] font-mono text-[var(--color-muted)]">
-              <span>{wallets.length} total active wallets</span>
+            <div className="p-3.5 bg-[var(--color-surface-card)] border-t border-[var(--color-border)] flex items-center justify-between text-[11px] font-sans text-[var(--color-muted)]">
+              <span>{wallets.length} active wallets</span>
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="px-3 py-1 bg-[var(--color-surface-3)] text-[var(--color-foreground)] rounded-lg border border-[var(--color-border)] cursor-pointer"
+                className="min-h-[44px] h-11 px-4 bg-[var(--color-surface-2)] text-[var(--color-foreground)] rounded-full border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] font-medium text-[12px] cursor-pointer transition-colors"
               >
                 Cancel
               </button>

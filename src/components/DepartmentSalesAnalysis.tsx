@@ -15,12 +15,12 @@ import { fetchAllDebtAndRetrievalEntries, buildShadowRowExclusionCounts, extract
 const PRESETS = [
   { id: 'today',     label: 'Today' },
   { id: 'yesterday', label: 'Yesterday' },
-  { id: 'week',      label: 'Last 7 Days' },
-  { id: 'month',     label: 'This Month' },
-  { id: 'last_month',label: 'Last Month' },
-  { id: 'quarter',   label: 'This Quarter' },
-  { id: 'ytd',       label: 'Year to Date' },
-  { id: 'custom',    label: 'Custom Range' },
+  { id: 'week',      label: 'Last 7 days' },
+  { id: 'month',     label: 'This month' },
+  { id: 'last_month',label: 'Last month' },
+  { id: 'quarter',   label: 'This quarter' },
+  { id: 'ytd',       label: 'Year to date' },
+  { id: 'custom',    label: 'Custom' },
 ];
 
 // Layer 1 (collective, all agents rolled up) then Layer 2 (per-agent
@@ -28,129 +28,135 @@ const PRESETS = [
 // admin-facing "X Sales Analysis" report and DepartmentSalesAnalysisModal
 // below (each department's own self-serve view), so both render identically.
 export const DepartmentSalesAnalysisView = ({ data, deptLabel, routeLabel }: { data: DeptAnalysis; deptLabel: string; routeLabel: string }) => (
-  <div className="space-y-5">
+  <div className="space-y-4">
     {/* Layer 1 — Collective */}
-    <div className="rounded-[var(--radius-md)] border border-[var(--color-accent-amber)] bg-[rgba(251,191,36,0.06)] p-3">
-      <div className="text-[10px] text-[var(--color-accent-amber)] mb-2.5 uppercase font-bold tracking-wider">{deptLabel} — All Agents Combined</div>
-      <div className="grid grid-cols-2 gap-3">
+    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] p-4 space-y-3">
+      <div className="text-[12px] text-[var(--color-muted)] font-medium font-sans">
+        {deptLabel} · All agents combined
+      </div>
+      <div className="grid grid-cols-2 gap-3.5">
         <div>
-          <div className="text-[9px] text-[var(--color-muted)] uppercase tracking-wider">Total Sales</div>
-          <div className="text-[15px] font-mono font-bold text-[var(--color-foreground)]">₦{fmt(data.collective.revenue)}</div>
+          <div className="text-[11px] text-[var(--color-muted)] font-sans">Total sales</div>
+          <div className="text-[16px] font-sans font-bold text-[var(--color-foreground)] tabular-nums">₦{fmt(data.collective.revenue)}</div>
         </div>
         <div>
-          <div className="text-[9px] text-[var(--color-muted)] uppercase tracking-wider">Total Collected</div>
-          <div className="text-[15px] font-mono font-bold text-[var(--color-success)]">₦{fmt(data.collective.collected)}</div>
+          <div className="text-[11px] text-[var(--color-muted)] font-sans">Total collected</div>
+          <div className="text-[16px] font-sans font-bold text-[var(--color-success)] tabular-nums">₦{fmt(data.collective.collected)}</div>
         </div>
         <div>
-          <div className="text-[9px] text-[var(--color-muted)] uppercase tracking-wider">Total Owed</div>
-          <div className="text-[15px] font-mono font-bold text-[var(--color-error)]">₦{fmt(data.collective.owed)}</div>
+          <div className="text-[11px] text-[var(--color-muted)] font-sans">Total owed</div>
+          <div className={`text-[16px] font-sans font-bold tabular-nums ${data.collective.owed > 0 ? 'text-[var(--color-error)]' : 'text-[var(--color-muted)]'}`}>
+            ₦{fmt(data.collective.owed)}
+          </div>
         </div>
         <div>
-          <div className="text-[9px] text-[var(--color-muted)] uppercase tracking-wider">Agents / Entries</div>
-          <div className="text-[15px] font-mono font-bold text-[var(--color-foreground)]">{data.collective.agentCount} / {data.collective.entries}</div>
+          <div className="text-[11px] text-[var(--color-muted)] font-sans">Agents / Entries</div>
+          <div className="text-[16px] font-sans font-bold text-[var(--color-foreground)] tabular-nums">{data.collective.agentCount} / {data.collective.entries}</div>
         </div>
       </div>
-      <div className="grid grid-cols-3 gap-3 pt-3 mt-3 border-t border-[var(--color-accent-amber)] border-opacity-30">
+      <div className="grid grid-cols-3 gap-2.5 pt-3 border-t border-[var(--color-border)]">
         <div>
-          <div className="text-[9px] text-[var(--color-muted)] uppercase tracking-wider">Cash</div>
-          <div className="text-[13px] font-mono font-bold text-[var(--color-foreground)]">₦{fmt(data.collective.cash)}</div>
+          <div className="text-[10px] text-[var(--color-muted)] font-sans">Cash</div>
+          <div className="text-[13px] font-sans font-semibold text-[var(--color-foreground)] tabular-nums">₦{fmt(data.collective.cash)}</div>
         </div>
         <div>
-          <div className="text-[9px] text-[var(--color-muted)] uppercase tracking-wider">Transfer</div>
-          <div className="text-[13px] font-mono font-bold text-[var(--color-foreground)]">₦{fmt(data.collective.transfer)}</div>
+          <div className="text-[10px] text-[var(--color-muted)] font-sans">Transfer</div>
+          <div className="text-[13px] font-sans font-semibold text-[var(--color-foreground)] tabular-nums">₦{fmt(data.collective.transfer)}</div>
         </div>
         <div>
-          <div className="text-[9px] text-[var(--color-muted)] uppercase tracking-wider">POS/Card</div>
-          <div className="text-[13px] font-mono font-bold text-[var(--color-foreground)]">₦{fmt(data.collective.pos)}</div>
+          <div className="text-[10px] text-[var(--color-muted)] font-sans">POS / Card</div>
+          <div className="text-[13px] font-sans font-semibold text-[var(--color-foreground)] tabular-nums">₦{fmt(data.collective.pos)}</div>
         </div>
         {data.collective.transferCash > 0 && (
           <div>
-            <div className="text-[9px] text-[var(--color-muted)] uppercase tracking-wider">Transfer→Cash</div>
-            <div className="text-[13px] font-mono font-bold text-[var(--color-foreground)]">₦{fmt(data.collective.transferCash)}</div>
+            <div className="text-[10px] text-[var(--color-muted)] font-sans">Transfer→Cash</div>
+            <div className="text-[13px] font-sans font-semibold text-[var(--color-foreground)] tabular-nums">₦{fmt(data.collective.transferCash)}</div>
           </div>
         )}
         {data.collective.wallet > 0 && (
           <div>
-            <div className="text-[9px] text-[var(--color-muted)] uppercase tracking-wider">Wallet</div>
-            <div className="text-[13px] font-mono font-bold text-[var(--color-foreground)]">₦{fmt(data.collective.wallet)}</div>
+            <div className="text-[10px] text-[var(--color-muted)] font-sans">Wallet</div>
+            <div className="text-[13px] font-sans font-semibold text-[var(--color-foreground)] tabular-nums">₦{fmt(data.collective.wallet)}</div>
           </div>
         )}
         {data.collective.other > 0 && (
           <div>
-            <div className="text-[9px] text-[var(--color-muted)] uppercase tracking-wider">Other</div>
-            <div className="text-[13px] font-mono font-bold text-[var(--color-foreground)]">₦{fmt(data.collective.other)}</div>
+            <div className="text-[10px] text-[var(--color-muted)] font-sans">Other</div>
+            <div className="text-[13px] font-sans font-semibold text-[var(--color-foreground)] tabular-nums">₦{fmt(data.collective.other)}</div>
           </div>
         )}
       </div>
     </div>
 
     {data.agents.length === 0 ? (
-      <div className="p-8 text-center bg-[var(--color-surface-card)] rounded-xl border border-dashed border-[var(--color-border)] text-[var(--color-muted)] text-[12px] font-mono">
+      <div className="p-8 text-center bg-[var(--color-surface-card)] rounded-2xl border border-[var(--color-border)] text-[var(--color-muted)] text-[12px] font-sans">
         No {deptLabel.toLowerCase()} entries in this period.
       </div>
     ) : (
       <div className="space-y-2.5">
         {data.agents.map(s => (
-          <div key={s.role} className="rounded-[var(--radius-md)] border border-[var(--color-border)] p-3">
-            <div className="flex justify-between items-start mb-2">
+          <div key={s.role} className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] p-3.5 space-y-2.5">
+            <div className="flex justify-between items-start">
               <div>
-                <div className="text-[9px] text-[var(--color-muted)] uppercase tracking-wider mb-0.5">Owed</div>
-                <div className={`text-[16px] font-mono font-bold ${s.owed > 0 ? 'text-[var(--color-error)]' : 'text-[var(--color-muted)]'}`}>₦{fmt(s.owed)}</div>
+                <div className="text-[14px] font-semibold text-[var(--color-foreground)] font-sans">{s.role}</div>
+                <div className="text-[11px] text-[var(--color-muted)] font-sans">{s.entries} {s.entries === 1 ? 'entry' : 'entries'}</div>
               </div>
               <div className="text-right">
-                <div className="text-[13px] font-bold text-[var(--color-foreground)]">{s.role}</div>
-                <div className="text-[10px] text-[var(--color-muted)]">{s.entries} {s.entries === 1 ? 'entry' : 'entries'}</div>
+                <div className="text-[10px] text-[var(--color-muted)] font-sans">Owed</div>
+                <div className={`text-[15px] font-sans font-bold tabular-nums ${s.owed > 0 ? 'text-[var(--color-error)]' : 'text-[var(--color-muted)]'}`}>
+                  ₦{fmt(s.owed)}
+                </div>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 pt-2 border-t border-[var(--color-border)] border-dashed">
+            <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 pt-2 border-t border-[var(--color-border)]">
               <div className="flex justify-between">
-                <span className="text-[10px] text-[var(--color-muted)]">Sales Value</span>
-                <span className="text-[11px] font-mono font-bold text-[var(--color-foreground)]">₦{fmt(s.revenue)}</span>
+                <span className="text-[11px] text-[var(--color-muted)] font-sans">Sales value</span>
+                <span className="text-[12px] font-sans font-semibold text-[var(--color-foreground)] tabular-nums">₦{fmt(s.revenue)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[10px] text-[var(--color-muted)]">Collected</span>
-                <span className="text-[11px] font-mono font-bold text-[var(--color-success)]">₦{fmt(s.collected)}</span>
+                <span className="text-[11px] text-[var(--color-muted)] font-sans">Collected</span>
+                <span className="text-[12px] font-sans font-semibold text-[var(--color-success)] tabular-nums">₦{fmt(s.collected)}</span>
               </div>
               {s.cash > 0 && (
                 <div className="flex justify-between">
-                  <span className="text-[10px] text-[var(--color-muted)]">Cash</span>
-                  <span className="text-[11px] font-mono text-[var(--color-foreground)]">₦{fmt(s.cash)}</span>
+                  <span className="text-[11px] text-[var(--color-muted)] font-sans">Cash</span>
+                  <span className="text-[12px] font-sans text-[var(--color-foreground)] tabular-nums">₦{fmt(s.cash)}</span>
                 </div>
               )}
               {s.transfer > 0 && (
                 <div className="flex justify-between">
-                  <span className="text-[10px] text-[var(--color-muted)]">Transfer</span>
-                  <span className="text-[11px] font-mono text-[var(--color-foreground)]">₦{fmt(s.transfer)}</span>
+                  <span className="text-[11px] text-[var(--color-muted)] font-sans">Transfer</span>
+                  <span className="text-[12px] font-sans text-[var(--color-foreground)] tabular-nums">₦{fmt(s.transfer)}</span>
                 </div>
               )}
               {s.pos > 0 && (
                 <div className="flex justify-between">
-                  <span className="text-[10px] text-[var(--color-muted)]">POS/Card</span>
-                  <span className="text-[11px] font-mono text-[var(--color-foreground)]">₦{fmt(s.pos)}</span>
+                  <span className="text-[11px] text-[var(--color-muted)] font-sans">POS / Card</span>
+                  <span className="text-[12px] font-sans text-[var(--color-foreground)] tabular-nums">₦{fmt(s.pos)}</span>
                 </div>
               )}
               {s.transferCash > 0 && (
                 <div className="flex justify-between">
-                  <span className="text-[10px] text-[var(--color-muted)]">Transfer→Cash</span>
-                  <span className="text-[11px] font-mono text-[var(--color-foreground)]">₦{fmt(s.transferCash)}</span>
+                  <span className="text-[11px] text-[var(--color-muted)] font-sans">Transfer→Cash</span>
+                  <span className="text-[12px] font-sans text-[var(--color-foreground)] tabular-nums">₦{fmt(s.transferCash)}</span>
                 </div>
               )}
               {s.wallet > 0 && (
                 <div className="flex justify-between">
-                  <span className="text-[10px] text-[var(--color-muted)]">Wallet</span>
-                  <span className="text-[11px] font-mono text-[var(--color-foreground)]">₦{fmt(s.wallet)}</span>
+                  <span className="text-[11px] text-[var(--color-muted)] font-sans">Wallet</span>
+                  <span className="text-[12px] font-sans text-[var(--color-foreground)] tabular-nums">₦{fmt(s.wallet)}</span>
                 </div>
               )}
               {s.other > 0 && (
                 <div className="flex justify-between">
-                  <span className="text-[10px] text-[var(--color-muted)]">Other</span>
-                  <span className="text-[11px] font-mono text-[var(--color-foreground)]">₦{fmt(s.other)}</span>
+                  <span className="text-[11px] text-[var(--color-muted)] font-sans">Other</span>
+                  <span className="text-[12px] font-sans text-[var(--color-foreground)] tabular-nums">₦{fmt(s.other)}</span>
                 </div>
               )}
               {s.topRoute && (
-                <div className="flex justify-between col-span-2">
-                  <span className="text-[10px] text-[var(--color-muted)]">Top {routeLabel}</span>
-                  <span className="text-[11px] font-mono font-bold text-[var(--color-foreground)]">{s.topRoute} ({s.topRouteCount})</span>
+                <div className="flex justify-between col-span-2 pt-1 border-t border-[var(--color-border)]">
+                  <span className="text-[11px] text-[var(--color-muted)] font-sans">Top {routeLabel.toLowerCase()}</span>
+                  <span className="text-[12px] font-sans font-medium text-[var(--color-foreground)]">{s.topRoute} ({s.topRouteCount})</span>
                 </div>
               )}
             </div>
@@ -164,9 +170,7 @@ export const DepartmentSalesAnalysisView = ({ data, deptLabel, routeLabel }: { d
 // Self-serve entry point for department screens (Cargo/Marketing/Excess
 // Baggage/Package) -- lets any agent working that desk pull the same
 // collective + per-agent breakdown an admin sees in Reports > "X Sales
-// Analysis", without needing access to the Reports screen itself (which
-// stays admin/accountant-gated for its other, cross-department reports).
-// Fullscreen on mobile, matching ReviewEntryModal's convention.
+// Analysis", without needing access to the Reports screen itself.
 export const DepartmentSalesAnalysisModal = ({ user, deptType, deptLabel, routeLabel = 'Route', onClose }: {
   user: User;
   deptType: DepartmentType;
@@ -202,8 +206,7 @@ export const DepartmentSalesAnalysisModal = ({ user, deptType, deptLabel, routeL
   }, [deptType, user, dateRange]);
 
   // Debt-bearing/retrieved entries, unbounded by dateRange -- feeds the
-  // payment_history-derived "collected" events below. See src/lib/debt.ts
-  // and Reports.tsx's identical fetch for the cross-department version.
+  // payment_history-derived "collected" events below.
   const [debtBearingEntries, setDebtBearingEntries] = useState<Transaction[]>([]);
   useEffect(() => {
     let active = true;
@@ -224,48 +227,44 @@ export const DepartmentSalesAnalysisModal = ({ user, deptType, deptLabel, routeL
 
   const analysis = useMemo(() => computeDepartmentSalesAnalysis(txs, deptType, periodCollectionEvents), [txs, deptType, periodCollectionEvents]);
 
-  // Portaled to document.body -- see Modal.tsx / ReviewEntryModal.tsx for
-  // why: this is mounted from CargoForm.tsx among other forms, and any
-  // ancestor there that sets transform/filter/will-change/perspective
-  // silently becomes a containing block for this modal's `position: fixed`.
   return createPortal(
     <div
-      className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center sm:p-4 ${
+      className={`fixed inset-0 z-[9999] ehi-scrim flex items-center justify-center sm:p-4 ${
         isClosing ? 'animate-modal-backdrop-out' : 'animate-modal-backdrop-in'
       }`}
       onClick={(e) => {
         if (e.target === e.currentTarget) handleClose();
       }}
     >
-      <div className={`bg-[var(--color-obsidian)] border-0 sm:border border-[var(--color-border)] rounded-none sm:rounded-xl w-full h-full sm:h-auto sm:max-w-lg sm:max-h-[90vh] overflow-hidden shadow-2xl flex flex-col ${
+      <div className={`bg-[var(--color-surface-card)] border-0 sm:border border-[var(--color-border-strong)] rounded-none sm:rounded-2xl w-full h-full sm:h-auto sm:max-w-xl sm:max-h-[90vh] overflow-hidden shadow-2xl flex flex-col ${
         isClosing ? 'animate-modal-slide-out' : 'animate-modal-slide-in'
       }`}>
         {/* Header */}
-        <div className="flex items-center justify-between p-3 border-b border-[var(--color-border)] bg-[var(--color-surface-card)] shrink-0">
+        <div className="flex items-center justify-between p-4 border-b border-[var(--color-border)] shrink-0">
           <div className="flex items-center gap-2">
-            <BarChart2 size={16} className="text-[var(--color-accent-amber)]" />
-            <h3 className="text-[14px] font-bold font-sans text-[var(--color-foreground)] tracking-wide">{deptLabel} Sales Analysis</h3>
+            <BarChart2 size={16} className="text-[var(--color-muted)]" />
+            <h3 className="text-[15px] font-semibold font-sans text-[var(--color-foreground)]">{deptLabel} sales analysis</h3>
           </div>
-          <button onClick={handleClose} className="p-1 hover:bg-[var(--color-surface-2)] rounded text-[var(--color-muted)] transition-colors cursor-pointer">
-            <X size={16} />
+          <button onClick={handleClose} aria-label="Close" className="p-1.5 hover:bg-[var(--color-surface-hover)] rounded-lg text-[var(--color-muted)] transition-colors cursor-pointer">
+            <X size={17} />
           </button>
         </div>
 
         {/* Period selector */}
-        <div className="p-3 border-b border-[var(--color-border)] shrink-0 space-y-2">
-          <div className="flex items-center gap-2">
-            <Calendar size={12} className="text-[var(--color-accent-amber)]" />
-            <span className="text-[9px] font-mono uppercase tracking-wider text-[var(--color-accent-amber)] font-bold">Period</span>
+        <div className="p-4 border-b border-[var(--color-border)] bg-[var(--color-surface-1)] shrink-0 space-y-2.5">
+          <div className="flex items-center gap-1.5 text-[12px] font-sans font-medium text-[var(--color-muted)]">
+            <Calendar size={13} />
+            <span>Time period</span>
           </div>
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(90px,1fr))] gap-1.5">
+          <div className="grid grid-cols-4 sm:grid-cols-4 gap-1.5">
             {PRESETS.map(p => (
               <button
                 key={p.id}
                 onClick={() => setPreset(p.id)}
-                className={`min-w-0 truncate px-2 py-1.5 text-[10px] font-mono border rounded-[var(--radius-sm)] transition-colors cursor-pointer ${
+                className={`min-h-[44px] h-11 px-2.5 py-2 text-[12px] font-sans rounded-xl transition-colors cursor-pointer text-center truncate ${
                   preset === p.id
-                    ? 'bg-[var(--color-accent-amber)] text-[var(--color-on-accent)] border-[var(--color-accent-amber)] font-bold'
-                    : 'bg-[var(--color-surface-2)] text-[var(--color-muted)] border-[var(--color-border)] font-medium hover:bg-[var(--color-surface-3)] hover:text-[var(--color-foreground)]'
+                    ? 'bg-[var(--color-surface-3)] text-[var(--color-foreground)] font-semibold border border-[var(--color-border-strong)] shadow-xs'
+                    : 'bg-[var(--color-surface-2)] text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)]'
                 }`}
               >
                 {p.label}
@@ -273,18 +272,19 @@ export const DepartmentSalesAnalysisModal = ({ user, deptType, deptLabel, routeL
             ))}
           </div>
           {preset === 'custom' && (
-            <div className="flex gap-2">
-              <input type="datetime-local" value={customFrom} onChange={e => setCustomFrom(e.target.value)} className="ehi-input" />
-              <input type="datetime-local" value={customTo}   onChange={e => setCustomTo(e.target.value)} className="ehi-input" />
+            <div className="flex gap-2 pt-1">
+              <input type="datetime-local" value={customFrom} onChange={e => setCustomFrom(e.target.value)} aria-label="Start date" className="min-h-[44px] h-11 px-3 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl text-[12px] font-sans flex-1 text-[var(--color-foreground)] focus:outline-none focus:border-[var(--color-border-strong)]" />
+              <input type="datetime-local" value={customTo}   onChange={e => setCustomTo(e.target.value)} aria-label="End date" className="min-h-[44px] h-11 px-3 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl text-[12px] font-sans flex-1 text-[var(--color-foreground)] focus:outline-none focus:border-[var(--color-border-strong)]" />
             </div>
           )}
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-3">
+        <div className="flex-1 overflow-y-auto p-4">
           {loading ? (
-            <div className="flex justify-center py-12">
-              <Loader2 size={24} className="animate-spin text-[var(--color-accent-amber)]" />
+            <div className="flex flex-col items-center justify-center py-16 text-[var(--color-muted)] gap-2">
+              <Loader2 size={22} className="animate-spin text-[var(--color-muted)]" />
+              <span className="text-[12px] font-sans">Loading sales data…</span>
             </div>
           ) : (
             <DepartmentSalesAnalysisView data={analysis} deptLabel={deptLabel} routeLabel={routeLabel} />

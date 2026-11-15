@@ -1,6 +1,6 @@
 import { CARGO_ROUTES } from "../../lib/constants";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { Button } from "../ui";
+import { Button, useDensity } from "../ui";
 import { createPortal } from "react-dom";
 import { Transaction, User, Expense, CustomerWallet, HubShift } from "../../lib/types";
 import { fmt, roundMoney, tnow, generatePickupPin, normalizeAirlineName, airlineNamesLooselyMatch, getHubCode, upperOnChange, isStandalonePWA, formatPaymentModeDisplay, lagosBusinessDate } from "../../lib/helpers";
@@ -212,6 +212,7 @@ export const CargoForm = ({
   // same actions -- the exact "looks saved but isn't" bug already fixed
   // elsewhere this session for Phase 1 intakes.
   const [corpSubTab, setCorpSubTab] = useState<"intake" | "weighing">("intake");
+  const { isCompact } = useDensity();
   const { showToast } = useToast();
   const confirm = useConfirm();
   const routes = useHubRoutes();
@@ -2061,14 +2062,14 @@ export const CargoForm = ({
   };
 
   const formInputClass =
-    "w-full h-12 px-4 text-[16px] rounded-[var(--radius-sm)] bg-[var(--color-input-bg)] text-[var(--color-input-text)] border border-[var(--color-border)] font-sans focus:outline-none focus:border-[var(--color-accent-amber)] focus:ring-2 focus:ring-[var(--glow-amber)] transition-all";
+    "w-full min-h-[44px] h-11 px-3.5 text-[14px] rounded-xl bg-[var(--color-surface-1)] text-[var(--color-foreground)] border border-[var(--color-border)] font-sans focus:outline-none focus:border-[var(--color-border-strong)] transition-colors placeholder:text-[var(--color-muted)]";
 
   const renderLabel = (icon: any, text: string) => {
     const Icon = icon;
     return (
-      <div className="flex items-center space-x-1.5 mb-1.5">
-        <Icon size={14} style={{ color: "var(--color-light-muted)" }} />
-        <label className="text-[13px] font-sans font-semibold text-[var(--color-light-muted)]">
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <Icon size={14} className="text-[var(--color-muted)] shrink-0" />
+        <label className="text-[12px] font-sans font-medium text-[var(--color-muted)] select-none">
           {text}
         </label>
       </div>
@@ -2106,40 +2107,41 @@ export const CargoForm = ({
     };
 
     return (
-      <div ref={successRef} className="p-3 space-y-3 max-w-md mx-auto w-full select-none">
-        
-        {/* Compact Header banner */}
-        <div className="bg-[rgba(16,185,129,0.05)] border border-[var(--color-success)] rounded-xl px-3 py-2 flex items-center justify-between gap-3 shadow-[0_2px_8px_rgba(16,185,129,0.05)]">
-          <div className="flex items-center gap-2">
+      <div ref={successRef} className="p-4 space-y-4 max-w-md mx-auto w-full select-none">
+        {/* Header banner */}
+        <div className="bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-2xl p-4 flex items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-2.5 min-w-0">
             <CheckCircle
-              size={18}
+              size={20}
               className="text-[var(--color-success)] shrink-0"
             />
-            <span className="text-[13px] font-bold text-[var(--color-success)] tracking-wide">
-              {successTx.mode === "Debt"
-                ? successTx.clientType === "Corporate"
-                  ? "B2B Invoice Saved!"
-                  : "Credit Sale Logged!"
-                : "Cargo Saved Successfully!"}
-            </span>
+            <div className="min-w-0">
+              <span className="text-[14px] font-semibold text-[var(--color-foreground)] font-sans block truncate">
+                {successTx.mode === "Debt"
+                  ? successTx.clientType === "Corporate"
+                    ? "B2B invoice saved"
+                    : "Credit sale logged"
+                  : "Cargo saved successfully"}
+              </span>
+              <span className="text-[11px] font-mono text-[var(--color-muted)]">
+                Ref: {successTx.id.slice(0, 8)}…
+              </span>
+            </div>
           </div>
-          <span className="text-[9px] font-mono text-[var(--color-muted)] truncate max-w-[120px]">
-            REF: {successTx.id.slice(0, 8)}...
-          </span>
         </div>
 
         {/* QR Code + Pickup PIN Side-by-Side row */}
         <div className="flex gap-3 items-stretch">
           {/* QR Code Container */}
-          <div className="flex items-center justify-center p-1.5 bg-white rounded-xl border border-[var(--color-border)] shrink-0 shadow-sm">
+          <div className="flex items-center justify-center p-2 bg-white rounded-2xl border border-[var(--color-border)] shrink-0 shadow-xs">
             <QRCode id={successTx.id} size={72} />
           </div>
           
           {/* Pickup PIN or Reference details */}
           {(successTx as any).pickupPin ? (
-            <div className="flex-1 border border-[var(--color-accent-amber)] rounded-xl bg-[rgba(251,191,36,0.03)] flex flex-col justify-center px-3 py-1.5 shadow-sm">
+            <div className="flex-1 border border-[var(--color-border)] rounded-2xl bg-[var(--color-surface-card)] flex flex-col justify-center px-4 py-2.5 shadow-xs">
               <div className="flex justify-between items-center">
-                <span className="text-[9px] font-mono font-bold text-[var(--color-accent-amber)] uppercase tracking-wider">
+                <span className="text-[11px] font-sans font-medium text-[var(--color-muted)]">
                   Pickup PIN
                 </span>
                 <button
@@ -2147,185 +2149,184 @@ export const CargoForm = ({
                   onClick={() =>
                     navigator.clipboard.writeText((successTx as any).pickupPin)
                   }
-                  className="text-[var(--color-accent-amber)] hover:text-white transition-colors cursor-pointer p-0.5"
+                  className="min-h-[44px] min-w-[44px] -mr-2 flex items-center justify-center text-[var(--color-muted)] hover:text-[var(--color-foreground)] transition-colors cursor-pointer"
                   title="Copy PIN"
                   aria-label="Copy PIN"
                 >
-                  <Copy size={11} />
+                  <Copy size={14} />
                 </button>
               </div>
-              <div className="text-[20px] font-mono font-extrabold text-[var(--color-foreground)] tracking-widest mt-0.5">
+              <div className="text-[20px] font-mono font-bold text-[var(--color-foreground)] tracking-wider mt-0.5 tabular-nums">
                 {(successTx as any).pickupPin}
               </div>
-              <p className="text-[9px] text-[var(--color-muted)] leading-tight mt-0.5">
-                Share this PIN with the consignee for pickup verification.
+              <p className="text-[11px] text-[var(--color-muted)] font-sans leading-tight mt-0.5">
+                Share this PIN with consignee for pickup verification
               </p>
             </div>
           ) : (
-            <div className="flex-1 flex flex-col justify-center border border-[var(--color-border)] rounded-xl bg-[var(--color-surface-2)] px-3 py-1.5 shadow-sm">
-              <span className="text-[9px] font-mono text-[var(--color-muted)] uppercase tracking-wider">Reference ID</span>
-              <span className="text-[11px] font-mono font-semibold text-[var(--color-foreground)] truncate mt-0.5">{successTx.id}</span>
-              <p className="text-[9px] text-[var(--color-muted)] leading-tight mt-0.5">
-                Scannable cargo QR code generated for waybill tags.
+            <div className="flex-1 flex flex-col justify-center border border-[var(--color-border)] rounded-2xl bg-[var(--color-surface-card)] px-4 py-2.5 shadow-xs">
+              <span className="text-[11px] font-sans font-medium text-[var(--color-muted)]">Reference ID</span>
+              <span className="text-[12px] font-mono font-medium text-[var(--color-foreground)] truncate mt-0.5">{successTx.id}</span>
+              <p className="text-[11px] text-[var(--color-muted)] font-sans leading-tight mt-0.5">
+                Scannable cargo QR code generated for waybill tags
               </p>
             </div>
           )}
         </div>
 
         {/* Details Card */}
-        <div className="w-full bg-[var(--color-surface-card)] rounded-xl p-3 border border-[var(--color-border)] text-left space-y-1.5 shadow-sm">
-          
-          <div className="flex justify-between border-b border-[var(--color-border)] pb-1">
-            <span className="text-[11px] font-sans text-[var(--color-muted)]">Consignee</span>
-            <span className="text-[12px] font-sans font-bold text-[var(--color-foreground)] truncate max-w-[65%]">{successTx.name}</span>
+        <div className="w-full bg-[var(--color-surface-card)] rounded-2xl p-4 border border-[var(--color-border)] text-left space-y-2.5 shadow-xs">
+          <div className="flex justify-between items-center border-b border-[var(--color-border)] pb-2 text-[13px] font-sans">
+            <span className="text-[var(--color-muted)]">Consignee</span>
+            <span className="font-semibold text-[var(--color-foreground)] truncate max-w-[65%]">{successTx.name}</span>
           </div>
 
           {/* WALLET DEBITED SUMMARY ROW */}
           {successTx.wallet_deduction_amount && (
-            <div className="flex justify-between border-b border-[var(--color-border)] pb-1 text-[11px] font-mono text-[var(--color-accent-amber)] font-bold">
-              <span>Wallet Ded. (Bal: ₦{fmt((successTx as any).wallet_balance_after || 0)})</span>
-              <span className="text-[var(--color-error)]">-₦{fmt(successTx.wallet_deduction_amount)}</span>
+            <div className="flex justify-between items-center border-b border-[var(--color-border)] pb-2 text-[12px] font-sans">
+              <span className="text-[var(--color-muted)]">Wallet deducted</span>
+              <span className="text-[var(--color-error)] font-medium tabular-nums">-₦{fmt(successTx.wallet_deduction_amount)}</span>
             </div>
           )}
 
-          <div className="flex justify-between border-b border-[var(--color-border)] pb-1">
-            <span className="text-[11px] font-sans text-[var(--color-muted)]">AWB / Tag No</span>
-            <span className="text-[12px] font-mono font-bold text-[var(--color-accent-amber)]">{successTx.awb_tag_number}</span>
+          <div className="flex justify-between items-center border-b border-[var(--color-border)] pb-2 text-[13px] font-sans">
+            <span className="text-[var(--color-muted)]">AWB / Tag no.</span>
+            <span className="font-mono font-semibold text-[var(--color-foreground)] tabular-nums">{successTx.awb_tag_number}</span>
           </div>
 
-          <div className="flex justify-between border-b border-[var(--color-border)] pb-1">
-            <span className="text-[11px] font-sans text-[var(--color-muted)]">Weight / Route</span>
-            <span className="text-[12px] font-sans font-bold text-[var(--color-foreground)] truncate max-w-[65%]">
-              {successTx.kg} KG — {successTx.detail.split(" · ")[3]}
+          <div className="flex justify-between items-center border-b border-[var(--color-border)] pb-2 text-[13px] font-sans">
+            <span className="text-[var(--color-muted)]">Weight / Route</span>
+            <span className="font-medium text-[var(--color-foreground)] truncate max-w-[65%] tabular-nums">
+              {successTx.kg} kg · {successTx.detail.split(" · ")[3]}
             </span>
           </div>
 
-          <div className="flex justify-between border-b border-[var(--color-border)] pb-1">
-            <span className="text-[11px] font-sans text-[var(--color-muted)]">Content</span>
-            <span className="text-[12px] font-sans font-bold text-[var(--color-foreground)]">{successTx.detail.split(" · ")[4] || "Package"}</span>
+          <div className="flex justify-between items-center border-b border-[var(--color-border)] pb-2 text-[13px] font-sans">
+            <span className="text-[var(--color-muted)]">Content</span>
+            <span className="font-medium text-[var(--color-foreground)]">{successTx.detail.split(" · ")[4] || "Package"}</span>
           </div>
 
-          <div className="flex justify-between border-b border-[var(--color-border)] pb-1">
-            <span className="text-[11px] font-sans text-[var(--color-muted)]">Amount Charged</span>
-            <span className="text-[14px] font-mono font-extrabold text-[var(--color-accent-amber)]">₦{fmt(successTx.amount)}</span>
+          <div className="flex justify-between items-center border-b border-[var(--color-border)] pb-2 text-[13px] font-sans">
+            <span className="text-[var(--color-muted)]">Amount charged</span>
+            <span className="font-sans font-bold text-[16px] text-[var(--color-foreground)] tabular-nums">₦{fmt(successTx.amount)}</span>
           </div>
 
-          <div className="flex justify-between pt-0.5">
-            <span className="text-[11px] font-sans text-[var(--color-muted)]">Payment billing</span>
-            <span className={`text-[10px] font-sans font-extrabold px-2 py-0.5 rounded tracking-wide ${successTx.mode === "Debt" ? "bg-[rgba(239,68,68,0.1)] text-[var(--color-error)]" : "bg-[rgba(16,185,129,0.1)] text-[var(--color-success)]"}`}>
+          <div className="flex justify-between items-center pt-1 text-[12px] font-sans">
+            <span className="text-[var(--color-muted)]">Payment billing</span>
+            <span className={`px-2 py-0.5 rounded-full font-medium ${
+              successTx.mode === "Debt"
+                ? "bg-[rgba(239,68,68,0.12)] text-[var(--color-error)]"
+                : "bg-[var(--color-surface-3)] text-[var(--color-foreground)]"
+            }`}>
               {successTx.mode === "Debt"
                 ? successTx.clientType === "Corporate"
-                  ? "B2B MONTHLY DEBT"
-                  : "INDIVIDUAL DEBT"
-                : successTx.mode.toUpperCase()}
+                  ? "B2B monthly debt"
+                  : "Individual debt"
+                : successTx.mode}
             </span>
           </div>
         </div>
 
-        {/* Compact Grid of Print Buttons (2x2) */}
-        <div className="grid grid-cols-2 gap-2">
-          {/* Column 1: Document PDFs */}
-          <div className="flex flex-col gap-2">
-            <button
-              onClick={handlePrintReceipt}
-              className="w-full h-9 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] text-[var(--color-foreground)] text-[11px] font-sans font-bold rounded-lg border border-[var(--color-border)] transition-colors cursor-pointer focus:outline-none flex items-center justify-center gap-1.5"
-            >
-              PDF Receipt
-            </button>
-            <button
-              onClick={handlePrintTagPDF100mm}
-              className="w-full h-9 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] text-[var(--color-foreground)] text-[11px] font-sans font-bold rounded-lg border border-[var(--color-border)] transition-colors cursor-pointer focus:outline-none"
-              title="Fixed 100mm x 80mm label"
-            >
-              Tag PDF (100×80)
-            </button>
-          </div>
-
-          {/* Column 2: Thermal POS Prints */}
-          <div className="flex flex-col gap-2">
-            <button
-              onClick={() => {
-                import('../../lib/escpos').then(async ({ printViaBluetooth }) => {
-                  await printViaBluetooth(async () => {
-                    const m = await import('../../lib/escposCargoReceiptPrinting');
-                    const thermalPrintData = {
-                      ...printData,
-                      trackingUrl: `https://app.ehimultisystems.com/track/${successTx.id}`,
-                    };
-                    return await m.compileCargoReceiptStream(thermalPrintData, '80mm');
-                  });
-                }).catch((err: any) => {
-                  console.error('Bluetooth print failed:', err);
-                  showToast({ message: err?.message || 'Bluetooth print failed. Ensure the printer is paired and powered on.', type: 'error' });
+        {/* Print Buttons Grid */}
+        <div className="grid grid-cols-2 gap-2.5">
+          <button
+            type="button"
+            onClick={handlePrintReceipt}
+            className="w-full min-h-[44px] h-11 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] text-[12px] font-sans font-medium rounded-xl border border-[var(--color-border)] transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+          >
+            PDF receipt
+          </button>
+          <button
+            type="button"
+            onClick={handlePrintTagPDF100mm}
+            className="w-full min-h-[44px] h-11 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] text-[12px] font-sans font-medium rounded-xl border border-[var(--color-border)] transition-colors cursor-pointer"
+            title="Fixed 100mm x 80mm label"
+          >
+            Tag PDF (100×80)
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              import('../../lib/escpos').then(async ({ printViaBluetooth }) => {
+                await printViaBluetooth(async () => {
+                  const m = await import('../../lib/escposCargoReceiptPrinting');
+                  const thermalPrintData = {
+                    ...printData,
+                    trackingUrl: `https://app.ehimultisystems.com/track/${successTx.id}`,
+                  };
+                  return await m.compileCargoReceiptStream(thermalPrintData, '80mm');
                 });
-              }}
-              className="w-full h-9 bg-[var(--color-accent-amber)] hover:opacity-90 text-[var(--color-on-accent)] text-[11px] font-bold font-sans rounded-lg shadow-sm transition-opacity cursor-pointer focus:outline-none border-none flex items-center justify-center gap-1"
-            >
-              <Bluetooth size={12} />
-              <span>POS Print (80mm)</span>
-            </button>
-            <button
-              onClick={() => {
-                import('../../lib/escpos').then(async ({ printViaBluetooth }) => {
-                  await printViaBluetooth(async () => {
-                    const m = await import('../../lib/escposCargoReceiptPrinting');
-                    const thermalPrintData = {
-                      ...printData,
-                      trackingUrl: `https://app.ehimultisystems.com/track/${successTx.id}`,
-                    };
-                    return await m.compileCargoReceiptStream(thermalPrintData, '58mm');
-                  });
-                }).catch((err: any) => {
-                  console.error('Bluetooth print failed:', err);
-                  showToast({ message: err?.message || 'Bluetooth print failed. Ensure the printer is paired and powered on.', type: 'error' });
+              }).catch((err: any) => {
+                console.error('Bluetooth print failed:', err);
+                showToast({ message: err?.message || 'Bluetooth print failed. Ensure printer is paired.', type: 'error' });
+              });
+            }}
+            className="w-full min-h-[44px] h-11 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] text-[12px] font-sans font-medium rounded-xl border border-[var(--color-border)] transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+          >
+            <Bluetooth size={14} className="text-[var(--color-muted)]" />
+            <span>POS print (80mm)</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              import('../../lib/escpos').then(async ({ printViaBluetooth }) => {
+                await printViaBluetooth(async () => {
+                  const m = await import('../../lib/escposCargoReceiptPrinting');
+                  const thermalPrintData = {
+                    ...printData,
+                    trackingUrl: `https://app.ehimultisystems.com/track/${successTx.id}`,
+                  };
+                  return await m.compileCargoReceiptStream(thermalPrintData, '58mm');
                 });
-              }}
-              className="w-full h-9 bg-[var(--color-accent-amber)] hover:opacity-90 text-[var(--color-on-accent)] text-[11px] font-bold font-sans rounded-lg shadow-sm transition-opacity cursor-pointer focus:outline-none border-none flex items-center justify-center gap-1"
-            >
-              <Bluetooth size={12} />
-              <span>POS Print (58mm)</span>
-            </button>
-          </div>
+              }).catch((err: any) => {
+                console.error('Bluetooth print failed:', err);
+                showToast({ message: err?.message || 'Bluetooth print failed. Ensure printer is paired.', type: 'error' });
+              });
+            }}
+            className="w-full min-h-[44px] h-11 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] text-[12px] font-sans font-medium rounded-xl border border-[var(--color-border)] transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+          >
+            <Bluetooth size={14} className="text-[var(--color-muted)]" />
+            <span>POS print (58mm)</span>
+          </button>
         </div>
 
-        {/* Same-customer batch controls -- retail/individual only. Corporate
-            office-work clients already have their own bulk intake/weighing
-            queue, so batching here would just duplicate that flow. */}
+        {/* Same-customer batch controls */}
         {successTx.clientType !== "Corporate" && (
-          <>
+          <div className="space-y-2.5 pt-1">
             <button
+              type="button"
               onClick={handleAddAnotherForBatch}
-              className="w-full h-11 bg-[var(--color-accent-amber)] hover:opacity-90 text-[var(--color-on-accent)] text-[13px] font-bold font-sans rounded-lg shadow-sm transition-opacity cursor-pointer focus:outline-none border-none flex items-center justify-center gap-1.5"
+              className="w-full min-h-[44px] h-11 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] text-[13px] font-sans font-medium rounded-full border border-[var(--color-border)] transition-colors cursor-pointer flex items-center justify-center gap-2"
             >
-              <Layers size={14} />
-              <span>Add Another Item for {successTx.name}</span>
+              <Layers size={15} />
+              <span>Add another item for {successTx.name}</span>
             </button>
 
             {batchItems.length > 0 && (
-              <div className="rounded-lg border border-[var(--color-accent-amber)] border-opacity-40 bg-[rgba(251,191,36,0.05)] px-3 py-2 space-y-2">
-                <div className="text-[11px] font-mono text-[var(--color-muted)]">
-                  Batch so far: <span className="font-bold text-[var(--color-foreground)]">{batchItems.length + 1} items</span> · ₦{fmt(batchItems.reduce((s, t) => s + t.amount, 0) + successTx.amount)} for {successTx.name}
+              <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] p-3.5 space-y-2.5">
+                <div className="text-[12px] font-sans text-[var(--color-muted)]">
+                  Batch so far: <span className="font-semibold text-[var(--color-foreground)]">{batchItems.length + 1} items</span> · <span className="tabular-nums font-semibold text-[var(--color-foreground)]">₦{fmt(batchItems.reduce((s, t) => s + t.amount, 0) + successTx.amount)}</span>
                 </div>
                 <button
+                  type="button"
                   onClick={() => { setBatchItems(prev => [...prev, successTx]); setSuccessTx(null); setPrintRange(null); setShowBatchSummary(true); }}
-                  className="w-full h-9 bg-[var(--color-foreground)] text-[var(--color-background)] text-[12px] font-bold font-sans rounded-lg transition-opacity hover:opacity-90 cursor-pointer focus:outline-none"
+                  className="w-full min-h-[44px] h-11 bg-[var(--color-surface-3)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] text-[12px] font-sans font-medium rounded-full border border-[var(--color-border-strong)] transition-colors cursor-pointer"
                 >
-                  Finish &amp; Print Batch ({batchItems.length + 1} items)
+                  Finish &amp; print batch ({batchItems.length + 1} items)
                 </button>
               </div>
             )}
-          </>
+          </div>
         )}
 
-        {/* New Entry Button -- starts a fresh customer; already-saved batch
-            items stay saved, only the "print together" grouping is dropped. */}
+        {/* New Entry Button */}
         <button
+          type="button"
           onClick={() => handleReset()}
-          className="w-full h-10 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] text-[var(--color-foreground)] text-[13px] font-sans font-bold rounded-lg border border-[var(--color-border)] transition-colors cursor-pointer focus:outline-none mt-1"
+          className="w-full min-h-[44px] h-11 bg-white text-black hover:bg-neutral-200 dark:bg-white dark:text-black dark:hover:bg-neutral-200 text-[13px] font-sans font-semibold rounded-full transition-colors cursor-pointer shadow-xs mt-2"
         >
-          {batchItems.length > 0 ? "New Entry (Different Customer)" : "New Entry"}
+          {batchItems.length > 0 ? "New entry (different customer)" : "Start new entry"}
         </button>
-
       </div>
     );
   }
@@ -2334,85 +2335,99 @@ export const CargoForm = ({
     const batchTotal = batchItems.reduce((s, t) => s + t.amount, 0);
     const batchConsignee = batchItems[0]?.name || "Customer";
     return (
-      <div className="p-3 space-y-3 max-w-md mx-auto w-full">
-        <div className="bg-[rgba(16,185,129,0.05)] border border-[var(--color-success)] rounded-xl px-3 py-2.5">
-          <div className="text-[13px] font-bold text-[var(--color-success)]">Batch Complete — {batchConsignee}</div>
-          <div className="text-[11px] font-mono text-[var(--color-muted)] mt-0.5">
-            {batchItems.length} item(s) · ₦{fmt(batchTotal)} total
+      <div className="p-4 space-y-4 max-w-md mx-auto w-full select-none">
+        <div className="bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-2xl p-4">
+          <div className="text-[14px] font-semibold text-[var(--color-foreground)] font-sans">
+            Batch complete — {batchConsignee}
+          </div>
+          <div className="text-[12px] font-sans text-[var(--color-muted)] mt-1">
+            {batchItems.length} item(s) · <span className="font-semibold text-[var(--color-foreground)] tabular-nums">₦{fmt(batchTotal)}</span> total
           </div>
         </div>
 
-        <div className="space-y-1.5 max-h-[40vh] overflow-y-auto">
+        <div className="space-y-2 max-h-[40vh] overflow-y-auto">
           {batchItems.map((tx) => (
-            <div key={tx.id} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2 flex items-center justify-between gap-2">
+            <div key={tx.id} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-card)] p-3 flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <div className="text-[11px] font-bold font-mono text-[var(--color-accent-amber)] truncate">{tx.awb_tag_number || tx.id}</div>
-                <div className="text-[10px] font-mono text-[var(--color-muted)] truncate">
-                  {tx.detail.split(" · ")[3] || ""} · {tx.pieces || 1}pcs · {tx.kg || 0}kg
+                <div className="text-[12px] font-semibold font-mono text-[var(--color-foreground)] truncate tabular-nums">
+                  {tx.awb_tag_number || tx.id}
+                </div>
+                <div className="text-[11px] font-sans text-[var(--color-muted)] truncate mt-0.5">
+                  {tx.detail.split(" · ")[3] || ""} · {tx.pieces || 1} pcs · {tx.kg || 0} kg
                 </div>
               </div>
-              <div className="text-[11px] font-mono font-bold text-[var(--color-foreground)] shrink-0">₦{fmt(tx.amount)}</div>
+              <div className="text-[13px] font-sans font-semibold text-[var(--color-foreground)] shrink-0 tabular-nums">
+                ₦{fmt(tx.amount)}
+              </div>
             </div>
           ))}
         </div>
 
-        <div className="flex items-center justify-between text-[11px] font-mono text-[var(--color-muted)] px-1">
+        <div className="flex items-center justify-between text-[12px] font-sans text-[var(--color-muted)] px-1">
           <span>
             {printRange
-              ? `Printing: items ${printRange.from}–${printRange.to} (${printRange.to - printRange.from + 1} of ${batchItems.length})`
-              : `Printing: all ${batchItems.length} item(s)`}
+              ? `Printing items ${printRange.from}–${printRange.to} (${printRange.to - printRange.from + 1} of ${batchItems.length})`
+              : `Printing all ${batchItems.length} item(s)`}
           </span>
           <button
             type="button"
             onClick={() => setShowRangeModal(true)}
-            className="font-bold text-[var(--color-accent-cobalt)] hover:underline"
+            className="font-medium text-[var(--color-foreground)] underline cursor-pointer"
           >
-            Change
+            Change range
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2.5">
           <button
+            type="button"
             onClick={() => handlePrintAllBatch('receipt-pdf')}
             disabled={batchPrinting}
-            className="w-full h-9 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] text-[var(--color-foreground)] text-[11px] font-sans font-bold rounded-lg border border-[var(--color-border)] transition-colors cursor-pointer focus:outline-none disabled:opacity-50"
+            className="w-full min-h-[44px] h-11 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] text-[12px] font-sans font-medium rounded-xl border border-[var(--color-border)] transition-colors cursor-pointer disabled:opacity-50"
           >
-            All PDF Receipts
+            All PDF receipts
           </button>
           <button
+            type="button"
             onClick={() => handlePrintAllBatch('tag-pdf')}
             disabled={batchPrinting}
-            className="w-full h-9 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] text-[var(--color-foreground)] text-[11px] font-sans font-bold rounded-lg border border-[var(--color-border)] transition-colors cursor-pointer focus:outline-none disabled:opacity-50"
+            className="w-full min-h-[44px] h-11 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] text-[12px] font-sans font-medium rounded-xl border border-[var(--color-border)] transition-colors cursor-pointer disabled:opacity-50"
           >
-            All Tag PDFs (100×80)
+            All tag PDFs (100×80)
           </button>
           <button
+            type="button"
             onClick={() => handlePrintAllBatch('pos80')}
             disabled={batchPrinting}
-            className="w-full h-9 bg-[var(--color-accent-amber)] hover:opacity-90 text-[var(--color-on-accent)] text-[11px] font-bold font-sans rounded-lg shadow-sm transition-opacity cursor-pointer focus:outline-none border-none flex items-center justify-center gap-1 disabled:opacity-50"
+            className="w-full min-h-[44px] h-11 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] text-[12px] font-sans font-medium rounded-xl border border-[var(--color-border)] transition-colors cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
           >
-            <Bluetooth size={12} /><span>POS Print All (80mm)</span>
+            <Bluetooth size={14} className="text-[var(--color-muted)]" />
+            <span>POS print all (80mm)</span>
           </button>
           <button
+            type="button"
             onClick={() => handlePrintAllBatch('pos58')}
             disabled={batchPrinting}
-            className="w-full h-9 bg-[var(--color-accent-amber)] hover:opacity-90 text-[var(--color-on-accent)] text-[11px] font-bold font-sans rounded-lg shadow-sm transition-opacity cursor-pointer focus:outline-none border-none flex items-center justify-center gap-1 disabled:opacity-50"
+            className="w-full min-h-[44px] h-11 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] text-[12px] font-sans font-medium rounded-xl border border-[var(--color-border)] transition-colors cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
           >
-            <Bluetooth size={12} /><span>POS Print All (58mm)</span>
+            <Bluetooth size={14} className="text-[var(--color-muted)]" />
+            <span>POS print all (58mm)</span>
           </button>
         </div>
 
         {batchPrinting && (
-          <div className="flex items-center gap-2 text-[11px] font-mono text-[var(--color-muted)] justify-center py-1">
-            <Loader2 size={12} className="animate-spin" /> {batchPrintProgress}
+          <div className="flex items-center gap-2 text-[12px] font-sans text-[var(--color-muted)] justify-center py-1">
+            <Loader2 size={14} className="animate-spin text-[var(--color-muted)]" />
+            <span>{batchPrintProgress}</span>
           </div>
         )}
 
         <button
+          type="button"
           onClick={() => { setShowBatchSummary(false); handleReset(); }}
-          className="w-full h-10 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] text-[var(--color-foreground)] text-[13px] font-sans font-bold rounded-lg border border-[var(--color-border)] transition-colors cursor-pointer focus:outline-none mt-1"
+          className="w-full min-h-[44px] h-11 bg-white text-black hover:bg-neutral-200 dark:bg-white dark:text-black dark:hover:bg-neutral-200 text-[13px] font-sans font-semibold rounded-full transition-colors cursor-pointer shadow-xs mt-2"
         >
-          Start New Customer
+          Start new customer
         </button>
 
         {showRangeModal && (
@@ -2438,817 +2453,778 @@ export const CargoForm = ({
       className="pb-24"
       style={{ width: "100%", boxSizing: "border-box" }}
     >
-      {/* SECTION SELECTOR / HUB MODE NAVIGATION */}
-      <div className="px-4 pt-4">
+      {/* UNIFIED QUIET HEADER TOOLBAR */}
+      <div className="px-4 pt-3 pb-3 border-b border-[var(--color-border)] mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-[20px] font-sans font-semibold tracking-tight text-[var(--color-foreground)] leading-tight">
+              Air cargo
+            </h1>
+            <p className="text-[12px] font-sans text-[var(--color-muted)] mt-0.5">
+              Log shipments, track air waybills, and manage terminal dispatches
+            </p>
+          </div>
 
-      {isAdmin && (
-        <div className="mb-4 p-3 max-w-[220px] bg-[var(--color-surface-2)] rounded-lg border border-[var(--color-accent-amber)] border-opacity-30 animate-in fade-in">
-           <label className="text-[10px] uppercase font-bold text-[var(--color-accent-amber)] mb-1 block flex items-center gap-1">
-             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-             Admin: Global Hub Context
-           </label>
-           <select value={adminSelectedHubId} onChange={(e) => setAdminSelectedHubId(e.target.value)} className="w-full bg-[var(--color-obsidian)] text-[var(--color-foreground)] font-bold text-[13px] p-2 rounded border border-[var(--color-border)] focus:border-[var(--color-accent-amber)] focus:outline-none cursor-pointer">
-             {hubList.map(h => <option key={h.id} value={h.id}>{h.code}/{h.name}</option>)}
-           </select>
+          <div className="flex items-center flex-wrap gap-2">
+            {isAdmin && (
+              <div className="flex items-center gap-1.5 px-3 min-h-[44px] h-11 bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-full">
+                <span className="text-[11px] font-sans text-[var(--color-muted)]">Hub</span>
+                <select
+                  value={adminSelectedHubId}
+                  onChange={(e) => setAdminSelectedHubId(e.target.value)}
+                  className="bg-transparent text-[var(--color-foreground)] font-sans font-medium text-[12px] focus:outline-none cursor-pointer"
+                >
+                  {hubList.map(h => <option key={h.id} value={h.id}>{h.code}/{h.name}</option>)}
+                </select>
+              </div>
+            )}
+
+            {userHubCode === 'LOS' && !forcedTerminal && (
+              <TerminalSwitch value={terminal} onChange={setTerminal} />
+            )}
+
+            <button
+              type="button"
+              onClick={() => setShowSalesAnalysis(true)}
+              className="flex items-center gap-1.5 min-h-[44px] h-11 px-3.5 bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-full text-[13px] font-sans font-medium text-[var(--color-foreground)] hover:bg-[var(--color-surface-2)] transition-colors cursor-pointer"
+            >
+              <BarChart2 size={15} className="text-[var(--color-muted)]" />
+              <span>Sales analysis</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowCloseModal(true)}
+              className="flex items-center gap-1.5 min-h-[44px] h-11 px-3.5 bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-full text-[13px] font-sans font-medium text-[var(--color-foreground)] hover:bg-[var(--color-surface-2)] transition-colors cursor-pointer"
+            >
+              <Lock size={15} className="text-[var(--color-muted)]" />
+              <span>Close period</span>
+            </button>
+          </div>
         </div>
-      )}
 
-      <div className="flex items-center justify-end gap-2 mb-3">
-        {userHubCode === 'LOS' && !forcedTerminal && <TerminalSwitch value={terminal} onChange={setTerminal} />}
-        <button
-          onClick={() => setShowSalesAnalysis(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--color-surface-2)] border border-[var(--color-border-strong)] rounded-lg text-[11px] font-mono font-semibold text-[var(--color-foreground)] hover:bg-[var(--color-surface-3)] hover:border-[var(--color-accent-amber)] hover:text-[var(--color-accent-amber)] transition-colors shadow-[var(--shadow-xs)]"
-        >
-          <BarChart2 size={14} /> <span>SALES ANALYSIS</span>
-        </button>
-        <button
-          onClick={() => setShowCloseModal(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--color-surface-2)] border border-[var(--color-border-strong)] rounded-lg text-[11px] font-mono font-semibold text-[var(--color-foreground)] hover:bg-[var(--color-surface-3)] hover:border-[var(--color-accent-amber)] hover:text-[var(--color-accent-amber)] transition-colors shadow-[var(--shadow-xs)]"
-        >
-          <Lock size={14} /> <span>CLOSE CARGO PERIOD</span>
-        </button>
+        {/* PORTAL SWITCHER: CALM SEGMENTED CONTROL */}
+        <div className="mt-3 flex justify-center">
+          <div className="inline-flex p-1 rounded-full bg-[var(--color-surface-2)] border border-[var(--color-border)] w-full max-w-md">
+            <button
+              type="button"
+              onClick={() => setActivePortal("retail")}
+              className={`flex-1 flex items-center justify-center gap-2 min-h-[40px] h-10 text-[13px] font-sans font-medium rounded-full transition-all cursor-pointer ${
+                activePortal === "retail"
+                  ? "bg-[var(--color-surface-1)] text-[var(--color-foreground)] shadow-xs"
+                  : "text-[var(--color-muted)] hover:text-[var(--color-foreground)]"
+              }`}
+            >
+              <Package size={15} />
+              <span>Retail cargo</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActivePortal("corporate")}
+              className={`flex-1 flex items-center justify-center gap-2 min-h-[40px] h-10 text-[13px] font-sans font-medium rounded-full transition-all cursor-pointer relative ${
+                activePortal === "corporate"
+                  ? "bg-[var(--color-surface-1)] text-[var(--color-foreground)] shadow-xs"
+                  : "text-[var(--color-muted)] hover:text-[var(--color-foreground)]"
+              }`}
+            >
+              <Users size={15} />
+              <span>Office work (B2B)</span>
+              {pendingIntakes.length > 0 && (
+                <span className="ml-1 bg-[var(--color-error)] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                  {pendingIntakes.length}
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
       </div>
-      <div className="flex bg-[var(--color-obsidian)] rounded-lg p-1 border border-[var(--color-border)] mb-6 max-w-lg mx-auto">
-        <button
-          onClick={() => setActivePortal("retail")}
-          className={`flex-1 flex items-center justify-center gap-2 py-3 text-[14px] font-sans font-bold rounded-md transition-all cursor-pointer ${
-            activePortal === "retail"
-              ? "bg-[var(--color-accent-amber)] text-[var(--color-on-accent)] shadow-md"
-              : "text-[var(--color-light-muted)] hover:text-[var(--color-foreground)]"
-          }`}
-        >
-          <Package size={16} /> Retail Cargo Entry
-        </button>
-        <button
-          onClick={() => setActivePortal("corporate")}
-          className={`flex-1 flex items-center justify-center gap-2 py-3 text-[14px] font-sans font-bold rounded-md transition-all cursor-pointer relative ${
-            activePortal === "corporate"
-              ? "bg-[var(--color-accent-amber)] text-[var(--color-on-accent)] shadow-md"
-              : "text-[var(--color-light-muted)] hover:text-[var(--color-foreground)]"
-          }`}
-        >
-          <Users size={16} /> Office Work (B2B)
-          {pendingIntakes.length > 0 && (
-            <span className="absolute -top-1 -right-1 bg-[var(--color-error)] text-[var(--color-on-accent-inverse)] font-mono text-[10px] w-5 h-5 rounded-full flex items-center justify-center border-2 border-[var(--color-obsidian)] font-bold">
-              {pendingIntakes.length}
-            </span>
-          )}
-        </button>
-      </div>
-      </div>{/* end px-4 pt-4 wrapper */}
 
       {/* RETAIL CARGO LAYOUT */}
       {activePortal === "retail" && (
         <div className="p-4 grid gap-6 md:grid-cols-[1fr_280px] items-start">
           <div>
             <div className="flex items-center justify-between gap-3 mb-4">
-              <div className="min-w-0 flex-1">
-                <h1 className="text-[18px] font-sans font-bold text-[var(--color-foreground)] leading-tight">
-                  New Cargo Retail Entry
-                </h1>
+              <div className="min-w-0">
+                <h2 className="text-[15px] font-sans font-semibold text-[var(--color-foreground)]">
+                  Retail entry
+                </h2>
                 <p className="text-[12px] font-sans text-[var(--color-muted)]">
-                  Log immediate cargo entries with retail cash, transfer or local
-                  options.
+                  Log immediate shipment with cash, transfer, POS, or wallet
                 </p>
               </div>
-              {onShowHistory && (
+              <div className="flex items-center gap-2 shrink-0">
+                {onShowHistory && (
+                  <button
+                    type="button"
+                    onClick={onShowHistory}
+                    className="flex items-center gap-1.5 min-h-[44px] h-11 px-3.5 bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-full text-[13px] font-sans font-medium text-[var(--color-foreground)] hover:bg-[var(--color-surface-2)] transition-colors cursor-pointer"
+                  >
+                    <ClipboardList size={14} className="text-[var(--color-muted)]" />
+                    <span>History</span>
+                  </button>
+                )}
                 <button
-                  onClick={onShowHistory}
-                  className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-[var(--color-surface-2)] border border-[var(--color-border-strong)] rounded-lg text-[11px] font-mono font-semibold text-[var(--color-foreground)] hover:bg-[var(--color-surface-3)] hover:border-[var(--color-accent-amber)] hover:text-[var(--color-accent-amber)] transition-colors shadow-[var(--shadow-xs)]"
+                  type="button"
+                  onClick={() => window.dispatchEvent(new CustomEvent('ehi-nav', { detail: 'FlightRadar' }))}
+                  className="flex items-center gap-1.5 min-h-[44px] h-11 px-3.5 bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-full text-[13px] font-sans font-medium text-[var(--color-foreground)] hover:bg-[var(--color-surface-2)] transition-colors cursor-pointer"
                 >
-                  <ClipboardList size={14} /> <span>History</span>
+                  <Radar size={14} className="text-[var(--color-muted)]" />
+                  <span>Flight radar</span>
                 </button>
-              )}
-              <button
-                onClick={() => window.dispatchEvent(new CustomEvent('ehi-nav', { detail: 'FlightRadar' }))}
-                className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-[var(--color-surface-2)] border border-[var(--color-border-strong)] rounded-lg text-[11px] font-mono font-semibold text-[var(--color-foreground)] hover:bg-[var(--color-surface-3)] hover:border-[var(--color-accent-amber)] hover:text-[var(--color-accent-amber)] transition-colors shadow-[var(--shadow-xs)]"
-              >
-                <Radar size={14} /> <span>Flight Radar</span>
-              </button>
+              </div>
             </div>
 
             {batchItems.length > 0 && (
-              <div className="mb-4 rounded-lg border border-[var(--color-accent-amber)] border-opacity-40 bg-[rgba(251,191,36,0.05)] px-3 py-2 flex items-center justify-between gap-2 flex-wrap">
-                <div className="flex items-center gap-1.5 text-[11px] font-mono text-[var(--color-muted)]">
-                  <Layers size={13} className="text-[var(--color-accent-amber)]" />
-                  Batch for <span className="font-bold text-[var(--color-foreground)]">{batchItems[0]?.name}</span>: {batchItems.length} item(s) · ₦{fmt(batchItems.reduce((s, t) => s + t.amount, 0))} logged so far
+              <div className="mb-4 rounded-xl border border-[var(--color-border-strong)] bg-[var(--color-surface-2)] px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex items-center gap-2 text-[12px] font-sans text-[var(--color-foreground)]">
+                  <Layers size={15} className="text-[var(--color-muted)] shrink-0" />
+                  <span>
+                    Batch for <strong className="font-semibold">{batchItems[0]?.name}</strong>: {batchItems.length} item(s) · <span className="tabular-nums font-semibold">₦{fmt(batchItems.reduce((s, t) => s + t.amount, 0))}</span> logged so far
+                  </span>
                 </div>
                 <button
                   type="button"
                   onClick={() => { setPrintRange(null); setShowBatchSummary(true); }}
-                  className="text-[11px] font-mono font-bold text-[var(--color-accent-amber)] hover:underline"
+                  className="min-h-[36px] px-3 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-1)] text-[12px] font-sans font-medium text-[var(--color-foreground)] hover:bg-[var(--color-surface-3)] transition-colors cursor-pointer"
                 >
-                  Finish &amp; Print Batch
+                  Finish &amp; print batch
                 </button>
               </div>
             )}
 
             <div className="space-y-4">
-              <div>
-                {renderLabel(UserIcon, "Consignee")}
-                <div className="flex flex-col space-y-2">
-                  <input
-                    id="retail-consignee"
-                    name="consignee"
-                    list="consignee-datalist"
-                    placeholder="Type or select consignee name"
-                    value={consignee}
-                    onChange={(e) => setConsignee(e.target.value)}
-                    className={formInputClass}
-                  />
-                  <datalist id="consignee-datalist">
-                    {consigneeOptions.map((c) => (
-                      <option key={c} value={c} />
-                    ))}
-                  </datalist>
-                  {consignee === "Other" && (
+              {/* GROUP 1: CONSIGNMENT & ROUTING */}
+              <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] p-4 sm:p-5 space-y-4">
+                <div className="border-b border-[var(--color-border)] pb-2.5">
+                  <h3 className="text-[14px] font-sans font-semibold text-[var(--color-foreground)]">
+                    Consignment &amp; routing
+                  </h3>
+                </div>
+
+                <div>
+                  {renderLabel(UserIcon, "Consignee")}
+                  <div className="flex flex-col space-y-2">
                     <input
-                      id="retail-custom-consignee"
-                      name="custom-consignee"
-                      placeholder="Enter Consignee Name"
-                      value={customConsignee}
-                      onChange={upperOnChange(setCustomConsignee)}
+                      id="retail-consignee"
+                      name="consignee"
+                      list="consignee-datalist"
+                      placeholder="Type or select consignee name"
+                      value={consignee}
+                      onChange={(e) => setConsignee(e.target.value)}
                       className={formInputClass}
                     />
-                  )}
-                  {actualConsignee.trim().length > 0 && actualConsignee.trim().length < 3 && (
-                    <p className="text-[10px] font-mono text-[var(--color-accent-amber)]">
-                      Consignee name must be at least 3 characters.
-                    </p>
-                  )}
-                  <input
-                    id="retail-sender-phone"
-                    name="sender-phone"
-                    type="tel"
-                    placeholder="Sender phone (optional) -- include country code for foreign customers (e.g. +44, +1, +233)"
-                    value={senderPhone}
-                    onChange={(e) => setSenderPhone(e.target.value)}
-                    className={formInputClass}
-                  />
-                  <input
-                    id="retail-consignee-phone"
-                    name="consignee-phone"
-                    type="tel"
-                    placeholder="Consignee phone (optional) -- include country code for foreign customers (e.g. +44, +1, +233)"
-                    value={consigneePhone}
-                    onChange={(e) => setConsigneePhone(e.target.value)}
-                    className={formInputClass}
-                  />
-                  {/* Active Customer Wallet Banner */}
-                  {activeWallet && (
-                    <div className="mt-2 p-2.5 rounded-lg border border-[var(--color-accent-amber)] bg-[rgba(251,191,36,0.08)] flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <Coins size={16} className="text-[var(--color-accent-amber)] shrink-0" />
-                        <div className="min-w-0">
-                          <div className="text-[11px] font-mono font-bold text-[var(--color-accent-amber)]">
-                            💰 WALLET BALANCE DETECTED
-                          </div>
-                          <div className="text-[10px] font-mono text-[var(--color-muted)]">
-                            {activeWallet.customer_name} has <span className="font-bold text-[var(--color-foreground)]">₦{fmt(activeWallet.balance)}</span> available credit
-                          </div>
+                    <datalist id="consignee-datalist">
+                      {consigneeOptions.map((c) => (
+                        <option key={c} value={c} />
+                      ))}
+                    </datalist>
+                    {consignee === "Other" && (
+                      <input
+                        id="retail-custom-consignee"
+                        name="custom-consignee"
+                        placeholder="Enter consignee name"
+                        value={customConsignee}
+                        onChange={upperOnChange(setCustomConsignee)}
+                        className={formInputClass}
+                      />
+                    )}
+                    {actualConsignee.trim().length > 0 && actualConsignee.trim().length < 3 && (
+                      <p className="text-[11px] font-sans text-[var(--color-warning)]">
+                        Consignee name must be at least 3 characters.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    {renderLabel(UserIcon, "Sender phone (optional)")}
+                    <input
+                      id="retail-sender-phone"
+                      name="sender-phone"
+                      type="tel"
+                      placeholder="e.g. +234, +44, +1"
+                      value={senderPhone}
+                      onChange={(e) => setSenderPhone(e.target.value)}
+                      className={formInputClass}
+                    />
+                  </div>
+                  <div>
+                    {renderLabel(UserIcon, "Consignee phone (optional)")}
+                    <input
+                      id="retail-consignee-phone"
+                      name="consignee-phone"
+                      type="tel"
+                      placeholder="e.g. +234, +44, +1"
+                      value={consigneePhone}
+                      onChange={(e) => setConsigneePhone(e.target.value)}
+                      className={formInputClass}
+                    />
+                  </div>
+                </div>
+
+                {/* Active Customer Wallet Banner */}
+                {activeWallet && (
+                  <div className="p-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-2)] flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <Coins size={16} className="text-emerald-500 shrink-0" />
+                      <div className="min-w-0">
+                        <div className="text-[12px] font-sans font-medium text-[var(--color-foreground)]">
+                          Wallet balance available
+                        </div>
+                        <div className="text-[11px] font-sans text-[var(--color-muted)] truncate">
+                          {activeWallet.customer_name} has <span className="font-semibold text-emerald-500 tabular-nums">₦{fmt(activeWallet.balance)}</span> credit
                         </div>
                       </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setMode("Wallet")}
+                      className={`min-h-[36px] px-3 rounded-full text-[12px] font-sans font-medium transition-colors cursor-pointer shrink-0 ${
+                        mode === "Wallet"
+                          ? "bg-white text-black dark:bg-white dark:text-black font-semibold shadow-xs"
+                          : "border border-[var(--color-border)] bg-[var(--color-surface-1)] text-[var(--color-foreground)] hover:bg-[var(--color-surface-3)]"
+                      }`}
+                    >
+                      {mode === "Wallet" ? "Using wallet" : "Use wallet"}
+                    </button>
+                  </div>
+                )}
+
+                {/* Office-work detection banner */}
+                {detectedOfficeClient && !linkedAsOfficeWork && (
+                  <div className="p-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-2)] flex items-start gap-3">
+                    <AlertTriangle size={16} className="text-[var(--color-muted)] shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0 text-[12px] font-sans">
+                      <div className="font-medium text-[var(--color-foreground)]">
+                        {officeMatch.type === 'exact' ? 'Registered client match' : 'Office work client detected'}
+                      </div>
+                      <div className="text-[11px] text-[var(--color-muted)] mt-0.5">
+                        <span className="font-medium text-[var(--color-foreground)]">{detectedOfficeClient.company_name}</span> is a registered corporate account.
+                        {officeWorkRate
+                          ? ` Contract rate for ${route}: ₦${officeWorkRate.rate_per_kg}/kg`
+                          : ' No contract rate configured for this route — amount stays manual.'}
+                      </div>
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLinkedAsOfficeWork(true);
+                            wasLinkedRef.current = true;
+                            if (officeWorkRate && kg) {
+                              const w = parseFloat(kg) || 0;
+                              if (w > 0) {
+                                const computed = Math.max(
+                                  w * officeWorkRate.rate_per_kg,
+                                  officeWorkRate.minimum_amount ?? 0
+                                );
+                                setAmount(String(computed));
+                              }
+                            }
+                          }}
+                          className="min-h-[36px] px-3 rounded-full bg-white text-black dark:bg-white dark:text-black font-sans font-medium text-[12px] shadow-xs cursor-pointer"
+                        >
+                          Link as office work
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setLinkedAsOfficeWork(false)}
+                          className="min-h-[36px] px-3 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-1)] text-[var(--color-muted)] hover:text-[var(--color-foreground)] font-sans text-[12px] cursor-pointer"
+                        >
+                          Keep as retail
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {linkedAsOfficeWork && detectedOfficeClient && (
+                  <div className="p-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-2)] flex items-center gap-2">
+                    <span className="text-[10px] font-semibold font-sans px-1.5 py-0.5 rounded bg-[var(--color-surface-3)] text-[var(--color-foreground)]">
+                      Office work
+                    </span>
+                    <span className="text-[12px] font-sans text-[var(--color-foreground)] flex-1 truncate">{detectedOfficeClient.company_name}</span>
+                    <button type="button" onClick={() => { setLinkedAsOfficeWork(false); setAmount(''); wasLinkedRef.current = false; }} className="text-[11px] font-sans text-[var(--color-muted)] hover:text-[var(--color-error)] cursor-pointer">
+                      Unlink
+                    </button>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    {renderLabel(Plane, "Airline")}
+                    <select
+                      value={airline}
+                      onChange={(e) => { setAirline(e.target.value); setAmount(""); }}
+                      className={formInputClass}
+                    >
+                      {availableAirlines.map((a) => (
+                        <option key={a} value={a}>
+                          {a}
+                        </option>
+                      ))}
+                    </select>
+                    {airline === "Other" && (
+                      <input
+                        id="retail-custom-airline"
+                        name="custom-airline"
+                        placeholder="Enter airline name"
+                        value={customAirline}
+                        onChange={upperOnChange(setCustomAirline)}
+                        className={`${formInputClass} mt-2`}
+                      />
+                    )}
+                  </div>
+
+                  <div>
+                    {renderLabel(Radar, flightAutoFilled ? "Flight no. (auto-filled)" : "Flight no. (optional)")}
+                    <input
+                      id="retail-flight-number"
+                      name="flight-number"
+                      type="text"
+                      placeholder="e.g. W3 331"
+                      value={flightNumber}
+                      onChange={(e) => { setFlightNumber(e.target.value.toUpperCase()); setFlightAutoFilled(false); }}
+                      className={formInputClass}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    {renderLabel(MapPin, "Route")}
+                    <select
+                      value={route}
+                      onChange={(e) => { setRoute(e.target.value); setAmount(""); }}
+                      className={formInputClass}
+                    >
+                      <option value="" disabled>-- Select route --</option>
+                      {routes.map((r) => (
+                        <option key={r} value={r}>
+                          {r}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    {renderLabel(Hash, "AWB / Tag no. (auto-generated)")}
+                    <input
+                      id="retail-awb"
+                      name="awb"
+                      type="text"
+                      value={awb || "Loading…"}
+                      readOnly
+                      className={`${formInputClass} font-sans tabular-nums opacity-60 cursor-not-allowed`}
+                      style={{ backgroundColor: 'var(--color-surface-3)', color: 'var(--color-muted)' }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* GROUP 2: SHIPMENT WEIGHT & CONTENT */}
+              <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] p-4 sm:p-5 space-y-4">
+                <div className="border-b border-[var(--color-border)] pb-2.5">
+                  <h3 className="text-[14px] font-sans font-semibold text-[var(--color-foreground)]">
+                    Shipment weight &amp; content
+                  </h3>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    {renderLabel(Package, "Pieces")}
+                    <input
+                      id="retail-pcs"
+                      name="pcs"
+                      type="number"
+                      min="1"
+                      value={pcs}
+                      onChange={(e) => setPcs(e.target.value)}
+                      className={formInputClass}
+                    />
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between">
+                      {renderLabel(Scale, "Weight (KG)")}
                       <button
                         type="button"
-                        onClick={() => setMode("Wallet")}
-                        className={`px-2.5 py-1 rounded text-[10px] font-mono font-bold cursor-pointer transition-colors ${
-                          mode === "Wallet"
-                            ? "bg-[var(--color-accent-amber)] text-[var(--color-on-accent)]"
-                            : "border border-[var(--color-accent-amber)] text-[var(--color-accent-amber)] hover:bg-[var(--color-accent-amber)] hover:text-[var(--color-on-accent)]"
-                        }`}
+                        onClick={() => setShowDims(!showDims)}
+                        className="text-[11px] font-sans text-[var(--color-muted)] hover:text-[var(--color-foreground)] cursor-pointer underline"
                       >
-                        {mode === "Wallet" ? "Using Wallet" : "Use Wallet"}
+                        {showDims ? "Hide dimensions" : "+ Dimensions (cm)"}
                       </button>
                     </div>
-                  )}
-
-                  {/* Office-work detection banner */}
-                  {detectedOfficeClient && !linkedAsOfficeWork && (
-                    <div className="mt-2 p-3 rounded-lg border border-[var(--color-accent-amber)] bg-[rgba(251,191,36,0.08)] flex items-start gap-3">
-                      <AlertTriangle size={16} className="text-[var(--color-accent-amber)] shrink-0 mt-0.5" />
-                      <div className="flex-1 min-w-0">
-                        <div className="text-[11px] font-mono font-bold text-[var(--color-accent-amber)]">
-                          {officeMatch.type === 'exact' ? 'Registered Client Match' : 'Office Work Client Detected'}
-                        </div>
-                        <div className="text-[10px] font-mono text-[var(--color-muted)] mt-0.5">
-                          <span className="font-semibold text-[var(--color-foreground)]">{detectedOfficeClient.company_name}</span> is a registered corporate account.
-                          {officeWorkRate
-                            ? ` Contract rate for ${route}: ₦${officeWorkRate.rate_per_kg}/kg`
-                            : ' No contract rate configured for this route — amount stays manual.'}
-                        </div>
-                        <div className="flex gap-2 mt-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setLinkedAsOfficeWork(true);
-                              wasLinkedRef.current = true;
-                              // Auto-apply contract rate if one exists
-                              if (officeWorkRate && kg) {
-                                const w = parseFloat(kg) || 0;
-                                if (w > 0) {
-                                  const computed = Math.max(
-                                    w * officeWorkRate.rate_per_kg,
-                                    officeWorkRate.minimum_amount ?? 0
-                                  );
-                                  setAmount(String(computed));
-                                }
-                              }
-                            }}
-                            className="px-3 py-1 rounded bg-[var(--color-accent-amber)] text-[var(--color-on-accent)] text-[10px] font-bold font-mono"
-                          >
-                            Yes, Link as Office Work
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setLinkedAsOfficeWork(false)}
-                            className="px-3 py-1 rounded border border-[var(--color-border)] text-[var(--color-muted)] text-[10px] font-mono"
-                          >
-                            No, Keep as Retail
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  {linkedAsOfficeWork && detectedOfficeClient && (
-                    <div className="mt-2 p-2 rounded border border-[rgba(139,92,246,0.4)] bg-[rgba(139,92,246,0.08)] flex items-center gap-2">
-                      <span className="text-[9px] font-bold font-mono text-[var(--color-purple-fg)] uppercase tracking-wider">OFFICE WORK</span>
-                      <span className="text-[10px] font-mono text-[var(--color-muted)] flex-1">{detectedOfficeClient.company_name}</span>
-                      <button type="button" onClick={() => { setLinkedAsOfficeWork(false); setAmount(''); wasLinkedRef.current = false; }} className="text-[9px] font-mono text-[var(--color-muted)] hover:text-[var(--color-error)]">
-                        unlink
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                {renderLabel(Plane, "Airline")}
-                <select
-                  value={airline}
-                  onChange={(e) => { setAirline(e.target.value); setAmount(""); }}
-                  className={formInputClass}
-                >
-                  {availableAirlines.map((a) => (
-                    <option key={a} value={a}>
-                      {a}
-                    </option>
-                  ))}
-                </select>
-                {airline === "Other" && (
-                  <input
-                    id="retail-custom-airline"
-                    name="custom-airline"
-                    placeholder="Enter new airline name"
-                    value={customAirline}
-                    onChange={upperOnChange(setCustomAirline)}
-                    className={`${formInputClass} mt-2`}
-                  />
-                )}
-              </div>
-
-              <div>
-                {renderLabel(Radar, flightAutoFilled ? "Flight No. (auto-filled)" : "Flight No. (optional)")}
-                <input
-                  id="retail-flight-number"
-                  name="flight-number"
-                  type="text"
-                  placeholder="e.g. W3 331"
-                  value={flightNumber}
-                  onChange={(e) => { setFlightNumber(e.target.value.toUpperCase()); setFlightAutoFilled(false); }}
-                  className={formInputClass}
-                />
-              </div>
-
-              <div>
-                {renderLabel(MapPin, "Route")}
-                <select
-                  value={route}
-                  onChange={(e) => { setRoute(e.target.value); setAmount(""); }}
-                  className={formInputClass}
-                >
-                  <option value="" disabled>-- Select Route --</option>
-                  {routes.map((r) => (
-                    <option key={r} value={r}>
-                      {r}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                {renderLabel(Hash, "AWB / Tag No (Auto-generated)")}
-                <input
-                  id="retail-awb"
-                  name="awb"
-                  type="text"
-                  value={awb || "Loading…"}
-                  readOnly
-                  className={`${formInputClass} font-mono opacity-60 cursor-not-allowed`}
-                  style={{ backgroundColor: 'var(--color-surface-3)', color: 'var(--color-muted)' }}
-                />
-              </div>
-
-              <div className="flex space-x-3">
-                <div className="flex-1">
-                  {renderLabel(Package, "Pcs")}
-                  <input
-                    id="retail-pcs"
-                    name="pcs"
-                    type="number"
-                    min="1"
-                    value={pcs}
-                    onChange={(e) => setPcs(e.target.value)}
-                    className={formInputClass}
-                  />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    {renderLabel(Package, "KG")}
-                    <button
-                      type="button"
-                      onClick={() => setShowDims(!showDims)}
-                      className="text-[10px] font-mono text-[var(--color-accent-amber)] hover:underline cursor-pointer"
-                    >
-                      {showDims ? "Hide Dims" : "+ Dim (cm)"}
-                    </button>
-                  </div>
-                  <input
-                    id="retail-kg"
-                    name="kg"
-                    type="number"
-                    step="1"
-                    min="1"
-                    value={kg}
-                    onChange={(e) => {
-                      const cleanVal = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
-                      setKg(cleanVal);
-                      setAmount(""); // reset manual override so autoAmount takes over
-                    }}
-                    className={formInputClass}
-                  />
-                </div>
-              </div>
-
-              {showDims && (
-                <div className="p-3 rounded-xl bg-[var(--color-surface-2)] border border-[var(--color-border)] space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-mono font-bold text-[var(--color-foreground)]">Dimensions (L × W × H in cm)</span>
-                    <span className="text-[10px] font-mono text-[var(--color-muted)]">IATA Volumetric (/6000)</span>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2">
                     <input
+                      id="retail-kg"
+                      name="kg"
                       type="number"
-                      placeholder="L (cm)"
-                      value={lengthCm}
-                      onChange={(e) => setLengthCm(e.target.value)}
-                      className={formInputClass}
-                    />
-                    <input
-                      type="number"
-                      placeholder="W (cm)"
-                      value={widthCm}
-                      onChange={(e) => setWidthCm(e.target.value)}
-                      className={formInputClass}
-                    />
-                    <input
-                      type="number"
-                      placeholder="H (cm)"
-                      value={heightCm}
-                      onChange={(e) => setHeightCm(e.target.value)}
-                      className={formInputClass}
-                    />
-                  </div>
-                  {volumetricWeight > 0 && (
-                    <div className="text-[10px] font-mono text-[var(--color-accent-amber)] flex items-center justify-between pt-1 border-t border-[var(--color-border)]">
-                      <span>Volumetric Weight: {volumetricWeight} kg</span>
-                      <span className="font-bold">Chargeable: {effectiveKg} kg</span>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div>
-                {renderLabel(Layers, "Content")}
-                <select
-                  value={contentType}
-                  onChange={(e) => setContentType(e.target.value)}
-                  className={formInputClass}
-                >
-                  <option value="" disabled>-- Select Content --</option>
-                  {contentTypes.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-                {contentType === "Other" && (
-                  <input
-                    id="retail-custom-content"
-                    name="custom-content"
-                    placeholder="Enter content type"
-                    value={customContentType}
-                    onChange={upperOnChange(setCustomContentType)}
-                    className={`${formInputClass} mt-2`}
-                  />
-                )}
-              </div>
-
-              {isSizeTierContent && (
-                <div>
-                  {renderLabel(Ruler, "Screen Size (inches)")}
-                  <input
-                    id="retail-size-inches"
-                    name="size-inches"
-                    type="number"
-                    step="1"
-                    min="1"
-                    value={sizeInches}
-                    onChange={(e) => {
-                      const cleanVal = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
-                      setSizeInches(cleanVal);
-                      setAmount(""); // reset manual override so autoAmount takes over
-                    }}
-                    className={formInputClass}
-                  />
-                </div>
-              )}
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "12px 14px",
-                margin: "24px 0 16px 0",
-                background:
-                  "linear-gradient(90deg, rgba(251,191,36,0.06) 0%, transparent 100%)",
-                borderLeft: "3px solid var(--color-accent-amber)",
-                borderRadius: "0 var(--radius-sm) var(--radius-sm) 0",
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 12,
-                  fontWeight: 700,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                  color: "var(--color-accent-amber)",
-                }}
-              >
-                Payment Details
-              </span>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                {renderLabel(Banknote, "Amount")}
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-muted)] font-mono text-[18px]">
-                    ₦
-                  </span>
-                  <input
-                    id="retail-amount"
-                    name="amount"
-                    type="number"
-                    min="0"
-                    value={effectiveAmount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    onBlur={() => {
-                      // Same flat/size-tier/office-work exemption as
-                      // isRetailFormValid below -- minAmount is computed purely
-                      // from the generic per-kg/minimum-charge cascade with no
-                      // content-type or contract-rate awareness, so it can land
-                      // higher than a deliberately-configured flat/size-tier
-                      // bracket price, OR a confirmed office-work contract rate.
-                      // Without this exemption, tabbing off the field after a
-                      // correct auto-fill silently overwrote it with the higher
-                      // generic floor -- for office-work specifically, that meant
-                      // overbilling a corporate client above their agreed rate.
-                      if (!(priceOverrideInfo?.type === 'size' || priceOverrideInfo?.type === 'flat' || (linkedAsOfficeWork && officeWorkRate)) && parsedAmount < minAmount) {
-                        setAmount(minAmount.toString());
-                      }
-                    }}
-                    className={`ehi-input pl-12 ${!(linkedAsOfficeWork && officeWorkRate) && parsedAmount < minAmount ? 'border-[var(--color-error)]' : ''}`}
-                  />
-                </div>
-                {rate == null && minCharge == null && !priceOverrideInfo ? (
-                  <div className="text-[10px] text-[var(--color-accent-amber)] mt-1">No rate configured for this hub/airline/route — enter amount manually</div>
-                ) : (
-                  !(linkedAsOfficeWork && officeWorkRate) && parsedAmount > 0 && parsedAmount < minAmount && (
-                    <div className="text-[10px] text-[var(--color-error)] mt-1">Amount cannot be less than ₦{minAmount.toLocaleString()}</div>
-                  )
-                )}
-                {priceOverrideInfo && (
-                  <div className="text-[10px] text-[var(--color-accent-cobalt)] mt-1">
-                    {priceOverrideInfo.type === 'size'
-                      ? `Size Tier Rate applied: ₦${fmt(priceOverrideInfo.amount)} (whole bracket, by screen size)`
-                      : priceOverrideInfo.type === 'flat'
-                      ? `Flat Rate applied: ₦${fmt(priceOverrideInfo.amount)} (whole bracket, not per-kg)`
-                      : priceOverrideInfo.type === 'special'
-                      ? `Special Goods Rate applied: ₦${fmt(priceOverrideInfo.rate)}/kg`
-                      : `Minimum Charge applied: ₦${fmt(priceOverrideInfo.amount)}`}
-                  </div>
-                )}
-                {volumetricWeight > (parseFloat(kg) || 0) && (
-                  <div className="text-[10px] text-[var(--color-accent-amber)] mt-1">
-                    Billed at IATA Volumetric Weight: {effectiveKg} kg (actual {parseFloat(kg) || 0} kg)
-                  </div>
-                )}
-              </div>
-
-              <div>
-                {renderLabel(CreditCard, "Receipt / Payment Mode")}
-                <div className="flex bg-[var(--color-surface-3)] rounded-[var(--radius-sm)] p-1 border border-[var(--color-border)] mb-3">
-                  {(isOnline ? ["Cash", "Transfer", "POS", "Wallet"] : ["Cash", "Transfer", "POS"]).map((m) => (
-                    <button
-                      key={m}
-                      type="button"
-                      onClick={() => setMode(m as any)}
-                      style={{
-                        background:
-                          mode === m ? "var(--color-surface-1)" : "transparent",
-                        color:
-                          mode === m
-                            ? "var(--color-accent-amber)"
-                            : "var(--color-muted)",
-                        border: "none",
+                      step="1"
+                      min="1"
+                      value={kg}
+                      onChange={(e) => {
+                        const cleanVal = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+                        setKg(cleanVal);
+                        setAmount(""); // reset manual override so autoAmount takes over
                       }}
-                      className={`flex-1 py-2 text-[13px] font-sans font-semibold rounded-[var(--radius-xs)] shadow-sm transition-all focus:outline-none cursor-pointer flex items-center justify-center gap-1`}
-                    >
-                      {m === "Wallet" ? "💰 Wallet" : m}
-                    </button>
-                  ))}
-                </div>
-                {!isOnline && (
-                  <div className="text-[11px] font-sans text-[var(--color-muted)] mb-3">
-                    Wallet payments need a connection -- use Cash/Transfer/POS while offline.
-                  </div>
-                )}
-
-                {mode === "Wallet" && (
-                  <div className="mb-3 space-y-2">
-                    <CustomerWalletPicker
-                      wallets={customerWallets}
-                      selectedWallet={activeWallet}
-                      onSelectWallet={(w) => setSelectedWalletOverride(w)}
-                      currentCustomerName={consignee === 'Other' ? customConsignee : consignee}
+                      className={formInputClass}
                     />
-                    {activeWallet && activeWallet.balance < parsedAmount && (
-                      <WalletRemainderSelector
-                        walletName={activeWallet.customer_name}
-                        coverage={activeWallet.balance}
-                        remainder={parsedAmount - activeWallet.balance}
-                        mode={walletRemainderMode}
-                        bank={walletRemainderBank}
-                        onModeChange={setWalletRemainderMode}
-                        onBankChange={setWalletRemainderBank}
-                        banks={banks}
+                  </div>
+                </div>
+
+                {showDims && (
+                  <div className="p-3.5 rounded-xl bg-[var(--color-surface-2)] border border-[var(--color-border)] space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[12px] font-sans font-medium text-[var(--color-foreground)]">Dimensions (L × W × H in cm)</span>
+                      <span className="text-[11px] font-sans text-[var(--color-muted)]">IATA Volumetric (/6000)</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <input
+                        type="number"
+                        placeholder="L (cm)"
+                        value={lengthCm}
+                        onChange={(e) => setLengthCm(e.target.value)}
+                        className={formInputClass}
                       />
+                      <input
+                        type="number"
+                        placeholder="W (cm)"
+                        value={widthCm}
+                        onChange={(e) => setWidthCm(e.target.value)}
+                        className={formInputClass}
+                      />
+                      <input
+                        type="number"
+                        placeholder="H (cm)"
+                        value={heightCm}
+                        onChange={(e) => setHeightCm(e.target.value)}
+                        className={formInputClass}
+                      />
+                    </div>
+                    {volumetricWeight > 0 && (
+                      <div className="text-[11px] font-sans text-[var(--color-muted)] flex items-center justify-between pt-1 border-t border-[var(--color-border)]">
+                        <span>Volumetric weight: <strong className="tabular-nums text-[var(--color-foreground)]">{volumetricWeight} kg</strong></span>
+                        <span>Chargeable: <strong className="tabular-nums text-[var(--color-foreground)]">{effectiveKg} kg</strong></span>
+                      </div>
                     )}
                   </div>
                 )}
 
-                <div className="flex items-center justify-center space-x-3 my-3">
-                  <div className="flex-1 h-px bg-[var(--color-border)]" />
-                  <div className="text-[11px] font-mono text-[var(--color-muted)] tracking-wider">
-                    OR
-                  </div>
-                  <div className="flex-1 h-px bg-[var(--color-border)]" />
+                <div>
+                  {renderLabel(Layers, "Content type")}
+                  <select
+                    value={contentType}
+                    onChange={(e) => setContentType(e.target.value)}
+                    className={formInputClass}
+                  >
+                    <option value="" disabled>-- Select content --</option>
+                    {contentTypes.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                  {contentType === "Other" && (
+                    <input
+                      id="retail-custom-content"
+                      name="custom-content"
+                      placeholder="Enter content type"
+                      value={customContentType}
+                      onChange={upperOnChange(setCustomContentType)}
+                      className={`${formInputClass} mt-2`}
+                    />
+                  )}
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setMode("Debt")}
-                  className={`w-full py-2.5 text-[13px] font-sans font-semibold rounded-[var(--radius-sm)] border transition-colors cursor-pointer focus:outline-none ${mode === "Debt" ? "bg-[rgba(239,68,68,0.1)] border-[var(--color-error)] text-[var(--color-error)] shadow-sm" : "bg-transparent border-[var(--color-border-strong)] text-[var(--color-error)] hover:bg-[rgba(239,68,68,0.05)]"}`}
-                >
-                  Log as Credit Sale (Debt)
-                </button>
-
-                {mode === "Debt" && (
-                  <div className="mt-2 text-[12px] font-sans text-[var(--color-error)] bg-[rgba(239,68,68,0.05)] p-2.5 rounded-[var(--radius-sm)] border border-[rgba(239,68,68,0.1)]">
-                    This sale will be logged as a credit. Collect payment before
-                    dispatch or arrange with management.
+                {isSizeTierContent && (
+                  <div>
+                    {renderLabel(Ruler, "Screen size (inches)")}
+                    <input
+                      id="retail-size-inches"
+                      name="size-inches"
+                      type="number"
+                      step="1"
+                      min="1"
+                      value={sizeInches}
+                      onChange={(e) => {
+                        const cleanVal = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+                        setSizeInches(cleanVal);
+                        setAmount(""); // reset manual override so autoAmount takes over
+                      }}
+                      className={formInputClass}
+                    />
                   </div>
                 )}
               </div>
 
-              {mode === "Transfer" && (
-                <div>
-                  {renderLabel(Landmark, "Bank")}
-                  <select
-                    value={bank}
-                    onChange={(e) => setBank(e.target.value)}
-                    className={formInputClass}
-                  >
-                    {banks.map((b) => (
-                      <option key={b} value={b}>
-                        {b}
-                      </option>
-                    ))}
-                  </select>
-                  <PaymentNarrationBox narrationCode={narrationCode} />
+              {/* GROUP 3: PAYMENT DETAILS */}
+              <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] p-4 sm:p-5 space-y-4">
+                <div className="border-b border-[var(--color-border)] pb-2.5">
+                  <h3 className="text-[14px] font-sans font-semibold text-[var(--color-foreground)]">
+                    Payment details
+                  </h3>
                 </div>
-              )}
 
-              {mode === "POS" && (
                 <div>
-                  {renderLabel(CreditCard, "POS Terminal / Bank")}
-                  <select
-                    value={bank}
-                    onChange={(e) => setBank(e.target.value)}
-                    className={formInputClass}
-                  >
-                    {banks.map((b) => (
-                      <option key={b} value={b}>
-                        {b}
-                      </option>
-                    ))}
-                  </select>
+                  {renderLabel(Banknote, "Amount")}
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-muted)] font-sans font-medium text-[16px]">
+                      ₦
+                    </span>
+                    <input
+                      id="retail-amount"
+                      name="amount"
+                      type="number"
+                      min="0"
+                      value={effectiveAmount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      onBlur={() => {
+                        if (!(priceOverrideInfo?.type === 'size' || priceOverrideInfo?.type === 'flat' || (linkedAsOfficeWork && officeWorkRate)) && parsedAmount < minAmount) {
+                          setAmount(minAmount.toString());
+                        }
+                      }}
+                      className={`${formInputClass} pl-9 font-sans tabular-nums text-[16px] font-semibold ${!(linkedAsOfficeWork && officeWorkRate) && parsedAmount < minAmount ? 'border-[var(--color-error)]' : ''}`}
+                    />
+                  </div>
+                  {rate == null && minCharge == null && !priceOverrideInfo ? (
+                    <div className="text-[11px] font-sans text-[var(--color-warning)] mt-1">No rate configured for this hub/airline/route — enter amount manually</div>
+                  ) : (
+                    !(linkedAsOfficeWork && officeWorkRate) && parsedAmount > 0 && parsedAmount < minAmount && (
+                      <div className="text-[11px] font-sans text-[var(--color-error)] mt-1">Amount cannot be less than ₦{minAmount.toLocaleString()}</div>
+                    )
+                  )}
+                  {priceOverrideInfo && (
+                    <div className="text-[11px] font-sans text-[var(--color-muted)] mt-1">
+                      {priceOverrideInfo.type === 'size'
+                        ? `Size tier rate applied: ₦${fmt(priceOverrideInfo.amount)} (whole bracket, by screen size)`
+                        : priceOverrideInfo.type === 'flat'
+                        ? `Flat rate applied: ₦${fmt(priceOverrideInfo.amount)} (whole bracket, not per-kg)`
+                        : priceOverrideInfo.type === 'special'
+                        ? `Special goods rate applied: ₦${fmt(priceOverrideInfo.rate)}/kg`
+                        : `Minimum charge applied: ₦${fmt(priceOverrideInfo.amount)}`}
+                    </div>
+                  )}
+                  {volumetricWeight > (parseFloat(kg) || 0) && (
+                    <div className="text-[11px] font-sans text-[var(--color-muted)] mt-1">
+                      Billed at volumetric weight: <span className="tabular-nums font-medium text-[var(--color-foreground)]">{effectiveKg} kg</span> (actual {parseFloat(kg) || 0} kg)
+                    </div>
+                  )}
                 </div>
-              )}
 
-              <div>
-                {renderLabel(MessageSquare, "Remark (Optional)")}
-                <input
-                  id="retail-remark"
-                  name="remark"
-                  placeholder="Add notes..."
-                  value={remark}
-                  onChange={upperOnChange(setRemark)}
-                  className={formInputClass}
-                />
+                <div>
+                  {renderLabel(CreditCard, "Payment mode")}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1 bg-[var(--color-surface-2)] rounded-xl border border-[var(--color-border)] mb-3">
+                    {(isOnline ? ["Cash", "Transfer", "POS", "Wallet"] : ["Cash", "Transfer", "POS"]).map((m) => (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => setMode(m as any)}
+                        className={`min-h-[44px] h-11 text-[13px] font-sans font-medium rounded-lg transition-all focus:outline-none cursor-pointer flex items-center justify-center gap-1.5 ${
+                          mode === m
+                            ? "bg-[var(--color-surface-1)] text-[var(--color-foreground)] font-semibold shadow-xs border border-[var(--color-border-strong)]"
+                            : "text-[var(--color-muted)] hover:text-[var(--color-foreground)]"
+                        }`}
+                      >
+                        {m === "Wallet" ? "Wallet" : m}
+                      </button>
+                    ))}
+                  </div>
+                  {!isOnline && (
+                    <div className="text-[11px] font-sans text-[var(--color-muted)] mb-3">
+                      Wallet payments need a connection — use Cash, Transfer, or POS while offline.
+                    </div>
+                  )}
+
+                  {mode === "Wallet" && (
+                    <div className="mb-3 space-y-2">
+                      <CustomerWalletPicker
+                        wallets={customerWallets}
+                        selectedWallet={activeWallet}
+                        onSelectWallet={(w) => setSelectedWalletOverride(w)}
+                        currentCustomerName={consignee === 'Other' ? customConsignee : consignee}
+                      />
+                      {activeWallet && activeWallet.balance < parsedAmount && (
+                        <WalletRemainderSelector
+                          walletName={activeWallet.customer_name}
+                          coverage={activeWallet.balance}
+                          remainder={parsedAmount - activeWallet.balance}
+                          mode={walletRemainderMode}
+                          bank={walletRemainderBank}
+                          onModeChange={setWalletRemainderMode}
+                          onBankChange={setWalletRemainderBank}
+                          banks={banks}
+                        />
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-center gap-3 my-3">
+                    <div className="flex-1 h-px bg-[var(--color-border)]" />
+                    <div className="text-[11px] font-sans text-[var(--color-muted)]">
+                      or
+                    </div>
+                    <div className="flex-1 h-px bg-[var(--color-border)]" />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setMode("Debt")}
+                    className={`w-full min-h-[44px] h-11 text-[13px] font-sans font-medium rounded-xl border transition-colors cursor-pointer focus:outline-none ${
+                      mode === "Debt"
+                        ? "bg-[var(--color-surface-2)] border-[var(--color-error)] text-[var(--color-error)] font-semibold"
+                        : "bg-[var(--color-surface-1)] border-[var(--color-border)] text-[var(--color-muted)] hover:text-[var(--color-error)]"
+                    }`}
+                  >
+                    Log as credit sale (debt)
+                  </button>
+
+                  {mode === "Debt" && (
+                    <div className="mt-2 text-[12px] font-sans text-[var(--color-error)] bg-[var(--color-surface-2)] p-3 rounded-xl border border-[var(--color-border)]">
+                      This sale will be logged as credit. Collect payment before dispatch or arrange with management.
+                    </div>
+                  )}
+                </div>
+
+                {mode === "Transfer" && (
+                  <div>
+                    {renderLabel(Landmark, "Bank")}
+                    <select
+                      value={bank}
+                      onChange={(e) => setBank(e.target.value)}
+                      className={formInputClass}
+                    >
+                      {banks.map((b) => (
+                        <option key={b} value={b}>
+                          {b}
+                        </option>
+                      ))}
+                    </select>
+                    <PaymentNarrationBox narrationCode={narrationCode} />
+                  </div>
+                )}
+
+                {mode === "POS" && (
+                  <div>
+                    {renderLabel(CreditCard, "POS terminal / bank")}
+                    <select
+                      value={bank}
+                      onChange={(e) => setBank(e.target.value)}
+                      className={formInputClass}
+                    >
+                      {banks.map((b) => (
+                        <option key={b} value={b}>
+                          {b}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div>
+                  {renderLabel(MessageSquare, "Remark (optional)")}
+                  <input
+                    id="retail-remark"
+                    name="remark"
+                    placeholder="Add notes…"
+                    value={remark}
+                    onChange={upperOnChange(setRemark)}
+                    className={formInputClass}
+                  />
+                </div>
               </div>
-            </div>
 
-            <div className="pt-8">
-              <button
-                onClick={() => setShowRetailReview(true)}
-                disabled={!isRetailFormValid || submitting}
-                className={`w-full py-4 rounded-[var(--radius-sm)] font-sans font-bold text-[16px] flex items-center justify-center gap-2 transition-all focus:outline-none ${
-                  submitting
-                    ? "opacity-80 cursor-wait bg-[var(--color-accent-amber)] text-[var(--color-on-accent)]"
-                    : !isRetailFormValid
-                      ? "bg-[var(--color-surface-3)] text-[var(--color-muted)] cursor-not-allowed border border-[var(--color-border)]"
-                      : "bg-[var(--color-accent-amber)] text-[var(--color-on-accent)] cursor-pointer hover:opacity-90"
-                }`}
-              >
-                {submitting && <Loader2 size={18} className="animate-spin" />}
-                {submitting ? "LOGGING..." : "LOG CARGO ENTRY"}
-              </button>
-              {showRetailReview && (
-                <ReviewEntryModal
-                  title="Review Cargo Entry"
-                  details={[
-                    { label: 'Consignee', value: actualConsignee },
-                    { label: 'Route', value: route },
-                    { label: 'Content', value: actualContentType },
-                    { label: 'Weight', value: `${effectiveKg} KG${volumetricWeight > (parseFloat(kg) || 0) ? ' (Volumetric)' : ''}` },
-                    { label: 'Amount', value: parsedAmount },
-                    { label: 'Payment Mode', value: mode },
-                    // Terminal choice (MMA2/GAT, LOS hub only) is otherwise a
-                    // small segmented control easy to glance past -- surfacing
-                    // it here, right before confirming, means a staff member
-                    // can't silently submit under the wrong terminal (GAT
-                    // entries logged as MMA2 by mistake would never show up
-                    // in the GAT print queue at all).
-                    ...(userHubCode === 'LOS' && !forcedTerminal ? [{ label: 'Terminal', value: terminal }] : []),
-                  ]}
-                  onConfirm={() => { handleRetailSubmit(); }}
-                  onCancel={() => setShowRetailReview(false)}
-                  confirmText="Log Cargo Entry"
-                  isSubmitting={submitting}
-                />
-              )}
+              {/* PRIMARY ACTION BUTTON */}
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowRetailReview(true)}
+                  disabled={!isRetailFormValid || submitting}
+                  className="w-full min-h-[48px] h-12 rounded-full font-sans font-semibold text-[15px] flex items-center justify-center gap-2 transition-colors cursor-pointer bg-white text-black hover:bg-neutral-200 dark:bg-white dark:text-black dark:hover:bg-neutral-200 shadow-xs disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
+                >
+                  {submitting && <Loader2 size={16} className="animate-spin" />}
+                  <span>{submitting ? "Logging shipment…" : "Log cargo entry"}</span>
+                </button>
+                {showRetailReview && (
+                  <ReviewEntryModal
+                    title="Review cargo entry"
+                    details={[
+                      { label: 'Consignee', value: actualConsignee },
+                      { label: 'Route', value: route },
+                      { label: 'Content', value: actualContentType },
+                      { label: 'Weight', value: `${effectiveKg} KG${volumetricWeight > (parseFloat(kg) || 0) ? ' (Volumetric)' : ''}` },
+                      { label: 'Amount', value: parsedAmount },
+                      { label: 'Payment mode', value: mode },
+                      ...(userHubCode === 'LOS' && !forcedTerminal ? [{ label: 'Terminal', value: terminal }] : []),
+                    ]}
+                    onConfirm={() => { handleRetailSubmit(); }}
+                    onCancel={() => setShowRetailReview(false)}
+                    confirmText="Confirm & log entry"
+                    isSubmitting={submitting}
+                  />
+                )}
+              </div>
             </div>
           </div>
 
+          {/* DESKTOP ASIDE SUMMARY CARD */}
           <aside className="ehi-desktop-only">
-            <div
-              style={{
-                position: "sticky",
-                top: 16,
-                background: "var(--color-surface-1)",
-                border: "1.5px solid var(--color-border-strong)",
-                borderRadius: "var(--radius-md)",
-                padding: 20,
-                boxShadow: "var(--shadow-card)",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 10,
-                  fontFamily: "monospace",
-                  color: "var(--color-muted)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.1em",
-                  marginBottom: 16,
-                  fontWeight: 700,
-                }}
-              >
-                ENTRY SUMMARY
+            <div className="sticky top-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] p-5 shadow-xs space-y-4">
+              <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-2.5">
+                <span className="text-[12px] font-sans font-semibold text-[var(--color-foreground)]">
+                  Entry summary
+                </span>
+                <span className="text-[11px] font-sans text-[var(--color-muted)] tabular-nums">
+                  #{serialNumber}
+                </span>
               </div>
-              <div
-                style={{
-                  fontSize: 13,
-                  fontFamily: "monospace",
-                  lineHeight: 2.2,
-                  color: "var(--color-foreground)",
-                }}
-              >
-                <div className="flex justify-between border-b border-[var(--color-border)] pb-1 mb-1">
-                  <span style={{ color: "var(--color-muted)" }}>Consignee</span>
-                  <span
-                    className="truncate ml-4 font-semibold text-[var(--color-foreground)]"
-                    style={{ maxWidth: "140px" }}
-                  >
+
+              <div className="space-y-2 text-[13px] font-sans">
+                <div className="flex justify-between items-baseline gap-2">
+                  <span className="text-[var(--color-muted)] text-[12px]">Consignee</span>
+                  <span className="truncate max-w-[140px] font-medium text-[var(--color-foreground)] text-right">
                     {actualConsignee || "—"}
                   </span>
                 </div>
-                <div className="flex justify-between border-b border-[var(--color-border)] pb-1 mb-1">
-                  <span style={{ color: "var(--color-muted)" }}>AWB</span>
-                  <span className="font-bold text-[var(--color-accent-amber)]">
+                <div className="flex justify-between items-baseline gap-2">
+                  <span className="text-[var(--color-muted)] text-[12px]">AWB tag</span>
+                  <span className="font-medium text-[var(--color-foreground)] tabular-nums text-right">
                     {awb || "—"}
                   </span>
                 </div>
-                <div className="flex justify-between border-b border-[var(--color-border)] pb-1 mb-1">
-                  <span style={{ color: "var(--color-muted)" }}>Route</span>
-                  <span className="font-semibold text-[var(--color-foreground)]">
-                    {route}
+                <div className="flex justify-between items-baseline gap-2">
+                  <span className="text-[var(--color-muted)] text-[12px]">Route</span>
+                  <span className="font-medium text-[var(--color-foreground)] text-right">
+                    {route || "—"}
                   </span>
                 </div>
-                <div className="flex justify-between border-b border-[var(--color-border)] pb-1 mb-1">
-                  <span style={{ color: "var(--color-muted)" }}>Content</span>
-                  <span className="font-semibold text-[var(--color-foreground)]">
+                <div className="flex justify-between items-baseline gap-2">
+                  <span className="text-[var(--color-muted)] text-[12px]">Content</span>
+                  <span className="font-medium text-[var(--color-foreground)] text-right">
                     {actualContentType || "—"}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span style={{ color: "var(--color-muted)" }}>Pcs / KG</span>
-                  <span className="font-semibold text-[var(--color-foreground)]">
-                    {pcs || "—"} / {kg || "—"}
+                <div className="flex justify-between items-baseline gap-2">
+                  <span className="text-[var(--color-muted)] text-[12px]">Pieces / weight</span>
+                  <span className="font-medium text-[var(--color-foreground)] tabular-nums text-right">
+                    {pcs || "—"} pcs · {kg ? `${kg} kg` : "—"}
                   </span>
                 </div>
               </div>
-              <div
-                style={{
-                  borderTop: "1.5px dashed var(--color-border-strong)",
-                  paddingTop: 16,
-                  marginTop: 16,
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 10,
-                    fontFamily: "monospace",
-                    color: "var(--color-muted)",
-                    marginBottom: 6,
-                    fontWeight: 700,
-                    letterSpacing: "0.05em",
-                  }}
-                >
-                  AMOUNT
+
+              <div className="pt-3 border-t border-[var(--color-border)]">
+                <div className="text-[11px] font-sans text-[var(--color-muted)] mb-1">
+                  Total amount
                 </div>
-                <div
-                  style={{
-                    fontSize: 28,
-                    fontWeight: 800,
-                    fontFamily: "monospace",
-                    color:
-                      parsedAmount > 0
-                        ? "var(--color-accent-amber)"
-                        : "var(--color-muted)",
-                  }}
-                >
-                  {parsedAmount > 0
-                    ? "₦" + parsedAmount.toLocaleString("en-NG")
-                    : "₦0"}
+                <div className="text-[26px] font-sans font-bold text-[var(--color-foreground)] tabular-nums tracking-tight">
+                  {parsedAmount > 0 ? "₦" + parsedAmount.toLocaleString("en-NG") : "₦0"}
                 </div>
-                <div
-                  style={{
-                    fontSize: 11,
-                    fontFamily: "monospace",
-                    color: "var(--color-muted)",
-                    marginTop: 6,
-                    fontWeight: 600,
-                  }}
-                >
-                  {mode}
-                  {mode === "Transfer" && bank ? ` · ${bank}` : ""}
+                <div className="text-[12px] font-sans text-[var(--color-muted)] mt-1 flex items-center gap-1.5">
+                  <span>{mode}</span>
+                  {mode === "Transfer" && bank && <span>· {bank}</span>}
                 </div>
               </div>
-              <div
-                style={{
-                  fontSize: 10,
-                  fontFamily: "monospace",
-                  color: "var(--color-muted)",
-                  marginTop: 24,
-                  display: "flex",
-                  justifyContent: "space-between",
-                }}
-              >
+
+              <div className="pt-2 text-[11px] font-sans text-[var(--color-muted)] flex justify-between border-t border-[var(--color-border)]">
+                <span>Date</span>
                 <span>{new Date().toLocaleDateString("en-NG")}</span>
-                <span>Entry #{serialNumber}</span>
               </div>
             </div>
           </aside>
@@ -3258,30 +3234,34 @@ export const CargoForm = ({
       {/* CORPORATE SYSTEM PORTAL */}
       {activePortal === "corporate" && (
         <div className="space-y-6 p-4">
-          {/* CORPORATE MENU ROUTING */}
-          <div className="flex border-b border-[var(--color-border)] text-[13px] font-sans font-bold gap-4 py-1 overflow-x-auto no-scrollbar whitespace-nowrap">
+          {/* CORPORATE SUBTABS ROUTING */}
+          <div className="flex border-b border-[var(--color-border)] gap-2 pb-2 overflow-x-auto no-scrollbar">
             <button
+              type="button"
               onClick={() => setCorpSubTab("intake")}
-              className={`pb-2.5 px-1 transition-all cursor-pointer flex items-center gap-1.5 ${
+              className={`min-h-[44px] h-11 px-4 rounded-full text-[13px] font-sans font-medium transition-all cursor-pointer flex items-center gap-2 ${
                 corpSubTab === "intake"
-                  ? "text-[var(--color-accent-amber)] border-b-2 border-[var(--color-accent-amber)]"
-                  : "text-[var(--color-light-muted)] hover:text-[var(--color-foreground)]"
+                  ? "bg-[var(--color-surface-2)] text-[var(--color-foreground)] font-semibold border border-[var(--color-border-strong)]"
+                  : "text-[var(--color-muted)] hover:text-[var(--color-foreground)]"
               }`}
             >
-              <ClipboardList size={14} /> Phase 1: Field Intake Book
+              <ClipboardList size={15} />
+              <span>Phase 1: Field intake book</span>
             </button>
             <button
+              type="button"
               onClick={() => setCorpSubTab("weighing")}
-              className={`pb-2.5 px-1 transition-all cursor-pointer flex items-center gap-1.5 ${
+              className={`min-h-[44px] h-11 px-4 rounded-full text-[13px] font-sans font-medium transition-all cursor-pointer flex items-center gap-2 relative ${
                 corpSubTab === "weighing"
-                  ? "text-[var(--color-accent-amber)] border-b-2 border-[var(--color-accent-amber)]"
-                  : "text-[var(--color-light-muted)] hover:text-[var(--color-foreground)]"
+                  ? "bg-[var(--color-surface-2)] text-[var(--color-foreground)] font-semibold border border-[var(--color-border-strong)]"
+                  : "text-[var(--color-muted)] hover:text-[var(--color-foreground)]"
               }`}
             >
-              <Scale size={14} /> Phase 2: Yard Gate Weigh Scale
+              <Scale size={15} />
+              <span>Phase 2: Yard gate weigh scale</span>
               {pendingIntakes.length > 0 && (
-                <span className="bg-[var(--color-error)] text-[var(--color-on-accent-inverse)] font-bold text-[10px] px-1.5 py-0.5 rounded-full">
-                  {pendingIntakes.length} pending
+                <span className="bg-[var(--color-error)] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                  {pendingIntakes.length}
                 </span>
               )}
             </button>
@@ -3291,33 +3271,23 @@ export const CargoForm = ({
           {corpSubTab === "intake" && (
             <div className="grid gap-6 md:grid-cols-2 max-w-5xl mx-auto">
               {/* PHASE 1 INPUT FORM */}
-              <div className="bg-[var(--color-surface-card)] border border-[var(--color-border-strong)] p-5 rounded-[var(--radius-md)]">
-                <div className="flex items-center gap-2 mb-4 border-b border-[var(--color-border)] pb-2.5">
-                  <PlusCircle
-                    size={18}
-                    className="text-[var(--color-accent-amber)]"
-                  />
-                  <h3 className="text-[14px] font-sans font-bold text-[var(--color-foreground)] uppercase tracking-wider">
-                    Log Office Work Pick-Up (No Pricing)
+              <div className="bg-[var(--color-surface-card)] border border-[var(--color-border)] p-5 rounded-2xl space-y-4">
+                <div className="border-b border-[var(--color-border)] pb-2.5">
+                  <h3 className="text-[14px] font-sans font-semibold text-[var(--color-foreground)]">
+                    Log office work pick-up (no pricing)
                   </h3>
                 </div>
 
                 {successMessage && (
-                  <div className="p-3 mb-4 text-[12px] font-sans font-bold text-[var(--color-success)] bg-[rgba(16,185,129,0.1)] border border-[var(--color-success)] rounded flex items-center gap-2">
-                    <CheckCircle size={14} /> {successMessage}
+                  <div className="p-3 text-[12px] font-sans font-medium text-emerald-500 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl flex items-center gap-2">
+                    <CheckCircle size={15} />
+                    <span>{successMessage}</span>
                   </div>
                 )}
 
-                <div className="space-y-4">
+                <div className="space-y-3.5">
                   <div>
-                    {renderLabel(UserIcon, "Office Work (B2B) Client")}
-                    {/* Deliberately a strict select, not a free-typed datalist
-                        like the retail Consignee field below -- billing at
-                        finalize looks up the client's contract rate by
-                        corporate_client_id (see handleFinalizeWeighing), and
-                        a typo'd/unmatched free-typed name here would silently
-                        fall back to the flat default rate instead of the
-                        client's real negotiated rate, with no warning. */}
+                    {renderLabel(UserIcon, "Office work client")}
                     <select
                       id="intake-consignee"
                       name="intake-consignee"
@@ -3334,10 +3304,10 @@ export const CargoForm = ({
                   </div>
 
                   <div>
-                    {renderLabel(MessageSquare, "Client Phone (Optional)")}
+                    {renderLabel(MessageSquare, "Client phone (optional)")}
                     <input
                       type="tel"
-                      placeholder="Include country code for foreign customers (e.g. +44, +1, +233)"
+                      placeholder="e.g. +234, +44, +1"
                       value={intakeSenderPhone}
                       onChange={(e) => setIntakeSenderPhone(e.target.value)}
                       className={formInputClass}
@@ -3345,7 +3315,7 @@ export const CargoForm = ({
                   </div>
 
                   <div>
-                    {renderLabel(Plane, "Carrier Airline")}
+                    {renderLabel(Plane, "Carrier airline")}
                     <select
                       value={intakeAirline}
                       onChange={(e) => setIntakeAirline(e.target.value)}
@@ -3360,19 +3330,19 @@ export const CargoForm = ({
                   </div>
 
                   <div>
-                    {renderLabel(Hash, "AWB Tag / Waybill Number (Auto-generated)")}
+                    {renderLabel(Hash, "AWB tag / waybill number (auto-generated)")}
                     <input
                       type="text"
                       value={intakeAwb}
                       readOnly
-                      className={`${formInputClass} font-mono opacity-60 cursor-not-allowed`}
+                      className={`${formInputClass} font-sans tabular-nums opacity-60 cursor-not-allowed`}
                       style={{ backgroundColor: 'var(--color-surface-3)', color: 'var(--color-muted)' }}
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      {renderLabel(Package, "Pcs (Boxes/Parcels)")}
+                      {renderLabel(Package, "Pieces (boxes/parcels)")}
                       <input
                         type="number"
                         min="1"
@@ -3382,13 +3352,13 @@ export const CargoForm = ({
                       />
                     </div>
                     <div>
-                      {renderLabel(MapPin, "Destination Route")}
+                      {renderLabel(MapPin, "Destination route")}
                       <select
                         value={intakeRoute}
                         onChange={(e) => setIntakeRoute(e.target.value)}
                         className={formInputClass}
                       >
-                        <option value="" disabled>-- Select Route --</option>
+                        <option value="" disabled>-- Select route --</option>
                         {routes.map((r) => (
                           <option key={r} value={r}>
                             {r}
@@ -3399,13 +3369,13 @@ export const CargoForm = ({
                   </div>
 
                   <div>
-                    {renderLabel(Layers, "Cargo Content Type")}
+                    {renderLabel(Layers, "Cargo content type")}
                     <select
                       value={intakeContentType}
                       onChange={(e) => setIntakeContentType(e.target.value)}
                       className={formInputClass}
                     >
-                      <option value="" disabled>-- Select Content --</option>
+                      <option value="" disabled>-- Select content --</option>
                       {contentTypes.map((c) => (
                         <option key={c} value={c}>
                           {c}
@@ -3414,68 +3384,64 @@ export const CargoForm = ({
                     </select>
                   </div>
 
-                  <div className="bg-[rgba(251,191,36,0.03)] border border-[rgba(251,191,36,0.1)] p-3 rounded text-[11px] font-sans text-[var(--color-light-muted)] space-y-1">
-                    <p className="font-semibold text-[var(--color-accent-amber)] flex items-center gap-1.5">
-                      <AlertTriangle size={14} /> INTENTIONAL BUSINESS LOGIC:
+                  <div className="bg-[var(--color-surface-2)] border border-[var(--color-border)] p-3.5 rounded-xl text-[12px] font-sans text-[var(--color-muted)] space-y-1">
+                    <p className="font-semibold text-[var(--color-foreground)] flex items-center gap-1.5">
+                      <AlertTriangle size={14} className="text-[var(--color-muted)]" />
+                      Weighing and billing rule
                     </p>
                     <p>
-                      No pricing or weights can be registered during Field
-                      Intake lookup. Definitive weights and billing calculations
-                      are strictly delayed until verified scale weighings are
-                      finalized inside the Gate Yard Clerk terminal.
+                      No pricing or weights are registered during field intake. Definitive weights and billing calculations are finalized at the yard gate weigh scale.
                     </p>
                   </div>
 
                   <button
+                    type="button"
                     onClick={handleLogFieldIntake}
-                    className="w-full h-12 mt-4 cursor-pointer bg-[var(--color-accent-amber)] text-[var(--color-on-accent)] font-semibold text-[14px] rounded-[var(--radius-sm)] flex items-center justify-center gap-2 hover:opacity-90 transition-all text-center"
+                    className="w-full min-h-[48px] h-12 mt-2 cursor-pointer bg-white text-black hover:bg-neutral-200 dark:bg-white dark:text-black dark:hover:bg-neutral-200 font-sans font-semibold text-[14px] rounded-full flex items-center justify-center gap-2 shadow-xs transition-colors"
                   >
-                    <Rocket size={16} /> LOG INTAKE FOR WEIGHING
+                    <Rocket size={16} />
+                    <span>Log intake for weighing</span>
                   </button>
                 </div>
               </div>
 
-              {/* LIST OF PENDING INTAKES FOR CURRENT SESSION */}
+              {/* LIST OF PENDING INTAKES */}
               <div className="space-y-4">
-                <div className="bg-[var(--color-surface-card)] border border-[var(--color-border)] p-4 rounded-[var(--radius-md)]">
-                  <h4 className="text-[13px] font-sans font-bold text-[var(--color-foreground)] mb-3">
-                    Office Work Pick-up Intakes ({pendingIntakes.length})
-                  </h4>
+                <div className="bg-[var(--color-surface-card)] border border-[var(--color-border)] p-5 rounded-2xl">
+                  <div className="border-b border-[var(--color-border)] pb-2.5 mb-3 flex items-center justify-between">
+                    <h4 className="text-[13px] font-sans font-semibold text-[var(--color-foreground)]">
+                      Pending pick-up intakes
+                    </h4>
+                    <span className="text-[11px] font-sans text-[var(--color-muted)] tabular-nums">
+                      {pendingIntakes.length} pending
+                    </span>
+                  </div>
 
                   {pendingIntakes.length === 0 ? (
                     <div className="text-center py-10 text-[var(--color-muted)] text-[12px] font-sans">
-                      No pending field intakes currently recorded. Use the
-                      intake book form on the left.
+                      No pending field intakes currently recorded. Use the intake form on the left.
                     </div>
                   ) : (
                     <div className="divide-y divide-[var(--color-border)] max-h-[380px] overflow-y-auto pr-1">
                       {pendingIntakes.map((pi) => (
                         <div
                           key={pi.id}
-                          className="py-2.5 flex items-center justify-between text-[12px]"
+                          className="py-3 flex items-center justify-between text-[12px] font-sans gap-3"
                         >
-                          <div>
-                            <div className="font-bold text-[var(--color-foreground)] flex items-center gap-1.5">
-                              <span className="flex items-center gap-1">
-                                <Building
-                                  size={14}
-                                  className="text-[var(--color-muted)]"
-                                />{" "}
-                                {pi.consignee}
-                              </span>
-                              <span className="font-semibold px-1.5 py-0.5 rounded bg-[rgba(251,191,36,0.08)] text-[var(--color-accent-amber)] font-mono text-[9px]">
-                                {pi.id}
+                          <div className="min-w-0">
+                            <div className="font-medium text-[var(--color-foreground)] flex items-center gap-1.5 truncate">
+                              <Building size={14} className="text-[var(--color-muted)] shrink-0" />
+                              <span className="truncate">{pi.consignee}</span>
+                              <span className="font-mono text-[10px] text-[var(--color-muted)] shrink-0">
+                                ({pi.id})
                               </span>
                             </div>
-                            <div className="text-[var(--color-light-muted)] mt-0.5">
-                              {pi.airline} · {pi.awb} · {pi.pieces} pcs ·{" "}
-                              <span className="text-[var(--color-accent-amber)] font-semibold">
-                                {pi.route}
-                              </span>
+                            <div className="text-[var(--color-muted)] text-[11px] mt-0.5 truncate">
+                              {pi.airline} · <span className="tabular-nums font-mono">{pi.awb}</span> · {pi.pieces} pcs · {pi.route}
                             </div>
                           </div>
-                          <div className="flex flex-col items-end gap-1">
-                            <span className="text-[11px] font-mono text-[var(--color-muted)]">
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-[11px] font-sans text-[var(--color-muted)] tabular-nums">
                               {pi.time}
                             </span>
                             <button
@@ -3484,10 +3450,10 @@ export const CargoForm = ({
                                 e.stopPropagation();
                                 handleDeletePendingIntake(pi);
                               }}
-                              className="text-[var(--color-error-fg)]/60 hover:text-[var(--color-error-fg)] transition-colors p-1"
+                              className="min-h-[36px] min-w-[36px] flex items-center justify-center text-[var(--color-muted)] hover:text-[var(--color-error)] transition-colors rounded-lg"
                               title="Delete pending intake"
                             >
-                              <Trash2 size={13} />
+                              <Trash2 size={14} />
                             </button>
                           </div>
                         </div>
@@ -3496,11 +3462,8 @@ export const CargoForm = ({
                   )}
                 </div>
 
-                <div className="p-4 rounded-md border border-[var(--color-border)] bg-[var(--color-obsidian)] text-[11px] font-serif text-[var(--color-light-muted)] italic leading-relaxed">
-                  "Every pickup record entered here is saved to the
-                  centralized database and visible to any staff member at
-                  this hub. Scale weighing operates in strict sequence at
-                  the major gateyard commercial weighing scales."
+                <div className="p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-2)] text-[11px] font-sans text-[var(--color-muted)] leading-relaxed">
+                  Every pickup record entered here is saved to the centralized database and visible to any staff member at this hub. Scale weighing operates in strict sequence at the gate yard scale.
                 </div>
               </div>
             </div>
@@ -3509,39 +3472,34 @@ export const CargoForm = ({
           {/* PHASE 2 SUBTAB: YARD GATE WEIGH SCALE */}
           {corpSubTab === "weighing" && (
             <div className="grid gap-6 md:grid-cols-[1.5fr_1fr] max-w-6xl mx-auto">
-              {/* DETAILED PENDING GRID/QUEUE */}
-              <div className="bg-[var(--color-surface-card)] border border-[var(--color-border-strong)] p-5 rounded-[var(--radius-md)]">
-                <div className="flex items-center justify-between mb-4 pb-2 border-b border-[var(--color-border)]">
+              {/* QUEUE */}
+              <div className="bg-[var(--color-surface-card)] border border-[var(--color-border)] p-5 rounded-2xl">
+                <div className="flex items-center justify-between mb-4 pb-2.5 border-b border-[var(--color-border)]">
                   <div className="flex items-center gap-2">
-                    <Scale
-                      size={18}
-                      className="text-[var(--color-accent-amber)]"
-                    />
-                    <h3 className="text-[14px] font-sans font-bold text-[var(--color-foreground)] uppercase tracking-wider">
-                      Gateyard Scale Booking Queue
+                    <Scale size={16} className="text-[var(--color-muted)]" />
+                    <h3 className="text-[14px] font-sans font-semibold text-[var(--color-foreground)]">
+                      Gate yard scale queue
                     </h3>
                   </div>
-                  <span className="text-[11px] font-mono text-[var(--color-muted)]">
-                    Active scales stabilized
+                  <span className="text-[11px] font-sans text-[var(--color-muted)]">
+                    Active scales ready
                   </span>
                 </div>
 
                 {pendingIntakes.length === 0 ? (
                   <div className="text-center py-20 text-[var(--color-muted)] text-[13px] font-sans">
                     <p className="font-semibold text-[var(--color-foreground)] mb-1">
-                      Scale Yard Queue Empty
+                      Scale yard queue empty
                     </p>
                     <p className="max-w-md mx-auto text-[11px]">
-                      All Office Work shipments have been weighed and routed.
-                      Check Phase 1 Logbook or the main Ledger.
+                      All office work shipments have been weighed and routed. Check Phase 1 Logbook or the main Ledger.
                     </p>
                   </div>
                 ) : (
-                  <div className="grid gap-3 max-h-[500px] overflow-y-auto pr-1">
+                  <div className="grid gap-2.5 max-h-[500px] overflow-y-auto pr-1">
                     {pendingIntakes.map((pi) => {
                       const isSelected = selectedIntake?.id === pi.id;
 
-                      // Client custom rate lookup for preview badges
                       const matchingC = corpClients.find(
                         (c) => c.id === pi.corporate_client_id,
                       );
@@ -3552,12 +3510,6 @@ export const CargoForm = ({
                               r.route_name === pi.route,
                           )
                         : null;
-                      // No hardcoded 500 fallback here anymore -- handleFinalizeWeighing
-                      // itself blocks finalizing and requires an explicit admin rate
-                      // override when there's no negotiated contract rate on file (its
-                      // own comment explains the old ₦500/kg fallback was "wildly
-                      // wrong" and was removed there). This preview must not imply a
-                      // rate that will never actually be used to bill the shipment.
                       const finalRate = clientRate ? clientRate.rate_per_kg : null;
 
                       return (
@@ -3568,75 +3520,54 @@ export const CargoForm = ({
                             setGateWeight("");
                             setCustomRateOverwrite("");
                           }}
-                          className={`p-3.5 rounded-md border text-[13px] transition-colors cursor-pointer flex items-center justify-between ${
+                          className={`p-3.5 rounded-xl border text-[13px] font-sans transition-all cursor-pointer flex items-center justify-between gap-3 ${
                             isSelected
-                              ? "bg-[rgba(251,191,36,0.05)] border-[var(--color-accent-amber)] shadow-lg"
-                              : "bg-[var(--color-input-bg)] border-[var(--color-border)] hover:border-[var(--color-border-strong)]"
+                              ? "bg-[var(--color-surface-2)] border-[var(--color-foreground)] shadow-xs"
+                              : "bg-[var(--color-surface-1)] border border-[var(--color-border)] hover:bg-[var(--color-surface-2)]"
                           }`}
                         >
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-[var(--color-foreground)] text-[14px] flex items-center gap-1.5">
-                                <Building
-                                  size={16}
-                                  className="text-[var(--color-muted)]"
-                                />{" "}
-                                {pi.consignee}
+                          <div className="min-w-0 space-y-1">
+                            <div className="flex items-center gap-2 truncate">
+                              <span className="font-semibold text-[var(--color-foreground)] flex items-center gap-1.5 truncate">
+                                <Building size={15} className="text-[var(--color-muted)] shrink-0" />
+                                <span className="truncate">{pi.consignee}</span>
                               </span>
-                              <span className="text-[10px] font-mono font-bold px-1.5 bg-[var(--color-surface-2)] text-[var(--color-light-muted)] rounded">
+                              <span className="text-[10px] font-mono text-[var(--color-muted)] px-1.5 py-0.5 bg-[var(--color-surface-3)] rounded shrink-0">
                                 {pi.id}
                               </span>
                             </div>
-                            <div className="text-[12px] text-[var(--color-light-muted)] space-x-2">
-                              <span>
-                                Waybill:{" "}
-                                <strong className="text-[var(--color-accent-amber)] font-mono">
-                                  {pi.awb}
-                                </strong>
-                              </span>
-                              <span>•</span>
-                              <span>
-                                Route:{" "}
-                                <strong className="text-[var(--color-foreground)]">
-                                  {pi.route}
-                                </strong>
-                              </span>
-                              <span>•</span>
-                              <span>
-                                Pcs: <strong>{pi.pieces}</strong>
-                              </span>
+                            <div className="text-[11px] text-[var(--color-muted)] space-x-1.5 truncate">
+                              <span>Waybill: <strong className="font-mono text-[var(--color-foreground)]">{pi.awb}</strong></span>
+                              <span>·</span>
+                              <span>Route: <strong className="text-[var(--color-foreground)]">{pi.route}</strong></span>
+                              <span>·</span>
+                              <span>Pcs: <strong>{pi.pieces}</strong></span>
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-3">
-                            <div className="text-right text-[11px] font-mono">
-                              <div className="text-[var(--color-light-muted)]">
-                                Negotiated Rate
-                              </div>
-                              <div className={finalRate != null ? "font-bold text-[var(--color-accent-amber)]" : "font-bold text-[var(--color-error)]"}>
-                                {finalRate != null ? `₦${finalRate}/KG` : "No rate on file"}
+                          <div className="flex items-center gap-3 shrink-0">
+                            <div className="text-right text-[11px] font-sans">
+                              <div className="text-[var(--color-muted)]">Rate</div>
+                              <div className={finalRate != null ? "font-semibold text-[var(--color-foreground)] tabular-nums" : "font-semibold text-[var(--color-error)]"}>
+                                {finalRate != null ? `₦${finalRate}/kg` : "No rate on file"}
                               </div>
                             </div>
-                            <div className="flex flex-col items-end gap-2">
-                              <ArrowRight
-                                size={16}
-                                className={
-                                  isSelected
-                                    ? "text-[var(--color-accent-amber)]"
-                                    : "text-[var(--color-muted)]"
-                                }
-                              />
+                            <div className="flex items-center gap-1">
                               <button
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleDeletePendingIntake(pi);
                                 }}
-                                className="text-[var(--color-error-fg)]/60 hover:text-[var(--color-error-fg)] transition-colors p-1"
+                                className="min-h-[36px] min-w-[36px] flex items-center justify-center text-[var(--color-muted)] hover:text-[var(--color-error)] transition-colors rounded-lg"
                                 title="Delete pending intake"
                               >
                                 <Trash2 size={14} />
                               </button>
+                              <ArrowRight
+                                size={15}
+                                className={isSelected ? "text-[var(--color-foreground)]" : "text-[var(--color-muted)]"}
+                              />
                             </div>
                           </div>
                         </div>
@@ -3646,55 +3577,38 @@ export const CargoForm = ({
                 )}
               </div>
 
-              {/* INTEGRATED SCALE WEIGHT & CALCULATION WORKSPACE */}
-              <div>
+              {/* CONSOLE */}
+              <div className="space-y-4">
                 {selectedIntake ? (
-                  <div className="bg-[var(--color-surface-card)] border border-[var(--color-border-strong)] p-6 rounded-[var(--radius-md)] text-[var(--color-foreground)] flex flex-col h-auto">
-                    <div className="flex items-center justify-between mb-6 pb-2 border-b border-[var(--color-border)]">
-                      <div className="text-[13px] font-bold text-[var(--color-accent-amber)] uppercase tracking-wider">
-                        SCALE WEIGHING CONSOLE
+                  <div className="bg-[var(--color-surface-card)] border border-[var(--color-border)] p-5 sm:p-6 rounded-2xl text-[var(--color-foreground)] space-y-5">
+                    <div className="border-b border-[var(--color-border)] pb-2.5">
+                      <div className="text-[14px] font-sans font-semibold text-[var(--color-foreground)]">
+                        Scale weighing console
                       </div>
                     </div>
 
-                    <div className="bg-[var(--color-surface-2)] p-4 rounded-lg border border-[var(--color-border)] space-y-2 text-[12px] mb-6">
+                    <div className="bg-[var(--color-surface-2)] p-4 rounded-xl border border-[var(--color-border)] space-y-2 text-[12px] font-sans">
                       <div className="flex justify-between items-center py-1 border-b border-[var(--color-border)]">
-                        <span className="text-[var(--color-muted)] font-medium">
-                          Arrived Client
-                        </span>
-                        <span className="font-bold text-[var(--color-foreground)]">
-                          {selectedIntake.consignee}
-                        </span>
+                        <span className="text-[var(--color-muted)]">Arrived client</span>
+                        <span className="font-semibold text-[var(--color-foreground)]">{selectedIntake.consignee}</span>
                       </div>
                       <div className="flex justify-between items-center py-1 border-b border-[var(--color-border)]">
-                        <span className="text-[var(--color-muted)] font-medium">
-                          Shipment Route
-                        </span>
-                        <span className="font-bold text-[var(--color-accent-amber)]">
-                          {selectedIntake.route}
-                        </span>
+                        <span className="text-[var(--color-muted)]">Route</span>
+                        <span className="font-semibold text-[var(--color-foreground)]">{selectedIntake.route}</span>
                       </div>
                       <div className="flex justify-between items-center py-1 border-b border-[var(--color-border)]">
-                        <span className="text-[var(--color-muted)] font-medium">
-                          Carrier Waybill
-                        </span>
-                        <span className="font-bold text-[var(--color-foreground)] font-mono">
-                          {selectedIntake.awb}
-                        </span>
+                        <span className="text-[var(--color-muted)]">Carrier waybill</span>
+                        <span className="font-mono font-semibold text-[var(--color-foreground)]">{selectedIntake.awb}</span>
                       </div>
                       <div className="flex justify-between items-center py-1">
-                        <span className="text-[var(--color-muted)] font-medium">
-                          Total Containers
-                        </span>
-                        <span className="font-bold text-[var(--color-foreground)]">
-                          {selectedIntake.pieces} pieces
-                        </span>
+                        <span className="text-[var(--color-muted)]">Total containers</span>
+                        <span className="font-semibold text-[var(--color-foreground)]">{selectedIntake.pieces} pieces</span>
                       </div>
                     </div>
 
-                    {/* SCALE SIMULATION FOR INTEGRATION LOOKS POPULAR */}
-                    <div className="mb-6">
-                      <label htmlFor="cargo-gate-weight" className="text-[11px] font-medium text-[var(--color-muted)] block mb-1.5">
-                        Commercial Scale Verified Weight (KG)
+                    <div>
+                      <label htmlFor="cargo-gate-weight" className="text-[12px] font-sans font-medium text-[var(--color-muted)] block mb-1.5">
+                        Commercial scale verified weight (KG)
                       </label>
                       <div className="relative">
                         <input
@@ -3702,69 +3616,61 @@ export const CargoForm = ({
                           type="number"
                           step="1"
                           min="1"
-                          placeholder="Scale Reading"
+                          placeholder="Scale reading"
                           value={gateWeight}
                           onChange={(e) => {
                             const cleanVal = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
                             setGateWeight(cleanVal);
                           }}
-                          className="w-full h-12 pl-4 pr-12 text-[16px] font-bold text-[var(--color-accent-amber)] rounded-md bg-[var(--color-bg)] border border-[var(--color-surface-2)] font-mono focus:outline-none focus:border-[var(--color-accent-amber)] transition-colors"
+                          className="w-full min-h-[48px] h-12 pl-4 pr-12 text-[18px] font-bold text-[var(--color-foreground)] rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border)] font-sans tabular-nums focus:outline-none focus:border-[var(--color-border-strong)] transition-colors"
                         />
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--color-muted)] font-bold text-[12px] font-sans">
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--color-muted)] font-medium text-[12px] font-sans">
                           KG
                         </span>
                       </div>
                     </div>
 
-                    {/* DYNAMIC CONTRACT PRICING ENGINE */}
-                    <div className="flex flex-col space-y-4">
-                      <div className="bg-[var(--color-bg)] p-4 rounded-lg border border-[var(--color-border)] space-y-3 font-mono text-[12px]">
+                    <div className="space-y-3 font-sans">
+                      <div className="bg-[var(--color-surface-2)] p-4 rounded-xl border border-[var(--color-border)] space-y-2.5 text-[12px]">
                         <div className="flex justify-between items-center">
-                          <span className="text-[var(--color-muted)]">
-                            Negotiated Rate
-                          </span>
-                          <span className="font-bold text-[var(--color-foreground)]">
+                          <span className="text-[var(--color-muted)]">Negotiated rate</span>
+                          <span className="font-semibold text-[var(--color-foreground)] tabular-nums">
                             {contractRateForSelectedIntake
-                              ? `₦${contractRateForSelectedIntake.rate_per_kg}/KG`
+                              ? `₦${contractRateForSelectedIntake.rate_per_kg}/kg`
                               : "None on file"}
                           </span>
                         </div>
 
-                        {/* RBAC OVERWRITE PRICING LOCK */}
                         {isAuthorizedRole ? (
                           <div className="pt-2 border-t border-[var(--color-border)]">
-                            <label htmlFor="cargo-custom-rate-overwrite" className="text-[10px] text-[var(--color-muted)] block mb-1.5">
-                              Admin Custom Rate Overwrite (₦/KG){!contractRateForSelectedIntake ? ' -- required, no contract rate on file' : ''}:
+                            <label htmlFor="cargo-custom-rate-overwrite" className="text-[11px] text-[var(--color-muted)] block mb-1">
+                              Admin custom rate override (₦/KG){!contractRateForSelectedIntake ? ' — required, no contract rate' : ''}:
                             </label>
                             <input
                               id="cargo-custom-rate-overwrite"
                               type="number"
-                              placeholder={contractRateForSelectedIntake ? "Leave empty for default" : "Enter rate -- no contract on file"}
+                              placeholder={contractRateForSelectedIntake ? "Leave empty for contract rate" : "Enter rate (required)"}
                               value={customRateOverwrite}
-                              onChange={(e) =>
-                                setCustomRateOverwrite(e.target.value)
-                              }
-                              className="w-full h-9 px-3 text-[12px] bg-[var(--color-surface-2)] text-[var(--color-foreground)] border border-[var(--color-border)] rounded focus:outline-none focus:border-[var(--color-accent-amber)] transition-colors"
+                              onChange={(e) => setCustomRateOverwrite(e.target.value)}
+                              className="w-full min-h-[44px] h-11 px-3 text-[12px] bg-[var(--color-surface-1)] text-[var(--color-foreground)] border border-[var(--color-border)] rounded-xl focus:outline-none focus:border-[var(--color-border-strong)] transition-colors font-sans tabular-nums"
                             />
                           </div>
                         ) : (
-                          <div className="flex items-center gap-2 text-[10px] bg-[var(--color-surface-2)] text-[var(--color-muted)] p-2 rounded italic">
-                            <ShieldAlert size={12} />
-                            <span>Rates locked by Accounting rules.</span>
+                          <div className="flex items-center gap-1.5 text-[11px] text-[var(--color-muted)] pt-1 border-t border-[var(--color-border)]">
+                            <ShieldAlert size={13} />
+                            <span>Rates locked by accounting rules</span>
                           </div>
                         )}
 
                         {!contractRateForSelectedIntake && (
-                          <div className="text-[10px] text-[var(--color-accent-amber)]">
-                            No negotiated rate on file for this client/route -- {isAuthorizedRole ? 'an admin rate overwrite is required to finalize' : 'ask an admin or accountant to set one or finalize this invoice'}. Nothing will be guessed.
+                          <div className="text-[11px] text-[var(--color-warning)]">
+                            No negotiated rate on file — {isAuthorizedRole ? 'an admin rate override is required to finalize.' : 'ask an admin or accountant to set one.'}
                           </div>
                         )}
 
-                        <div className="pt-3 mt-1 border-t border-[var(--color-surface-2)] flex justify-between items-center">
-                          <span className="text-[12px] font-sans text-[var(--color-muted)] font-medium uppercase tracking-wider">
-                            Computed Bill
-                          </span>
-                          <span className="text-[18px] text-[var(--color-accent-amber)] font-bold">
+                        <div className="pt-2.5 border-t border-[var(--color-border)] flex justify-between items-baseline">
+                          <span className="text-[12px] text-[var(--color-muted)]">Computed bill</span>
+                          <span className="text-[20px] text-[var(--color-foreground)] font-bold tabular-nums">
                             {(() => {
                               const rate = customRateOverwrite
                                 ? parseFloat(customRateOverwrite)
@@ -3784,67 +3690,63 @@ export const CargoForm = ({
                         </div>
                       </div>
 
-                      <div className="text-[11px] text-[var(--color-error)] bg-[rgba(239,68,68,0.03)] p-2 rounded border border-[rgba(239,68,68,0.1)] leading-snug flex items-start gap-1.5">
-                        <Zap size={14} className="shrink-0 mt-0.5" />
+                      <div className="text-[11px] text-[var(--color-muted)] bg-[var(--color-surface-2)] p-3 rounded-xl border border-[var(--color-border)] leading-snug flex items-start gap-2">
+                        <Zap size={14} className="shrink-0 mt-0.5 text-[var(--color-muted)]" />
                         <span>
-                          If "Debt" is selected, the database trigger will automatically book
-                          this finalized amount to the client's monthly master
-                          debt profile balance.
+                          If "Debt" is selected, the invoice amount will automatically post to the client's monthly balance.
                         </span>
                       </div>
                     </div>
 
-                    <div className="mt-4 space-y-1.5">
-                      <span className="text-[12px] font-sans font-semibold text-[var(--color-light-muted)]">Payment Mode</span>
+                    <div className="space-y-1.5 font-sans">
+                      <span className="text-[12px] font-medium text-[var(--color-muted)]">Payment mode</span>
                       <select
                         value={corporateMode}
                         onChange={(e) => setCorporateMode(e.target.value)}
-                        className={`w-full h-11 px-3 text-sm rounded bg-[var(--color-surface-1)] border border-[var(--color-border)] text-[var(--color-foreground)] font-sans focus:outline-none focus:border-[var(--color-accent-amber)]`}
+                        className={formInputClass}
                       >
                         <option value="Cash">Cash (Paid)</option>
                         <option value="POS">POS (Paid)</option>
                         <option value="Transfer">Bank Transfer (Paid)</option>
-                        <option value="Debt">Debt (Add to Monthly Balance)</option>
+                        <option value="Debt">Debt (Add to monthly balance)</option>
                       </select>
                     </div>
 
                     <button
+                      type="button"
                       onClick={handleFinalizeWeighing}
                       disabled={!gateWeight || isWeighingSubmitting || (!contractRateForSelectedIntake && !customRateOverwrite)}
-                      className="w-full h-12 mt-5 cursor-pointer bg-[var(--color-accent-amber)] text-[var(--color-on-accent)] font-semibold text-[14px] rounded flex items-center justify-center gap-2 hover:opacity-90 transition-all text-center"
+                      className="w-full min-h-[48px] h-12 cursor-pointer bg-white text-black hover:bg-neutral-200 dark:bg-white dark:text-black dark:hover:bg-neutral-200 font-sans font-semibold text-[14px] rounded-full flex items-center justify-center gap-2 shadow-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isWeighingSubmitting ? (
                         <Loader2 size={16} className="animate-spin" />
                       ) : (
                         <>
-                          <CheckCircle size={16} /> FINALIZE GATE INVOICE
+                          <CheckCircle size={16} />
+                          <span>Finalize gate invoice</span>
                         </>
                       )}
                     </button>
                   </div>
                 ) : (
-                  <div className="bg-[var(--color-surface-card)] border border-[var(--color-border-strong)] p-12 rounded-[var(--radius-md)] text-center text-[var(--color-muted)]">
+                  <div className="bg-[var(--color-surface-card)] border border-[var(--color-border)] p-12 rounded-2xl text-center text-[var(--color-muted)]">
                     <Scale size={32} className="mx-auto text-[var(--color-muted)] mb-3" />
-                    <p className="text-[13px] font-sans font-semibold text-[var(--color-muted)]">
-                      Scale Diagnostic Standby
+                    <p className="text-[13px] font-sans font-semibold text-[var(--color-foreground)]">
+                      Scale diagnostic standby
                     </p>
                     <p className="text-[11px] font-sans max-w-xs mx-auto mt-1">
-                      Select any Office Work pick-up booking from the left queue
-                      to place items on the commercial yard scale.
+                      Select any office work booking from the left queue to verify scale weight.
                     </p>
                   </div>
                 )}
 
-                <div className="bg-[var(--color-surface-2)] p-4 rounded border border-[var(--color-border)] mt-4">
-                  <h5 className="text-[12px] font-bold text-[var(--color-foreground)] mb-2 flex items-center gap-1">
-                    <ShieldAlert size={14} className="text-[var(--color-accent-amber)]" />
-                    Office Work Scaling Rules
+                <div className="bg-[var(--color-surface-card)] p-4 rounded-xl border border-[var(--color-border)]">
+                  <h5 className="text-[12px] font-sans font-semibold text-[var(--color-foreground)] mb-1 flex items-center gap-1.5">
+                    <ShieldAlert size={14} className="text-[var(--color-muted)]" />
+                    Office work scaling rules
                   </h5>
-                  <p className="text-[11px] text-[var(--color-light-muted)] leading-relaxed">
-                    Weights verified on our gate scale are definitive (no manual
-                    estimation allowed). Debt payment modes on Office Work custom
-                    accounts automatically bill monthly to prevent yard queuing
-                    blocks.
+                  <p className="text-[11px] font-sans text-[var(--color-muted)] leading-relaxed">
+                    Weights verified on the gate scale are definitive. Debt payments on corporate accounts bill monthly to keep the yard queue moving smoothly.
                   </p>
                 </div>
               </div>
@@ -3853,68 +3755,87 @@ export const CargoForm = ({
         </div>
       )}
 
+      {/* CLOSE CARGO PERIOD MODAL */}
       {showCloseModal && createPortal(
         <div className="fixed inset-0 ehi-scrim z-[9999] flex items-center justify-center sm:p-4">
-          <div className="bg-[var(--color-obsidian)] border-0 sm:border border-[var(--color-border)] rounded-none sm:rounded-xl w-full h-full sm:h-auto sm:max-w-lg sm:max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
+          <div className="bg-[var(--color-surface-1)] border-0 sm:border border-[var(--color-border)] rounded-none sm:rounded-2xl w-full h-full sm:h-auto sm:max-w-lg sm:max-h-[90vh] overflow-hidden shadow-2xl flex flex-col font-sans">
             {/* Header */}
-            <div className="flex items-center justify-between p-3 border-b border-[var(--color-border)] bg-[var(--color-surface-card)] shrink-0">
+            <div className="flex items-center justify-between p-4 border-b border-[var(--color-border)] bg-[var(--color-surface-card)] shrink-0">
               <div>
-                <div className="text-[10px] font-mono text-[var(--color-accent-amber)] tracking-widest font-bold">▸ CARGO DESK SALES ANALYSIS</div>
-                <div className="text-[12px] text-[var(--color-muted)] mt-0.5">Agent: <span className="text-[var(--color-foreground)]">{user.name}</span></div>
+                <h3 className="text-[15px] font-sans font-semibold text-[var(--color-foreground)]">Close cargo period</h3>
+                <div className="text-[12px] font-sans text-[var(--color-muted)] mt-0.5">Agent: <span className="text-[var(--color-foreground)] font-medium">{user.name}</span> · {user.hub}</div>
               </div>
-              <button onClick={() => setShowCloseModal(false)} className="p-1 hover:bg-[var(--color-surface-2)] rounded text-[var(--color-muted)] transition-colors">
-                <X size={16} />
+              <button
+                type="button"
+                onClick={() => setShowCloseModal(false)}
+                className="min-h-[36px] min-w-[36px] flex items-center justify-center hover:bg-[var(--color-surface-2)] rounded-full text-[var(--color-muted)] transition-colors cursor-pointer"
+              >
+                <X size={18} />
               </button>
             </div>
 
             {/* Scrollable content */}
-            <div className="flex-1 overflow-y-auto p-4">
-              <div className="space-y-2 mb-4 border-t border-b border-[var(--color-border)] py-3">
-                <div className="text-[10px] font-mono text-[var(--color-muted)] uppercase tracking-wider flex items-center gap-1.5">
-                  <Calendar size={12} /> Closing Period
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              <div className="space-y-2 border-b border-[var(--color-border)] pb-3">
+                <div className="text-[11px] font-sans text-[var(--color-muted)] flex items-center gap-1.5 font-medium">
+                  <Calendar size={13} />
+                  <span>Closing period</span>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <input type="datetime-local" value={periodStart} onChange={e => setPeriodStart(e.target.value)} className="ehi-input text-[12px] flex-1" />
-                  <span className="text-[var(--color-muted)] text-[11px]">to</span>
-                  <input type="datetime-local" value={periodEnd} onChange={e => setPeriodEnd(e.target.value)} className="ehi-input text-[12px] flex-1" />
+                  <input
+                    type="datetime-local"
+                    value={periodStart}
+                    onChange={e => setPeriodStart(e.target.value)}
+                    className="min-h-[44px] h-11 px-3 text-[12px] font-sans rounded-xl bg-[var(--color-surface-2)] border border-[var(--color-border)] text-[var(--color-foreground)] flex-1 focus:outline-none"
+                  />
+                  <span className="text-[var(--color-muted)] text-[12px]">to</span>
+                  <input
+                    type="datetime-local"
+                    value={periodEnd}
+                    onChange={e => setPeriodEnd(e.target.value)}
+                    className="min-h-[44px] h-11 px-3 text-[12px] font-sans rounded-xl bg-[var(--color-surface-2)] border border-[var(--color-border)] text-[var(--color-foreground)] flex-1 focus:outline-none"
+                  />
                 </div>
                 {lastCloseEnd && (
-                  <div className="text-[10px] font-mono text-[var(--color-muted)]">Last close ended: {new Date(lastCloseEnd).toLocaleString('en-GB')}</div>
+                  <div className="text-[11px] font-sans text-[var(--color-muted)]">
+                    Last close ended: {new Date(lastCloseEnd).toLocaleString('en-GB')}
+                  </div>
                 )}
-                <div className="text-[12px] font-mono font-bold text-[var(--color-accent-amber)]">
-                  Closing: {periodStart ? new Date(periodStart).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'}
+                <div className="text-[12px] font-sans text-[var(--color-foreground)] font-medium">
+                  {periodStart ? new Date(periodStart).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'}
                   {' → '}
                   {periodEnd ? new Date(periodEnd).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'}
                 </div>
               </div>
 
               {closeSummaryLoading ? (
-                <div className="flex justify-center py-8"><Loader2 size={20} className="animate-spin text-[var(--color-accent-amber)]" /></div>
+                <div className="flex justify-center py-8"><Loader2 size={20} className="animate-spin text-[var(--color-muted)]" /></div>
               ) : (
                 <>
-                  <div className="space-y-1.5 text-[13px] font-mono pt-1 mb-4">
-                    <div className="flex justify-between"><span className="text-[var(--color-muted)]">Total Sales</span><span className="font-bold text-[var(--color-foreground)]">{fmt(closeTotalSales)}</span></div>
-                    <div className="flex justify-between"><span className="text-[var(--color-muted)]">Cash Sales</span><span className="text-[var(--color-foreground)]">{fmt(closeCashSales)}</span></div>
-                    {closeDebtCashRecoveredToday > 0 && <div className="flex justify-between text-[var(--color-success-fg)]"><span>Debt Recovered (Cash)</span><span>+ {fmt(closeDebtCashRecoveredToday)}</span></div>}
-                    <div className="flex justify-between"><span className="text-[var(--color-muted)]">POS</span><span className="text-[var(--color-foreground)]">{fmt(closePosSales)}</span></div>
-                    <div className="flex justify-between"><span className="text-[var(--color-muted)]">Bank Transfer</span><span className="text-[var(--color-foreground)]">{fmt(closeTransferSales)}</span></div>
-                    {closeDebtSales > 0 && <div className="flex justify-between border-t border-[var(--color-border)] pt-1 mt-1"><span className="text-[var(--color-warning-fg)] font-sans">Unpaid Credit Sales (Owed)</span><span className="text-[var(--color-warning-fg)] font-bold">{fmt(closeDebtSales)}</span></div>}
-                    {closeDebtTotalRecoveredToday > 0 && <div className="flex justify-between"><span className="text-[var(--color-success-fg)] font-sans">Debt Collected Today</span><span className="text-[var(--color-success-fg)] font-bold">{fmt(closeDebtTotalRecoveredToday)}</span></div>}
+                  <div className="space-y-2 text-[13px] font-sans">
+                    <div className="flex justify-between"><span className="text-[var(--color-muted)]">Total sales</span><span className="font-semibold text-[var(--color-foreground)] tabular-nums">{fmt(closeTotalSales)}</span></div>
+                    <div className="flex justify-between"><span className="text-[var(--color-muted)]">Cash sales</span><span className="text-[var(--color-foreground)] tabular-nums">{fmt(closeCashSales)}</span></div>
+                    {closeDebtCashRecoveredToday > 0 && <div className="flex justify-between text-emerald-500"><span>Debt recovered (cash)</span><span className="tabular-nums">+ {fmt(closeDebtCashRecoveredToday)}</span></div>}
+                    <div className="flex justify-between"><span className="text-[var(--color-muted)]">POS sales</span><span className="text-[var(--color-foreground)] tabular-nums">{fmt(closePosSales)}</span></div>
+                    <div className="flex justify-between"><span className="text-[var(--color-muted)]">Bank transfer</span><span className="text-[var(--color-foreground)] tabular-nums">{fmt(closeTransferSales)}</span></div>
+                    {closeDebtSales > 0 && <div className="flex justify-between border-t border-[var(--color-border)] pt-2"><span className="text-[var(--color-warning)]">Unpaid credit sales (debt)</span><span className="text-[var(--color-warning)] font-semibold tabular-nums">{fmt(closeDebtSales)}</span></div>}
+                    {closeDebtTotalRecoveredToday > 0 && <div className="flex justify-between"><span className="text-emerald-500">Debt collected today</span><span className="text-emerald-500 font-semibold tabular-nums">{fmt(closeDebtTotalRecoveredToday)}</span></div>}
                   </div>
-                  <div className="bg-[rgba(251,191,36,0.1)] border border-[var(--color-accent-amber)] rounded-xl p-4">
+                  <div className="bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-2xl p-4">
                     <div className="flex justify-between items-center">
-                      <span className="text-[14px] text-[var(--color-accent-amber)] font-bold font-mono">BAL. CASH</span>
-                      <span className={`text-[22px] font-bold font-mono ${closeBalanceCash >= 0 ? 'text-[var(--color-accent-amber)]' : 'text-[var(--color-error-fg)]'}`}>{fmt(Math.abs(closeBalanceCash))}</span>
+                      <span className="text-[13px] font-sans font-medium text-[var(--color-muted)]">Balance cash</span>
+                      <span className={`text-[22px] font-sans font-bold tabular-nums ${closeBalanceCash >= 0 ? 'text-[var(--color-foreground)]' : 'text-[var(--color-error)]'}`}>{fmt(Math.abs(closeBalanceCash))}</span>
                     </div>
-                    <div className="text-[11px] mt-1 text-[rgba(251,191,36,0.7)]">({fmt(closePhysicalCash)} cash-in-hand − {fmt(closeTotalExpenses)} expenses)</div>
+                    <div className="text-[11px] font-sans text-[var(--color-muted)] mt-1">({fmt(closePhysicalCash)} cash in hand − {fmt(closeTotalExpenses)} expenses)</div>
                   </div>
                 </>
               )}
             </div>
 
             {/* Footer actions */}
-            <div className="p-3 border-t border-[var(--color-border)] bg-[var(--color-surface-card)] flex gap-3 shrink-0">
+            <div className="p-4 border-t border-[var(--color-border)] bg-[var(--color-surface-card)] flex flex-col sm:flex-row gap-2 shrink-0">
               <button
+                type="button"
                 disabled={closeSummaryLoading}
                 onClick={() => {
                   import('./CargoReceipt').then(m => m.downloadCargoDailySummary({
@@ -3944,20 +3865,19 @@ export const CargoForm = ({
                     balanceCash: closeBalanceCash,
                   }));
                 }}
-                className="flex-1 h-11 rounded-lg bg-transparent border border-[var(--color-amber-border)] text-[var(--color-accent-amber)] text-[11px] font-mono font-bold hover:bg-[var(--color-amber-bg)] transition-colors disabled:opacity-50 cursor-pointer"
+                className="flex-1 min-h-[44px] h-11 rounded-full bg-[var(--color-surface-1)] border border-[var(--color-border)] text-[var(--color-foreground)] text-[13px] font-sans font-medium hover:bg-[var(--color-surface-2)] transition-colors disabled:opacity-50 cursor-pointer"
               >
-                DOWNLOAD SUMMARY PDF
+                Download summary PDF
               </button>
-              <Button
-                variant="primary"
-                className="flex-1"
+              <button
+                type="button"
                 onClick={handleCloseDay}
-                disabled={closeSummaryLoading}
-                loading={closingDay}
-                loadingLabel="CLOSING…"
+                disabled={closeSummaryLoading || closingDay}
+                className="flex-1 min-h-[44px] h-11 rounded-full bg-white text-black hover:bg-neutral-200 dark:bg-white dark:text-black dark:hover:bg-neutral-200 text-[13px] font-sans font-semibold shadow-xs transition-colors disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
               >
-                CONFIRM &amp; CLOSE PERIOD
-              </Button>
+                {closingDay && <Loader2 size={15} className="animate-spin" />}
+                <span>{closingDay ? "Closing…" : "Confirm & close period"}</span>
+              </button>
             </div>
           </div>
         </div>,

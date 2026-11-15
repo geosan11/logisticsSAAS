@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Printer } from 'lucide-react';
+import { Printer, X } from 'lucide-react';
 import { lockBodyScroll, unlockBodyScroll } from '../lib/bodyScrollLock';
 
 interface PrintRangeModalProps {
@@ -80,44 +80,54 @@ export const PrintRangeModal = ({
       }}
     >
       <div
-        className={`w-full max-w-sm bg-[var(--color-surface-1)] rounded-xl border border-[var(--color-border-strong)] shadow-2xl overflow-hidden ${
+        className={`w-full max-w-sm bg-[var(--color-surface-card)] rounded-2xl border border-[var(--color-border-strong)] shadow-2xl overflow-hidden flex flex-col ${
           isClosing ? 'animate-modal-slide-out' : 'animate-modal-slide-in'
         }`}
       >
-        <div className="p-5 flex flex-col gap-4">
+        <div className="p-4 border-b border-[var(--color-border)] flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Printer size={18} className="text-[var(--color-accent-amber)]" />
-            <h3 className="text-[13px] font-bold text-[var(--color-foreground)] uppercase font-mono">
-              Select {itemLabel} to Print
+            <Printer size={16} className="text-[var(--color-muted)]" />
+            <h3 className="text-[14px] font-semibold text-[var(--color-foreground)] font-sans">
+              Select {itemLabel} to print
             </h3>
           </div>
+          <button
+            type="button"
+            onClick={() => handleAction(onCancel)}
+            aria-label="Close"
+            className="p-1.5 text-[var(--color-muted)] hover:text-[var(--color-foreground)] rounded-lg transition-colors cursor-pointer"
+          >
+            <X size={16} />
+          </button>
+        </div>
 
-          <p className="text-[11px] font-mono text-[var(--color-muted)]">
-            {totalCount} {itemLabel} available, in the order they were added. Choosing a range replaces any current selection.
+        <div className="p-5 flex flex-col gap-4">
+          <p className="text-[12px] font-sans text-[var(--color-muted)] leading-relaxed">
+            {totalCount} {itemLabel} available in order added. Specifying a range replaces your current selection.
           </p>
 
           <div className="flex items-center gap-3">
             <div className="flex-1">
-              <label className="text-[11px] font-mono text-[var(--color-muted)] block mb-1.5">From</label>
+              <label className="text-[11px] font-sans font-medium text-[var(--color-muted)] block mb-1.5">From</label>
               <input
                 type="number"
                 min={1}
                 max={totalCount}
                 value={from}
                 onChange={(e) => setFrom(e.target.value)}
-                className="w-full h-10 px-3 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg text-[13px] font-mono text-[var(--color-foreground)] focus:outline-none focus:border-[var(--color-accent-cobalt)]"
+                className="w-full min-h-[44px] h-11 px-3 bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-xl text-[13px] font-sans tabular-nums text-[var(--color-foreground)] focus:outline-none focus:border-[var(--color-border-strong)]"
               />
             </div>
             <div className="text-[var(--color-muted)] pt-6">–</div>
             <div className="flex-1">
-              <label className="text-[11px] font-mono text-[var(--color-muted)] block mb-1.5">To</label>
+              <label className="text-[11px] font-sans font-medium text-[var(--color-muted)] block mb-1.5">To</label>
               <input
                 type="number"
                 min={1}
                 max={totalCount}
                 value={to}
                 onChange={(e) => setTo(e.target.value)}
-                className="w-full h-10 px-3 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg text-[13px] font-mono text-[var(--color-foreground)] focus:outline-none focus:border-[var(--color-accent-cobalt)]"
+                className="w-full min-h-[44px] h-11 px-3 bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-xl text-[13px] font-sans tabular-nums text-[var(--color-foreground)] focus:outline-none focus:border-[var(--color-border-strong)]"
               />
             </div>
           </div>
@@ -125,35 +135,35 @@ export const PrintRangeModal = ({
           <button
             type="button"
             onClick={() => { setFrom('1'); setTo(String(totalCount)); }}
-            className="self-start text-[11px] font-mono font-bold text-[var(--color-accent-amber)] hover:underline"
+            className="self-start text-[12px] font-sans font-medium text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:underline cursor-pointer"
           >
-            All {totalCount} {itemLabel}
+            Select all ({totalCount} {itemLabel})
           </button>
 
           {invalid ? (
-            <p className="text-[11px] font-mono text-[var(--color-error)]">
+            <p className="text-[12px] font-sans text-[var(--color-error)]">
               Enter a valid range between 1 and {totalCount}.
             </p>
           ) : (
-            <p className="text-[11px] font-mono text-[var(--color-success)]">
+            <p className="text-[12px] font-sans text-[var(--color-success)]">
               {isFullRange ? `All ${totalCount} ${itemLabel} will print.` : `${count} ${itemLabel} will print (of ${totalCount}).`}
             </p>
           )}
         </div>
 
-        <div className="flex border-t border-[var(--color-border)]">
+        <div className="p-3.5 border-t border-[var(--color-border)] bg-[var(--color-surface-card)] flex gap-2.5">
           <button
             onClick={() => handleAction(onCancel)}
-            className="flex-1 h-12 text-[13px] font-bold font-mono text-[var(--color-muted)] hover:bg-[var(--color-surface-2)] transition-colors border-none bg-transparent cursor-pointer border-r border-[var(--color-border)]"
+            className="flex-1 min-h-[44px] h-11 text-[13px] font-medium font-sans text-[var(--color-foreground)] bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-hover)] rounded-full transition-colors cursor-pointer border border-[var(--color-border)]"
           >
             Cancel
           </button>
           <button
             onClick={handleConfirm}
             disabled={invalid}
-            className="flex-1 h-12 text-[13px] font-bold font-mono border-none cursor-pointer transition-colors text-[var(--color-accent-amber)] hover:bg-[var(--glow-amber)] bg-transparent disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex-1 min-h-[44px] h-11 text-[13px] font-semibold font-sans rounded-full cursor-pointer transition-colors bg-white text-black hover:bg-neutral-200 dark:bg-white dark:text-black dark:hover:bg-neutral-200 disabled:opacity-40 disabled:cursor-not-allowed shadow-xs"
           >
-            Print Range
+            Print range
           </button>
         </div>
       </div>

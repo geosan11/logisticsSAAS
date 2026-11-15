@@ -17,32 +17,35 @@ export const PaymentNarrationBox: React.FC<PaymentNarrationBoxProps> = ({ narrat
   if (!narrationCode) return null;
 
   return (
-    <div className="mt-4 p-4 border border-[var(--color-accent-amber)] rounded-lg bg-[rgba(251,191,36,0.05)] animate-in fade-in slide-in-from-top-2">
-      <div className="text-[10px] font-bold text-[var(--color-accent-amber)] uppercase tracking-wider mb-2">
-        PAYMENT NARRATION — share with customer
+    <div className="mt-3.5 p-3.5 border border-[var(--color-border)] rounded-2xl bg-[var(--color-surface-card)]">
+      <div className="text-[12px] font-sans font-medium text-[var(--color-muted)] mb-2">
+        Payment narration — share with customer
       </div>
-      <div className="flex items-center justify-between bg-[var(--color-surface-1)] p-3 rounded border border-[rgba(251,191,36,0.2)]">
-        <span className="font-mono text-lg font-bold text-[var(--color-foreground)] tracking-widest">{narrationCode}</span>
+      <div className="flex items-center justify-between bg-[var(--color-surface-1)] p-3 rounded-xl border border-[var(--color-border)] gap-3">
+        <span className="font-mono text-[16px] font-bold text-[var(--color-foreground)] tracking-wider tabular-nums">
+          {narrationCode}
+        </span>
         <button
           type="button"
           onClick={handleCopy}
-          className="flex items-center space-x-1 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] text-[var(--color-muted)] hover:text-[var(--color-foreground)] px-3 py-1.5 rounded transition-colors text-[11px] font-bold"
+          aria-label="Copy payment narration code"
+          className="min-h-[44px] h-11 px-3.5 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] rounded-lg transition-colors text-[12px] font-sans font-medium flex items-center gap-1.5 cursor-pointer border border-[var(--color-border)] shrink-0"
         >
           {copied ? (
             <>
               <Check size={14} className="text-[var(--color-success)]" />
-              <span className="text-[var(--color-success)]">Copied ✓</span>
+              <span className="text-[var(--color-success)]">Copied</span>
             </>
           ) : (
             <>
-              <Copy size={14} />
-              <span>COPY</span>
+              <Copy size={14} className="text-[var(--color-muted)]" />
+              <span>Copy</span>
             </>
           )}
         </button>
       </div>
-      <div className="text-[11px] text-[var(--color-muted)] mt-2">
-        Ask customer to type this exactly as the transfer narration / description when sending payment
+      <div className="text-[11px] font-sans text-[var(--color-muted)] mt-2">
+        Ask customer to type this code in the transfer narration / description.
       </div>
     </div>
   );
