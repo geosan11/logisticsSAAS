@@ -1,5 +1,5 @@
 import { ErrorBoundary } from '../ErrorBoundary';
-import React, { useState, useMemo, useCallback, lazy, Suspense, memo, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, lazy, Suspense, memo, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import {
@@ -10,7 +10,6 @@ import {
   Sun,
   Moon,
   Sliders,
-  LogOut as SignOutIcon,
   Layers,
 } from 'lucide-react';
 
@@ -178,8 +177,16 @@ export const More = ({
   // 1 = pushing forward, -1 = back
   const [direction, setDirection] = useState<1 | -1>(1);
 
-  // Group selection from URL query param ?group=...
+  // Group selection from URL query param ?group=... and return target ?from=...
   const selectedGroupId = searchParams.get('group') as SettingGroupId | null;
+  const fromGroupId = searchParams.get('from') as SettingGroupId | null;
+  const lastGroupRef = useRef<SettingGroupId | null>(null);
+
+  useEffect(() => {
+    if (selectedGroupId) {
+      lastGroupRef.current = selectedGroupId;
+    }
+  }, [selectedGroupId]);
 
   // Selected group object
   const activeGroup = useMemo(
@@ -217,20 +224,23 @@ export const More = ({
   const openSub = useCallback(
     (key: MoreSubKey) => {
       setDirection(1);
-      navigate('/more/' + MORE_SUB_ROUTES[key]);
+      const returnGroup = selectedGroupId || lastGroupRef.current;
+      const query = returnGroup ? `?from=${returnGroup}` : '';
+      navigate('/more/' + MORE_SUB_ROUTES[key] + query);
     },
-    [navigate]
+    [navigate, selectedGroupId]
   );
 
   const closeSub = useCallback(() => {
     setDirection(-1);
     // Return to the previously active group if available, or Settings home
-    if (selectedGroupId) {
-      navigate('/more?group=' + selectedGroupId);
+    const returnGroup = fromGroupId || selectedGroupId || lastGroupRef.current;
+    if (returnGroup) {
+      navigate('/more?group=' + returnGroup);
     } else {
       navigate('/more');
     }
-  }, [navigate, selectedGroupId]);
+  }, [navigate, fromGroupId, selectedGroupId]);
 
   const selectGroup = useCallback(
     (groupId: SettingGroupId | null) => {
@@ -609,7 +619,7 @@ export const More = ({
               {activeView.element}
             </Suspense>
           ) : (
-            <div className="w-full max-w-4xl mx-auto p-4 sm:p-6 space-y-6 pb-20 select-none">
+            <div className="w-full max-w-4xl mx-auto p-4 sm:p-5 space-y-4 pb-16 select-none">
               {/* Top Search Bar */}
               <div className="relative">
                 <Search
@@ -620,8 +630,13 @@ export const More = ({
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search all settings, tariffs, tools & logs..."
-                  className="w-full min-h-[44px] pl-10 pr-10 rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border)] text-[var(--color-foreground)] placeholder-[var(--color-muted)] text-[13px] font-sans focus:outline-none focus:border-[var(--color-border-strong)] transition-colors shadow-sm"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      setSearchQuery('');
+                    }
+                  }}
+                  placeholder="Search settings, tariffs, tools..."
+                  className="w-full min-h-[44px] pl-10 pr-10 rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border)] text-[var(--color-foreground)] placeholder-[var(--color-muted)] text-[14px] sm:text-[13px] font-sans focus:outline-none focus:border-[var(--color-border-strong)] transition-colors shadow-sm"
                 />
                 {searchQuery && (
                   <button
@@ -636,17 +651,11 @@ export const More = ({
 
               {/* View 1: Active Search Results */}
               {searchQuery.trim().length > 0 ? (
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   <div className="flex items-center justify-between px-1">
                     <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--color-muted)]">
                       Matching Settings ({searchResults.length})
                     </span>
-                    <button
-                      onClick={() => setSearchQuery('')}
-                      className="text-[11px] font-mono text-[var(--color-muted)] hover:text-[var(--color-foreground)] cursor-pointer"
-                    >
-                      Clear
-                    </button>
                   </div>
 
                   {searchResults.length === 0 ? (
@@ -667,7 +676,7 @@ export const More = ({
                           <button
                             key={item.id}
                             onClick={() => handleItemClick(item)}
-                            className="w-full flex items-center gap-3.5 py-3.5 px-4 text-left hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer group min-h-[52px]"
+                            className="w-full flex items-center gap-3.5 py-3 px-4 text-left hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer group min-h-[50px]"
                           >
                             <div className="w-8 h-8 rounded-lg bg-[var(--color-surface-2)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-muted)] group-hover:text-[var(--color-foreground)] shrink-0 transition-colors">
                               <Icon size={16} />
@@ -683,7 +692,7 @@ export const More = ({
                                   </span>
                                 )}
                                 {item.level === 'advanced' && (
-                                  <span className="text-[9px] font-mono uppercase px-1.5 py-0.2 rounded bg-[var(--color-surface-2)] text-[var(--color-muted)] border border-[var(--color-border)] shrink-0">
+                                  <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-[var(--color-surface-2)] text-[var(--color-muted)] border border-[var(--color-border)] shrink-0">
                                     Advanced
                                   </span>
                                 )}
@@ -706,38 +715,38 @@ export const More = ({
                 </div>
               ) : selectedGroupId && activeGroup ? (
                 /* View 2: Opened Group View (Progressive Disclosure Sub-Page) */
-                <div className="space-y-4">
-                  {/* Group Navigation Bar */}
-                  <div className="flex items-center justify-between gap-3">
-                    <BackButton
-                      onClick={() => selectGroup(null)}
-                      label="Settings"
-                      className="min-h-[44px]"
-                    />
-                    <span className="text-[11px] font-mono text-[var(--color-muted)]">
-                      {currentGroupItems.primary.length + currentGroupItems.advanced.length} items
+                <div className="space-y-3.5">
+                  {/* Group Header Strip */}
+                  <div className="flex items-center justify-between gap-3 pb-2 border-b border-[var(--color-border)]">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <BackButton
+                        onClick={() => selectGroup(null)}
+                        label="Settings"
+                        className="min-h-[44px]"
+                      />
+                      <div className="h-4 w-px bg-[var(--color-border)] shrink-0" />
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-7 h-7 rounded-lg bg-[var(--color-surface-2)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-foreground)] shrink-0">
+                          {React.createElement(activeGroup.icon, { size: 16 })}
+                        </div>
+                        <h2 className="text-[15px] font-bold text-[var(--color-foreground)] font-sans truncate">
+                          {activeGroup.title}
+                        </h2>
+                      </div>
+                    </div>
+                    <span className="text-[11px] font-mono text-[var(--color-muted)] shrink-0">
+                      {currentGroupItems.primary.length + currentGroupItems.advanced.length} tools
                     </span>
                   </div>
 
-                  {/* Group Header */}
-                  <div className="ehi-card p-5 space-y-1">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-lg bg-[var(--color-surface-2)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-foreground)] shrink-0">
-                        {React.createElement(activeGroup.icon, { size: 18 })}
-                      </div>
-                      <h2 className="text-[16px] font-bold text-[var(--color-foreground)] font-sans">
-                        {activeGroup.title}
-                      </h2>
-                    </div>
-                    <p className="text-[12px] font-mono text-[var(--color-muted)] pl-[42px]">
-                      {activeGroup.description}
-                    </p>
-                  </div>
+                  <p className="text-[12px] font-mono text-[var(--color-muted)] px-1">
+                    {activeGroup.description}
+                  </p>
 
                   {/* Primary Items List */}
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <div className="text-[9px] font-mono text-[var(--color-muted)] tracking-wider uppercase px-1">
-                      Primary Tools
+                      Primary
                     </div>
                     <div className="ehi-card divide-y divide-[var(--color-border)] overflow-hidden">
                       {currentGroupItems.primary.map((item) => {
@@ -746,7 +755,7 @@ export const More = ({
                           <button
                             key={item.id}
                             onClick={() => handleItemClick(item)}
-                            className="w-full flex items-center gap-3.5 py-3.5 px-4 text-left hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer group min-h-[52px]"
+                            className="w-full flex items-center gap-3.5 py-3 px-4 text-left hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer group min-h-[50px]"
                           >
                             <div className="w-8 h-8 rounded-lg bg-[var(--color-surface-2)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-muted)] group-hover:text-[var(--color-foreground)] shrink-0 transition-colors">
                               <Icon size={16} />
@@ -775,10 +784,10 @@ export const More = ({
 
                   {/* Advanced Disclosure Inside Group */}
                   {currentGroupItems.advanced.length > 0 && (
-                    <div className="space-y-2 pt-2">
+                    <div className="space-y-1.5 pt-1">
                       <button
                         onClick={() => setShowAdvanced(!showAdvanced)}
-                        className="w-full flex items-center justify-between py-3 px-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] text-left cursor-pointer min-h-[44px] transition-colors"
+                        className="w-full flex items-center justify-between py-2.5 px-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] text-left cursor-pointer min-h-[44px] transition-colors"
                       >
                         <span className="flex items-center gap-2 text-[12px] font-bold text-[var(--color-foreground)]">
                           {showAdvanced ? (
@@ -786,7 +795,7 @@ export const More = ({
                           ) : (
                             <ChevronRight size={16} className="text-[var(--color-muted)]" />
                           )}
-                          Advanced System Options
+                          Advanced
                           <span className="text-[10px] font-mono text-[var(--color-muted)] font-normal">
                             ({currentGroupItems.advanced.length})
                           </span>
@@ -804,7 +813,7 @@ export const More = ({
                               <button
                                 key={item.id}
                                 onClick={() => handleItemClick(item)}
-                                className="w-full flex items-center gap-3.5 py-3.5 px-4 text-left hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer group min-h-[52px]"
+                                className="w-full flex items-center gap-3.5 py-3 px-4 text-left hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer group min-h-[50px]"
                               >
                                 <div className="w-8 h-8 rounded-lg bg-[var(--color-surface-2)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-muted)] group-hover:text-[var(--color-foreground)] shrink-0 transition-colors">
                                   <Icon size={16} />
@@ -835,122 +844,109 @@ export const More = ({
                 </div>
               ) : (
                 /* View 3: Settings Home Page (6 Groups + Appearance) */
-                <div className="space-y-6">
-                  {/* Appearance & Density Control */}
-                  <div className="ehi-card p-4 space-y-3.5">
-                    <div className="flex items-center justify-between pb-2 border-b border-[var(--color-border)]">
-                      <div>
-                        <div className="text-[13px] font-bold text-[var(--color-foreground)] font-sans">
-                          Appearance & Display
-                        </div>
-                        <div className="text-[11px] font-mono text-[var(--color-muted)]">
-                          Theme and touch density for counter terminals
-                        </div>
+                <div className="space-y-4">
+                  {/* Display & Density Preferences */}
+                  <div className="ehi-card p-3 sm:p-3.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                    {/* Theme */}
+                    <div className="flex items-center justify-between gap-3 flex-1 min-w-0">
+                      <div className="flex items-center gap-2 min-w-0">
+                        {theme === 'dark' ? (
+                          <Moon size={16} className="text-[var(--color-muted)] shrink-0" />
+                        ) : (
+                          <Sun size={16} className="text-[var(--color-muted)] shrink-0" />
+                        )}
+                        <span className="text-[12px] font-bold text-[var(--color-foreground)] truncate font-sans">
+                          Theme
+                        </span>
+                      </div>
+                      <div className="flex items-center bg-[var(--color-surface-2)] p-0.5 rounded-full border border-[var(--color-border-strong)] shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => theme !== 'dark' && toggleTheme()}
+                          aria-label="Dark mode"
+                          className={`min-h-[44px] min-w-[48px] px-3.5 rounded-full text-[11px] font-semibold transition-colors cursor-pointer flex items-center justify-center ${
+                            theme === 'dark'
+                              ? 'bg-[var(--color-primary-pill)] text-[var(--color-primary-pill-text)]'
+                              : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
+                          }`}
+                        >
+                          Dark
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => theme !== 'light' && toggleTheme()}
+                          aria-label="Light mode"
+                          className={`min-h-[44px] min-w-[48px] px-3.5 rounded-full text-[11px] font-semibold transition-colors cursor-pointer flex items-center justify-center ${
+                            theme === 'light'
+                              ? 'bg-[var(--color-primary-pill)] text-[var(--color-primary-pill-text)]'
+                              : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
+                          }`}
+                        >
+                          Light
+                        </button>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {/* Theme Toggle */}
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border)] min-h-[44px]">
-                        <div className="flex items-center gap-2.5 min-w-0 pr-2">
-                          {theme === 'dark' ? (
-                            <Moon size={18} className="text-[var(--color-muted)] shrink-0" />
-                          ) : (
-                            <Sun size={18} className="text-[var(--color-muted)] shrink-0" />
-                          )}
-                          <div className="min-w-0">
-                            <div className="text-[12px] font-bold text-[var(--color-foreground)] truncate">
-                              Theme
-                            </div>
-                            <div className="text-[10px] font-mono text-[var(--color-muted)] truncate">
-                              {theme === 'dark' ? 'Dark Mode (OLED)' : 'Light Mode (High Contrast)'}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center bg-[var(--color-surface-2)] p-0.5 rounded-full border border-[var(--color-border-strong)] shrink-0">
-                          <button
-                            onClick={() => theme !== 'dark' && toggleTheme()}
-                            className={`min-h-[36px] min-w-[44px] px-3 rounded-full text-[11px] font-semibold transition-colors cursor-pointer ${
-                              theme === 'dark'
-                                ? 'bg-[var(--color-primary-pill)] text-[var(--color-primary-pill-text)]'
-                                : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
-                            }`}
-                          >
-                            Dark
-                          </button>
-                          <button
-                            onClick={() => theme !== 'light' && toggleTheme()}
-                            className={`min-h-[36px] min-w-[44px] px-3 rounded-full text-[11px] font-semibold transition-colors cursor-pointer ${
-                              theme === 'light'
-                                ? 'bg-[var(--color-primary-pill)] text-[var(--color-primary-pill-text)]'
-                                : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
-                            }`}
-                          >
-                            Light
-                          </button>
-                        </div>
-                      </div>
+                    <div className="hidden sm:block w-px h-6 bg-[var(--color-border)] shrink-0" />
 
-                      {/* Density Toggle */}
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border)] min-h-[44px]">
-                        <div className="flex items-center gap-2.5 min-w-0 pr-2">
-                          <Sliders size={18} className="text-[var(--color-muted)] shrink-0" />
-                          <div className="min-w-0">
-                            <div className="text-[12px] font-bold text-[var(--color-foreground)] truncate">
-                              Density
-                            </div>
-                            <div className="text-[10px] font-mono text-[var(--color-muted)] truncate">
-                              {isSpacious ? 'Spacious (CF-31 Touch)' : 'Compact (Dense Data)'}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center bg-[var(--color-surface-2)] p-0.5 rounded-full border border-[var(--color-border-strong)] shrink-0">
-                          <button
-                            onClick={() => !isSpacious && setDensity('spacious')}
-                            className={`min-h-[36px] min-w-[44px] px-3 rounded-full text-[11px] font-semibold transition-colors cursor-pointer ${
-                              isSpacious
-                                ? 'bg-[var(--color-primary-pill)] text-[var(--color-primary-pill-text)]'
-                                : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
-                            }`}
-                          >
-                            Spacious
-                          </button>
-                          <button
-                            onClick={() => !isCompact && setDensity('compact')}
-                            className={`min-h-[36px] min-w-[44px] px-3 rounded-full text-[11px] font-semibold transition-colors cursor-pointer ${
-                              isCompact
-                                ? 'bg-[var(--color-primary-pill)] text-[var(--color-primary-pill-text)]'
-                                : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
-                            }`}
-                          >
-                            Compact
-                          </button>
-                        </div>
+                    {/* Density */}
+                    <div className="flex items-center justify-between gap-3 flex-1 min-w-0">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Sliders size={16} className="text-[var(--color-muted)] shrink-0" />
+                        <span className="text-[12px] font-bold text-[var(--color-foreground)] truncate font-sans">
+                          Density
+                        </span>
+                      </div>
+                      <div className="flex items-center bg-[var(--color-surface-2)] p-0.5 rounded-full border border-[var(--color-border-strong)] shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => !isSpacious && setDensity('spacious')}
+                          aria-label="Spacious touch density"
+                          className={`min-h-[44px] min-w-[54px] px-3.5 rounded-full text-[11px] font-semibold transition-colors cursor-pointer flex items-center justify-center ${
+                            isSpacious
+                              ? 'bg-[var(--color-primary-pill)] text-[var(--color-primary-pill-text)]'
+                              : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
+                          }`}
+                        >
+                          Spacious
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => !isCompact && setDensity('compact')}
+                          aria-label="Compact data density"
+                          className={`min-h-[44px] min-w-[54px] px-3.5 rounded-full text-[11px] font-semibold transition-colors cursor-pointer flex items-center justify-center ${
+                            isCompact
+                              ? 'bg-[var(--color-primary-pill)] text-[var(--color-primary-pill-text)]'
+                              : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
+                          }`}
+                        >
+                          Compact
+                        </button>
                       </div>
                     </div>
                   </div>
 
                   {/* 6 Structured Groups */}
-                  <div className="space-y-3">
+                  <div className="space-y-2.5">
                     <div className="text-[9px] font-mono text-[var(--color-muted)] tracking-wider uppercase px-1">
-                      System Categories
+                      Categories
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
                       {accessibleGroups.map((group) => {
                         const Icon = group.icon;
                         return (
                           <button
                             key={group.id}
                             onClick={() => selectGroup(group.id)}
-                            className="ehi-card p-4 flex items-center justify-between gap-3 text-left hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer group min-h-[72px]"
+                            className="ehi-card p-3.5 flex items-center justify-between gap-3 text-left hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer group min-h-[64px]"
                           >
-                            <div className="flex items-center gap-3.5 min-w-0">
-                              <div className="w-10 h-10 rounded-xl bg-[var(--color-surface-2)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-foreground)] shrink-0 group-hover:border-[var(--color-border-strong)] transition-colors">
-                                <Icon size={20} />
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="w-9 h-9 rounded-xl bg-[var(--color-surface-2)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-foreground)] shrink-0 group-hover:border-[var(--color-border-strong)] transition-colors">
+                                <Icon size={18} />
                               </div>
                               <div className="min-w-0">
-                                <div className="text-[14px] font-bold text-[var(--color-foreground)] font-sans truncate">
+                                <div className="text-[13px] font-bold text-[var(--color-foreground)] font-sans truncate">
                                   {group.title}
                                 </div>
                                 <div className="text-[11px] font-mono text-[var(--color-muted)] line-clamp-1 mt-0.5">
@@ -959,8 +955,8 @@ export const More = ({
                               </div>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
-                              <span className="text-[11px] font-mono px-2.5 py-1 rounded-full bg-[var(--color-surface-2)] text-[var(--color-foreground)] border border-[var(--color-border)] font-semibold">
-                                {group.count} {group.count === 1 ? 'tool' : 'tools'}
+                              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[var(--color-surface-2)] text-[var(--color-foreground)] border border-[var(--color-border)] font-semibold">
+                                {group.count}
                               </span>
                               <ChevronRight size={16} className="text-[var(--color-muted)]" />
                             </div>
@@ -970,21 +966,10 @@ export const More = ({
                     </div>
                   </div>
 
-                  {/* Clean Sign Out Action */}
-                  <button
-                    onClick={onLogout}
-                    className="ehi-card w-full flex items-center gap-3 py-3.5 px-4 cursor-pointer group text-left hover:bg-[var(--color-surface-hover)] transition-colors min-h-[52px]"
-                  >
-                    <SignOutIcon size={18} className="text-[var(--color-error)] shrink-0" />
-                    <div className="text-left flex-1 min-w-0">
-                      <div className="text-[13px] font-bold font-sans text-[var(--color-error)]">
-                        Sign Out
-                      </div>
-                      <div className="text-[10px] font-mono text-[var(--color-muted)] truncate opacity-80">
-                        {user.name} &middot; {user.hub}
-                      </div>
-                    </div>
-                  </button>
+                  {/* Quiet Session Footer */}
+                  <div className="pt-2 pb-1 text-center text-[10px] font-mono text-[var(--color-muted)] opacity-60">
+                    Terminal &middot; {user.hub} &middot; {user.name} ({user.role})
+                  </div>
                 </div>
               )}
             </div>
