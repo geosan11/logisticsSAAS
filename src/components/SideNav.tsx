@@ -7,7 +7,7 @@ import {
   QrCode,
   ArrowDownToLine,
   ArrowUpToLine,
-  MoreHorizontal,
+  Settings,
   Truck,
   LogOut,
   Radar,
@@ -46,7 +46,7 @@ const VIEW_ICON: Record<string, any> = {
   Incoming: ArrowDownToLine,
   OutboundArrivals: ArrowUpToLine,
   MyTrips: Truck,
-  More: MoreHorizontal,
+  More: Settings,
 };
 
 const VIEW_LABEL: Record<string, string> = {
@@ -60,7 +60,7 @@ const VIEW_LABEL: Record<string, string> = {
   OutboundArrivals: "Outbound Arrivals",
   MyTrips: "My Trips",
   Scan: "QR Scanner",
-  More: "More",
+  More: "Settings",
 };
 
 const VIEW_COMPACT_LABEL: Record<string, string> = {
@@ -74,7 +74,7 @@ const VIEW_COMPACT_LABEL: Record<string, string> = {
   OutboundArrivals: "Outbound",
   MyTrips: "My Trips",
   Scan: "Scanner",
-  More: "More",
+  More: "Settings",
 };
 
 export const SideNav = ({

@@ -1,8 +1,6 @@
 import {
   WifiOff,
   LogOut,
-  Sun,
-  Moon,
   ChevronDown,
   RefreshCw,
   Building2,
@@ -27,8 +25,8 @@ export const Header = ({
   pendingCount,
   onToggleWifi,
   onLogout,
-  theme,
-  onToggleTheme,
+  theme: _theme,
+  onToggleTheme: _onToggleTheme,
   onManualSync,
   stateWideView,
   onToggleStateWideView,
@@ -40,8 +38,8 @@ export const Header = ({
   pendingCount: number;
   onToggleWifi: () => void;
   onLogout: () => void;
-  theme: Theme;
-  onToggleTheme: () => void;
+  theme?: Theme;
+  onToggleTheme?: () => void;
   onManualSync?: () => void;
   stateWideView?: boolean;
   onToggleStateWideView?: () => void;
@@ -220,21 +218,6 @@ export const Header = ({
             </span>
           </button>
 
-          {/* Theme Toggle — Desktop direct button (also inside User Menu on mobile) */}
-          <button
-            type="button"
-            onClick={onToggleTheme}
-            className="hidden sm:flex min-w-[44px] min-h-[44px] rounded-full items-center justify-center bg-transparent hover:bg-[var(--color-surface-hover)] text-[var(--color-muted)] hover:text-[var(--color-foreground)] transition-colors cursor-pointer shrink-0"
-            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-            aria-label={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-          >
-            {theme === 'dark' ? (
-              <Sun size={15} strokeWidth={2} className="transition-transform duration-200 hover:rotate-45" />
-            ) : (
-              <Moon size={15} strokeWidth={2} className="transition-transform duration-200 hover:-rotate-12" />
-            )}
-          </button>
-
           {/* User Profile Button & Dropdown */}
           <div className="relative shrink-0">
             <button
@@ -303,33 +286,6 @@ export const Header = ({
                       {getRoleDisplay(user.role)} · {getHubCode(user.hub)}
                     </div>
                   </div>
-
-                  {/* Theme Switcher inside User Menu */}
-                  <button
-                    onClick={() => { onToggleTheme(); setShowDropdown(false); }}
-                    className="group hover:bg-[var(--color-surface-hover)] transition-colors"
-                    style={{
-                      width: '100%', padding: '10px 14px',
-                      background: 'transparent', border: 'none',
-                      borderBottom: '1px solid var(--color-border)',
-                      display: 'flex', alignItems: 'center', gap: 10,
-                      cursor: 'pointer', textAlign: 'left',
-                    }}
-                  >
-                    {theme === 'dark' ? (
-                      <Sun size={15} className="text-[var(--color-muted)] group-hover:text-[var(--color-foreground)] shrink-0" />
-                    ) : (
-                      <Moon size={15} className="text-[var(--color-muted)] group-hover:text-[var(--color-foreground)] shrink-0" />
-                    )}
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-foreground)' }}>
-                        {theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-                      </div>
-                      <div style={{ fontSize: 10, color: 'var(--color-muted)', marginTop: 1 }}>
-                        Currently using {theme} theme
-                      </div>
-                    </div>
-                  </button>
 
                   {onToggleStateWideView && (
                     <button

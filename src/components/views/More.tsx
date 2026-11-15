@@ -259,10 +259,10 @@ export const More = ({
   // Hand-off state between ContentTypes -> SpecialGoodsRates
   const [specialGoodsPreset, setSpecialGoodsPreset] = useState<string | undefined>(undefined);
 
-  // Accessible settings filtered by user role and active logistics mode
+  // Accessible settings filtered by user role permissions
   const accessibleItems = useMemo(
-    () => getAccessibleSettings(SETTING_ITEMS, user, excessBaggageAirlines, mode),
-    [user, excessBaggageAirlines, mode]
+    () => getAccessibleSettings(SETTING_ITEMS, user, excessBaggageAirlines),
+    [user, excessBaggageAirlines]
   );
 
   // Accessible groups with item count tallies
@@ -635,7 +635,7 @@ export const More = ({
                       setSearchQuery('');
                     }
                   }}
-                  placeholder="Search settings, tariffs, tools..."
+                  placeholder="Search settings..."
                   className="w-full min-h-[44px] pl-10 pr-10 rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border)] text-[var(--color-foreground)] placeholder-[var(--color-muted)] text-[14px] sm:text-[13px] font-sans focus:outline-none focus:border-[var(--color-border-strong)] transition-colors shadow-sm"
                 />
                 {searchQuery && (
@@ -665,7 +665,7 @@ export const More = ({
                         No settings found
                       </div>
                       <div className="text-[12px] font-mono text-[var(--color-muted)]">
-                        No tools match "{searchQuery}". Try keywords like tariff, ledger, wallet, or staff.
+                        No settings match "{searchQuery}"
                       </div>
                     </div>
                   ) : (
@@ -686,11 +686,6 @@ export const More = ({
                                 <span className="text-[13px] font-bold text-[var(--color-foreground)] truncate">
                                   {item.title}
                                 </span>
-                                {item.badge && (
-                                  <span className="text-[9px] font-mono bg-[var(--color-surface-2)] text-[var(--color-muted)] px-1.5 py-0.5 rounded uppercase font-bold shrink-0">
-                                    {item.badge}
-                                  </span>
-                                )}
                                 {item.level === 'advanced' && (
                                   <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-[var(--color-surface-2)] text-[var(--color-muted)] border border-[var(--color-border)] shrink-0">
                                     Advanced
@@ -735,7 +730,7 @@ export const More = ({
                       </div>
                     </div>
                     <span className="text-[11px] font-mono text-[var(--color-muted)] shrink-0">
-                      {currentGroupItems.primary.length + currentGroupItems.advanced.length} tools
+                      {currentGroupItems.primary.length + currentGroupItems.advanced.length}
                     </span>
                   </div>
 
@@ -744,42 +739,30 @@ export const More = ({
                   </p>
 
                   {/* Primary Items List */}
-                  <div className="space-y-1.5">
-                    <div className="text-[9px] font-mono text-[var(--color-muted)] tracking-wider uppercase px-1">
-                      Primary
-                    </div>
-                    <div className="ehi-card divide-y divide-[var(--color-border)] overflow-hidden">
-                      {currentGroupItems.primary.map((item) => {
-                        const Icon = item.icon;
-                        return (
-                          <button
-                            key={item.id}
-                            onClick={() => handleItemClick(item)}
-                            className="w-full flex items-center gap-3.5 py-3 px-4 text-left hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer group min-h-[50px]"
-                          >
-                            <div className="w-8 h-8 rounded-lg bg-[var(--color-surface-2)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-muted)] group-hover:text-[var(--color-foreground)] shrink-0 transition-colors">
-                              <Icon size={16} />
+                  <div className="ehi-card divide-y divide-[var(--color-border)] overflow-hidden">
+                    {currentGroupItems.primary.map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => handleItemClick(item)}
+                          className="w-full flex items-center gap-3.5 py-3 px-4 text-left hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer group min-h-[50px]"
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-[var(--color-surface-2)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-muted)] group-hover:text-[var(--color-foreground)] shrink-0 transition-colors">
+                            <Icon size={16} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <span className="text-[13px] font-bold text-[var(--color-foreground)] truncate block">
+                              {item.title}
+                            </span>
+                            <div className="text-[11px] font-mono text-[var(--color-muted)] truncate mt-0.5">
+                              {item.subtitle}
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="text-[13px] font-bold text-[var(--color-foreground)] truncate">
-                                  {item.title}
-                                </span>
-                                {item.badge && (
-                                  <span className="text-[9px] font-mono bg-[var(--color-surface-2)] text-[var(--color-muted)] px-1.5 py-0.5 rounded uppercase font-bold shrink-0">
-                                    {item.badge}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="text-[11px] font-mono text-[var(--color-muted)] truncate mt-0.5">
-                                {item.subtitle}
-                              </div>
-                            </div>
-                            <ChevronRight size={16} className="text-[var(--color-muted)] shrink-0" />
-                          </button>
-                        );
-                      })}
-                    </div>
+                          </div>
+                          <ChevronRight size={16} className="text-[var(--color-muted)] shrink-0" />
+                        </button>
+                      );
+                    })}
                   </div>
 
                   {/* Advanced Disclosure Inside Group */}
@@ -819,16 +802,9 @@ export const More = ({
                                   <Icon size={16} />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-[13px] font-bold text-[var(--color-foreground)] truncate">
-                                      {item.title}
-                                    </span>
-                                    {item.badge && (
-                                      <span className="text-[9px] font-mono bg-[var(--color-surface-2)] text-[var(--color-muted)] px-1.5 py-0.5 rounded uppercase font-bold shrink-0">
-                                        {item.badge}
-                                      </span>
-                                    )}
-                                  </div>
+                                  <span className="text-[13px] font-bold text-[var(--color-foreground)] truncate block">
+                                    {item.title}
+                                  </span>
                                   <div className="text-[11px] font-mono text-[var(--color-muted)] truncate mt-0.5">
                                     {item.subtitle}
                                   </div>
@@ -927,43 +903,37 @@ export const More = ({
                   </div>
 
                   {/* 6 Structured Groups */}
-                  <div className="space-y-2.5">
-                    <div className="text-[9px] font-mono text-[var(--color-muted)] tracking-wider uppercase px-1">
-                      Categories
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-                      {accessibleGroups.map((group) => {
-                        const Icon = group.icon;
-                        return (
-                          <button
-                            key={group.id}
-                            onClick={() => selectGroup(group.id)}
-                            className="ehi-card p-3.5 flex items-center justify-between gap-3 text-left hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer group min-h-[64px]"
-                          >
-                            <div className="flex items-center gap-3 min-w-0">
-                              <div className="w-9 h-9 rounded-xl bg-[var(--color-surface-2)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-foreground)] shrink-0 group-hover:border-[var(--color-border-strong)] transition-colors">
-                                <Icon size={18} />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                    {accessibleGroups.map((group) => {
+                      const Icon = group.icon;
+                      return (
+                        <button
+                          key={group.id}
+                          onClick={() => selectGroup(group.id)}
+                          className="ehi-card p-3.5 flex items-center justify-between gap-3 text-left hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer group min-h-[64px]"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-9 h-9 rounded-xl bg-[var(--color-surface-2)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-foreground)] shrink-0 group-hover:border-[var(--color-border-strong)] transition-colors">
+                              <Icon size={18} />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-[13px] font-bold text-[var(--color-foreground)] font-sans truncate">
+                                {group.title}
                               </div>
-                              <div className="min-w-0">
-                                <div className="text-[13px] font-bold text-[var(--color-foreground)] font-sans truncate">
-                                  {group.title}
-                                </div>
-                                <div className="text-[11px] font-mono text-[var(--color-muted)] line-clamp-1 mt-0.5">
-                                  {group.description}
-                                </div>
+                              <div className="text-[11px] font-mono text-[var(--color-muted)] mt-0.5">
+                                {group.description}
                               </div>
                             </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[var(--color-surface-2)] text-[var(--color-foreground)] border border-[var(--color-border)] font-semibold">
-                                {group.count}
-                              </span>
-                              <ChevronRight size={16} className="text-[var(--color-muted)]" />
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[var(--color-surface-2)] text-[var(--color-foreground)] border border-[var(--color-border)] font-semibold">
+                              {group.count}
+                            </span>
+                            <ChevronRight size={16} className="text-[var(--color-muted)]" />
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
 
                   {/* Quiet Session Footer */}

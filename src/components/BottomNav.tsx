@@ -5,7 +5,7 @@ import {
   Package,
   Plane,
   QrCode,
-  MoreHorizontal,
+  Settings,
   Truck,
   Building,
   Radar,
@@ -26,7 +26,7 @@ const VIEW_ICON: Record<string, any> = {
   Incoming: ArrowDownToLine,
   OutboundArrivals: ArrowUpToLine,
   MyTrips: Truck,
-  More: MoreHorizontal,
+  More: Settings,
   GAT: Building,
 };
 
@@ -41,7 +41,7 @@ const VIEW_TITLE: Record<string, string> = {
   Incoming: 'Incoming',
   OutboundArrivals: 'Outbound',
   MyTrips: 'My Trips',
-  More: 'More',
+  More: 'Settings',
   GAT: 'GAT',
 };
 
@@ -69,12 +69,12 @@ export const BottomNav = ({
         return {
           id: id as TabView,
           title: isBaggage ? id.slice('Baggage:'.length) : (VIEW_TITLE[id] || id),
-          icon: isBaggage ? Plane : (VIEW_ICON[id] || MoreHorizontal),
+          icon: isBaggage ? Plane : (VIEW_ICON[id] || Settings),
         };
       });
 
     const finalTabs = overrideTabs.length > 5
-      ? [...overrideTabs.slice(0, 4), { id: 'More' as TabView, title: 'More', icon: MoreHorizontal }]
+      ? [...overrideTabs.slice(0, 4), { id: 'More' as TabView, title: 'Settings', icon: Settings }]
       : overrideTabs;
     return <BottomNavTabs tabs={finalTabs} currentTab={currentTab} onChangeTab={onChangeTab} />;
   }
@@ -89,7 +89,7 @@ export const BottomNav = ({
   const dispatch: NavTab = { id: 'Dispatch', title: 'Dispatch', icon: Truck };
   const trips: NavTab = { id: 'MyTrips', title: 'My Trips', icon: Truck };
   const scan: NavTab = { id: 'Scan', title: 'Scanner', icon: QrCode };
-  const more: NavTab = { id: 'More', title: 'More', icon: MoreHorizontal };
+  const more: NavTab = { id: 'More', title: 'Settings', icon: Settings };
 
   const baggageTabId = allowedTabs.find((id) => id.startsWith('Baggage:'));
   const baggageTab: NavTab | undefined = baggageTabId
