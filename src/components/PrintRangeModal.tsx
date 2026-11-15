@@ -95,9 +95,9 @@ export const PrintRangeModal = ({
             type="button"
             onClick={() => handleAction(onCancel)}
             aria-label="Close"
-            className="p-1.5 text-[var(--color-muted)] hover:text-[var(--color-foreground)] rounded-lg transition-colors cursor-pointer"
+            className="min-w-[44px] min-h-[44px] w-11 h-11 -mr-2 flex items-center justify-center text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)] rounded-full transition-colors cursor-pointer"
           >
-            <X size={16} />
+            <X size={17} />
           </button>
         </div>
 

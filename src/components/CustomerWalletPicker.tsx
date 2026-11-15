@@ -137,7 +137,7 @@ export const CustomerWalletPicker: React.FC<CustomerWalletPickerProps> = ({
                 type="button"
                 onClick={closeModal}
                 aria-label="Close"
-                className="p-1.5 text-[var(--color-muted)] hover:text-[var(--color-foreground)] rounded-lg cursor-pointer transition-colors"
+                className="min-w-[44px] min-h-[44px] w-11 h-11 -mr-2 flex items-center justify-center text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)] rounded-full cursor-pointer transition-colors"
               >
                 <X size={17} />
               </button>

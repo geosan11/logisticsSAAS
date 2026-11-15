@@ -2064,6 +2064,12 @@ export const CargoForm = ({
   const formInputClass =
     "w-full min-h-[44px] h-11 px-3.5 text-[14px] rounded-xl bg-[var(--color-surface-1)] text-[var(--color-foreground)] border border-[var(--color-border)] font-sans focus:outline-none focus:border-[var(--color-border-strong)] transition-colors placeholder:text-[var(--color-muted)]";
 
+  const cardPadClass = isCompact
+    ? "p-3.5 space-y-3"
+    : "p-4 sm:p-5 space-y-4";
+  const spaceYClass = isCompact ? "space-y-3" : "space-y-4";
+  const gapClass = isCompact ? "gap-2.5" : "gap-3";
+
   const renderLabel = (icon: any, text: string) => {
     const Icon = icon;
     return (
@@ -2456,23 +2462,23 @@ export const CargoForm = ({
       {/* UNIFIED QUIET HEADER TOOLBAR */}
       <div className="px-4 pt-3 pb-3 border-b border-[var(--color-border)] mb-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="min-w-0">
+          <div className="min-w-0 shrink">
             <h1 className="text-[20px] font-sans font-semibold tracking-tight text-[var(--color-foreground)] leading-tight">
               Air cargo
             </h1>
-            <p className="text-[12px] font-sans text-[var(--color-muted)] mt-0.5">
+            <p className="text-[12px] font-sans text-[var(--color-muted)] mt-0.5 truncate max-w-xs md:max-w-md">
               Log shipments, track air waybills, and manage terminal dispatches
             </p>
           </div>
 
-          <div className="flex items-center flex-wrap gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap sm:flex-nowrap shrink-0">
             {isAdmin && (
-              <div className="flex items-center gap-1.5 px-3 min-h-[44px] h-11 bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-full">
+              <div className="flex items-center gap-1.5 px-2.5 min-h-[44px] h-11 bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-full shrink-0">
                 <span className="text-[11px] font-sans text-[var(--color-muted)]">Hub</span>
                 <select
                   value={adminSelectedHubId}
                   onChange={(e) => setAdminSelectedHubId(e.target.value)}
-                  className="bg-transparent text-[var(--color-foreground)] font-sans font-medium text-[12px] focus:outline-none cursor-pointer"
+                  className="bg-transparent text-[var(--color-foreground)] font-sans font-medium text-[12px] focus:outline-none cursor-pointer max-w-[125px] truncate"
                 >
                   {hubList.map(h => <option key={h.id} value={h.id}>{h.code}/{h.name}</option>)}
                 </select>
@@ -2486,7 +2492,7 @@ export const CargoForm = ({
             <button
               type="button"
               onClick={() => setShowSalesAnalysis(true)}
-              className="flex items-center gap-1.5 min-h-[44px] h-11 px-3.5 bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-full text-[13px] font-sans font-medium text-[var(--color-foreground)] hover:bg-[var(--color-surface-2)] transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 min-h-[44px] h-11 px-3 bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-full text-[13px] font-sans font-medium text-[var(--color-foreground)] hover:bg-[var(--color-surface-2)] transition-colors cursor-pointer shrink-0"
             >
               <BarChart2 size={15} className="text-[var(--color-muted)]" />
               <span>Sales analysis</span>
@@ -2495,7 +2501,7 @@ export const CargoForm = ({
             <button
               type="button"
               onClick={() => setShowCloseModal(true)}
-              className="flex items-center gap-1.5 min-h-[44px] h-11 px-3.5 bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-full text-[13px] font-sans font-medium text-[var(--color-foreground)] hover:bg-[var(--color-surface-2)] transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 min-h-[44px] h-11 px-3 bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-full text-[13px] font-sans font-medium text-[var(--color-foreground)] hover:bg-[var(--color-surface-2)] transition-colors cursor-pointer shrink-0"
             >
               <Lock size={15} className="text-[var(--color-muted)]" />
               <span>Close period</span>
@@ -2505,11 +2511,11 @@ export const CargoForm = ({
 
         {/* PORTAL SWITCHER: CALM SEGMENTED CONTROL */}
         <div className="mt-3 flex justify-center">
-          <div className="inline-flex p-1 rounded-full bg-[var(--color-surface-2)] border border-[var(--color-border)] w-full max-w-md">
+          <div className="inline-flex p-1 rounded-full bg-[var(--color-surface-2)] border border-[var(--color-border)] w-full max-w-md min-h-[50px] items-center">
             <button
               type="button"
               onClick={() => setActivePortal("retail")}
-              className={`flex-1 flex items-center justify-center gap-2 min-h-[40px] h-10 text-[13px] font-sans font-medium rounded-full transition-all cursor-pointer ${
+              className={`flex-1 flex items-center justify-center gap-2 min-h-[44px] h-11 text-[13px] font-sans font-medium rounded-full transition-all cursor-pointer ${
                 activePortal === "retail"
                   ? "bg-[var(--color-surface-1)] text-[var(--color-foreground)] shadow-xs"
                   : "text-[var(--color-muted)] hover:text-[var(--color-foreground)]"
@@ -2521,7 +2527,7 @@ export const CargoForm = ({
             <button
               type="button"
               onClick={() => setActivePortal("corporate")}
-              className={`flex-1 flex items-center justify-center gap-2 min-h-[40px] h-10 text-[13px] font-sans font-medium rounded-full transition-all cursor-pointer relative ${
+              className={`flex-1 flex items-center justify-center gap-2 min-h-[44px] h-11 text-[13px] font-sans font-medium rounded-full transition-all cursor-pointer relative ${
                 activePortal === "corporate"
                   ? "bg-[var(--color-surface-1)] text-[var(--color-foreground)] shadow-xs"
                   : "text-[var(--color-muted)] hover:text-[var(--color-foreground)]"
@@ -2563,14 +2569,6 @@ export const CargoForm = ({
                     <span>History</span>
                   </button>
                 )}
-                <button
-                  type="button"
-                  onClick={() => window.dispatchEvent(new CustomEvent('ehi-nav', { detail: 'FlightRadar' }))}
-                  className="flex items-center gap-1.5 min-h-[44px] h-11 px-3.5 bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-full text-[13px] font-sans font-medium text-[var(--color-foreground)] hover:bg-[var(--color-surface-2)] transition-colors cursor-pointer"
-                >
-                  <Radar size={14} className="text-[var(--color-muted)]" />
-                  <span>Flight radar</span>
-                </button>
               </div>
             </div>
 
@@ -2592,9 +2590,9 @@ export const CargoForm = ({
               </div>
             )}
 
-            <div className="space-y-4">
+            <div className={spaceYClass}>
               {/* GROUP 1: CONSIGNMENT & ROUTING */}
-              <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] p-4 sm:p-5 space-y-4">
+              <div className={`rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] ${cardPadClass}`}>
                 <div className="border-b border-[var(--color-border)] pb-2.5">
                   <h3 className="text-[14px] font-sans font-semibold text-[var(--color-foreground)]">
                     Consignment &amp; routing
@@ -2822,7 +2820,7 @@ export const CargoForm = ({
               </div>
 
               {/* GROUP 2: SHIPMENT WEIGHT & CONTENT */}
-              <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] p-4 sm:p-5 space-y-4">
+              <div className={`rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] ${cardPadClass}`}>
                 <div className="border-b border-[var(--color-border)] pb-2.5">
                   <h3 className="text-[14px] font-sans font-semibold text-[var(--color-foreground)]">
                     Shipment weight &amp; content
@@ -2848,7 +2846,7 @@ export const CargoForm = ({
                       <button
                         type="button"
                         onClick={() => setShowDims(!showDims)}
-                        className="text-[11px] font-sans text-[var(--color-muted)] hover:text-[var(--color-foreground)] cursor-pointer underline"
+                        className="min-h-[32px] px-2.5 py-1 text-[11px] font-sans font-medium text-[var(--color-muted)] hover:text-[var(--color-foreground)] bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg transition-colors cursor-pointer flex items-center gap-1"
                       >
                         {showDims ? "Hide dimensions" : "+ Dimensions (cm)"}
                       </button>
@@ -2956,7 +2954,7 @@ export const CargoForm = ({
               </div>
 
               {/* GROUP 3: PAYMENT DETAILS */}
-              <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] p-4 sm:p-5 space-y-4">
+              <div className={`rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] ${cardPadClass}`}>
                 <div className="border-b border-[var(--color-border)] pb-2.5">
                   <h3 className="text-[14px] font-sans font-semibold text-[var(--color-foreground)]">
                     Payment details
@@ -3166,7 +3164,7 @@ export const CargoForm = ({
 
           {/* DESKTOP ASIDE SUMMARY CARD */}
           <aside className="ehi-desktop-only">
-            <div className="sticky top-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] p-5 shadow-xs space-y-4">
+            <div className={`sticky top-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] shadow-xs ${isCompact ? 'p-4 space-y-3' : 'p-5 space-y-4'}`}>
               <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-2.5">
                 <span className="text-[12px] font-sans font-semibold text-[var(--color-foreground)]">
                   Entry summary
@@ -3450,10 +3448,11 @@ export const CargoForm = ({
                                 e.stopPropagation();
                                 handleDeletePendingIntake(pi);
                               }}
-                              className="min-h-[36px] min-w-[36px] flex items-center justify-center text-[var(--color-muted)] hover:text-[var(--color-error)] transition-colors rounded-lg"
+                              className="min-h-[44px] min-w-[44px] w-11 h-11 flex items-center justify-center text-[var(--color-muted)] hover:text-[var(--color-error)] hover:bg-[var(--color-surface-hover)] transition-colors rounded-full cursor-pointer"
                               title="Delete pending intake"
+                              aria-label="Delete pending intake"
                             >
-                              <Trash2 size={14} />
+                              <Trash2 size={15} />
                             </button>
                           </div>
                         </div>
@@ -3559,10 +3558,11 @@ export const CargoForm = ({
                                   e.stopPropagation();
                                   handleDeletePendingIntake(pi);
                                 }}
-                                className="min-h-[36px] min-w-[36px] flex items-center justify-center text-[var(--color-muted)] hover:text-[var(--color-error)] transition-colors rounded-lg"
+                                className="min-h-[44px] min-w-[44px] w-11 h-11 flex items-center justify-center text-[var(--color-muted)] hover:text-[var(--color-error)] hover:bg-[var(--color-surface-hover)] transition-colors rounded-full cursor-pointer"
                                 title="Delete pending intake"
+                                aria-label="Delete pending intake"
                               >
-                                <Trash2 size={14} />
+                                <Trash2 size={15} />
                               </button>
                               <ArrowRight
                                 size={15}
@@ -3768,7 +3768,8 @@ export const CargoForm = ({
               <button
                 type="button"
                 onClick={() => setShowCloseModal(false)}
-                className="min-h-[36px] min-w-[36px] flex items-center justify-center hover:bg-[var(--color-surface-2)] rounded-full text-[var(--color-muted)] transition-colors cursor-pointer"
+                aria-label="Close"
+                className="min-h-[44px] min-w-[44px] w-11 h-11 -mr-2 flex items-center justify-center hover:bg-[var(--color-surface-hover)] rounded-full text-[var(--color-muted)] hover:text-[var(--color-foreground)] transition-colors cursor-pointer"
               >
                 <X size={18} />
               </button>

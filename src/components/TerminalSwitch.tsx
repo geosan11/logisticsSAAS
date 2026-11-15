@@ -42,16 +42,16 @@ export function usePersistedTerminal(forceValue?: Terminal): [Terminal, (t: Term
   return [terminal, setTerminal];
 }
 
-// Compact MMA2/GAT segmented control, Grok monochrome style with 44px tap targets.
+// Compact MMA2/GAT segmented control, Grok monochrome style with exact 44px toolbar alignment.
 export const TerminalSwitch = ({ value, onChange }: { value: Terminal; onChange: (t: Terminal) => void }) => (
-  <div className="flex items-center p-1 bg-[var(--color-surface-1)] rounded-xl border border-[var(--color-border)] shrink-0">
+  <div className="flex items-center p-0.5 min-h-[44px] h-11 bg-[var(--color-surface-1)] rounded-full border border-[var(--color-border)] shrink-0">
     {(['MMA2', 'GAT'] as const).map(t => (
       <button
         key={t}
         type="button"
         onClick={() => onChange(t)}
         aria-pressed={value === t}
-        className={`min-h-[44px] h-11 px-3.5 text-[12px] font-sans font-medium rounded-lg transition-colors cursor-pointer select-none ${
+        className={`min-h-[38px] h-full px-3 text-[12px] font-sans font-medium rounded-full transition-colors cursor-pointer select-none flex items-center justify-center ${
           value === t
             ? 'bg-[var(--color-surface-3)] text-[var(--color-foreground)] font-semibold border border-[var(--color-border-strong)] shadow-xs'
             : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)]'

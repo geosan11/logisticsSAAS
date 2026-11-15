@@ -245,7 +245,7 @@ export const DepartmentSalesAnalysisModal = ({ user, deptType, deptLabel, routeL
             <BarChart2 size={16} className="text-[var(--color-muted)]" />
             <h3 className="text-[15px] font-semibold font-sans text-[var(--color-foreground)]">{deptLabel} sales analysis</h3>
           </div>
-          <button onClick={handleClose} aria-label="Close" className="p-1.5 hover:bg-[var(--color-surface-hover)] rounded-lg text-[var(--color-muted)] transition-colors cursor-pointer">
+          <button onClick={handleClose} aria-label="Close" className="min-w-[44px] min-h-[44px] w-11 h-11 -mr-2 flex items-center justify-center hover:bg-[var(--color-surface-hover)] rounded-full text-[var(--color-muted)] hover:text-[var(--color-foreground)] transition-colors cursor-pointer">
             <X size={17} />
           </button>
         </div>

@@ -77,9 +77,9 @@ export const ReviewEntryModal: React.FC<ReviewEntryModalProps> = ({
             onClick={() => handleClose(onCancel)}
             disabled={isSubmitting}
             aria-label="Close"
-            className="p-1.5 hover:bg-[var(--color-surface-hover)] rounded-lg text-[var(--color-muted)] hover:text-[var(--color-foreground)] transition-colors cursor-pointer"
+            className="min-w-[44px] min-h-[44px] w-11 h-11 -mr-2 flex items-center justify-center hover:bg-[var(--color-surface-hover)] rounded-full text-[var(--color-muted)] hover:text-[var(--color-foreground)] transition-colors cursor-pointer"
           >
-            <X size={16} />
+            <X size={17} />
           </button>
         </div>
 
