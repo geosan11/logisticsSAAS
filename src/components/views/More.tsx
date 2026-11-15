@@ -57,7 +57,6 @@ const SupportTickets = lazy(() => import('./SupportTickets').then((m) => ({ defa
 const PricingConfiguration = lazy(() => import('./PricingConfiguration').then((m) => ({ default: m.PricingConfiguration })));
 const HubCargoRates = lazy(() => import('./HubCargoRates').then((m) => ({ default: m.HubCargoRates })));
 const AirlineCommissions = lazy(() => import('./AirlineCommissions').then((m) => ({ default: m.AirlineCommissions })));
-const ExcessBaggageAirlines = lazy(() => import('./ExcessBaggageAirlines').then((m) => ({ default: m.ExcessBaggageAirlines })));
 const CorporateBilling = lazy(() => import('./CorporateBilling').then((m) => ({ default: m.CorporateBilling })));
 const OfficeWorkReconciliation = lazy(() => import('./OfficeWorkReconciliation').then((m) => ({ default: m.OfficeWorkReconciliation })));
 const ContentTypes = lazy(() => import('./ContentTypes').then((m) => ({ default: m.ContentTypes })));
@@ -79,7 +78,6 @@ export const MORE_SUB_ROUTES = {
   accounting: 'accounting',
   reports: 'reports',
   settings: 'settings',
-  excessBaggageAirlines: 'excess-baggage-airlines',
   contentTypes: 'content-types',
   expenseCategories: 'expense-categories',
   banks: 'banks',
@@ -124,7 +122,7 @@ export interface MoreProps {
   onChangeTab: (t: TabView) => void;
   dateRange?: { start: string; end: string };
   onDateRangeChange?: (range: { start: string; end: string }) => void;
-  excessBaggageAirlines: ExcessBaggageAirline[];
+  excessBaggageAirlines?: ExcessBaggageAirline[];
   activeShift?: HubShift | null;
   todayShifts?: HubShift[];
   onStartShift?: () => void;
@@ -492,10 +490,6 @@ export const More = ({
       return { key: 'hubCargoRates', element: <HubCargoRates user={user} onBack={closeSub} /> };
     }
 
-    if (activeSub === 'excessBaggageAirlines') {
-      return { key: 'excessBaggageAirlines', element: <ExcessBaggageAirlines onBack={closeSub} /> };
-    }
-
     if (activeSub === 'contentTypes') {
       return {
         key: 'contentTypes',
@@ -554,7 +548,6 @@ export const More = ({
             onOpenConfig={(target) => {
               if (target === 'pricing') openSub('pricing');
               else if (target === 'hubRates') openSub('hubCargoRates');
-              else if (target === 'excessBaggage') openSub('excessBaggageAirlines');
               else if (target === 'contentTypes') openSub('contentTypes');
               else if (target === 'specialGoods') openSub('specialGoodsRates');
               else if (target === 'minimumCharges') openSub('minimumCharges');

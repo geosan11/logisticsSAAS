@@ -318,17 +318,6 @@ export const SETTING_ITEMS: SettingItem[] = [
     permission: 'More:SizeTierRates',
     target: { type: 'sub', subKey: 'sizeTierRates', path: '/more/size-tier-rates' },
   },
-  {
-    id: 'excess-baggage-airlines',
-    groupId: 'pricing',
-    title: 'Excess Baggage Airlines',
-    subtitle: 'Add airlines and set their free allowance / rate per KG',
-    icon: Plane,
-    level: 'advanced',
-    keywords: ['excess', 'baggage', 'airlines', 'allowance', 'luggage', 'kg', 'passenger'],
-    permission: 'More:ExcessBaggageAirlines',
-    target: { type: 'sub', subKey: 'excessBaggageAirlines', path: '/more/excess-baggage-airlines' },
-  },
 
   // 3. Records & Audit
   {

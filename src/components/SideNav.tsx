@@ -84,7 +84,7 @@ export const SideNav = ({
   onLogout,
   theme: _theme,
   onToggleTheme: _onToggleTheme,
-  excessBaggageAirlines,
+  excessBaggageAirlines = [],
   docked = false,
 }: {
   user: User;
@@ -93,7 +93,7 @@ export const SideNav = ({
   onLogout: () => void;
   theme?: Theme;
   onToggleTheme?: () => void;
-  excessBaggageAirlines: ExcessBaggageAirline[];
+  excessBaggageAirlines?: ExcessBaggageAirline[];
   // Full-screen overlays (the Master Ledger's stream view) portal to
   // document.body with their own fixed inset-0 z-50 layer. `docked` renders
   // a second, in-flow instance inside that overlay.
@@ -137,18 +137,6 @@ export const SideNav = ({
   const allowedTabs = getAllowedTabs(user, excessBaggageAirlines, mode);
   const allowedSet = new Set(allowedTabs);
 
-  const baggageEntries = allowedTabs
-    .filter((id) => id.startsWith("Baggage:"))
-    .map((id) => {
-      const airlineName = id.slice("Baggage:".length);
-      return {
-        id,
-        icon: Plane,
-        label: user.role === "baggage_agent" ? airlineName : `${airlineName} POS`,
-        compactLabel: airlineName,
-      };
-    });
-
   const toEntries = (ids: TabView[]) =>
     ids
       .filter((id) => allowedSet.has(id))
@@ -166,7 +154,6 @@ export const SideNav = ({
     ...toEntries(["Tower"]),
     ...(isAir ? toEntries(airPrimary) : []),
     ...(isRoad ? toEntries(roadPrimary) : []),
-    ...baggageEntries,
     ...toEntries(["Incoming", "OutboundArrivals", "MyTrips", "Scan", "More"]),
   ];
 

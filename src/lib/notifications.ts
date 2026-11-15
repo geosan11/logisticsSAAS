@@ -89,43 +89,6 @@ export function buildCargoWhatsApp(data: {
   return text;
 }
 
-export function buildExcessBaggageWhatsApp(airlineName: string, data: {
-  ref: string;
-  passenger: string;
-  flight: string;
-  totalPieces: number;
-  totalKg: number;
-  excessKg: number;
-  amount: number;
-  mode: string;
-  paymentNarration?: string;
-}, freeAllowanceKg: number, ratePerKg: number): string {
-  let text =
-    `✈️ *EHI Multisystems — ${airlineName}*\n` +
-    `━━━━━━━━━━━━━━━━━━━━\n` +
-    `*EXCESS BAGGAGE RECEIPT*\n` +
-    `Ref: \`${data.ref}\`\n\n` +
-    `👤 *Passenger:* ${data.passenger}\n` +
-    `🛫 *Flight:* ${data.flight}\n\n` +
-    `🎒 Total pieces: ${data.totalPieces || 1} pcs\n` +
-    `⚖️ Total weight: ${data.totalKg} kg\n` +
-    `🟢 Free allowance: ${freeAllowanceKg.toFixed(1)} kg\n` +
-    `🔴 Excess charged: ${data.excessKg} kg × ₦${ratePerKg.toLocaleString('en-NG')}\n\n` +
-    `💰 *Amount: NGN ${Number(data.amount).toLocaleString('en-NG')}*\n` +
-    `💳 *Payment:* ${data.mode}\n`;
-
-  if (data.mode === 'Transfer' && data.paymentNarration) {
-    text += `📝 *Narration:* ${data.paymentNarration}\n`;
-  }
-
-  text +=
-    `━━━━━━━━━━━━━━━━━━━━\n` +
-    `Thank you for flying ${airlineName}.\n` +
-    `_EHI Multisystems Nigeria Ltd_`;
-
-  return text;
-}
-
 export function buildMarketingWhatsApp(data: {
   ref: string;
   customer: string;

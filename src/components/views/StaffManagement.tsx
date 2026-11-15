@@ -34,7 +34,6 @@ interface Hub { id: string; name: string; code: string; state: string; }
 
 const ROLES = [
   { value: 'cargo_agent',      label: 'Cargo Agent',      desc: 'Log cargo entries, view own hub' },
-  { value: 'baggage_agent',    label: 'Baggage POS',      desc: 'Excess baggage at terminal counter' },
   { value: 'marketing_agent',  label: 'Marketing Agent',  desc: 'Field marketing entries' },
   { value: 'office_work',      label: 'Office Work',      desc: 'Only cargo and marketing view' },
   { value: 'driver',           label: 'Driver',           desc: 'Trip tracking and delivery logs' },
@@ -139,8 +138,8 @@ export const StaffManagement = ({ user, onBack }: { user: User; onBack: () => vo
     if (form.password.length < 8) {
       setError('Password must be at least 8 characters.'); setSaving(false); return;
     }
-    if (form.role === 'baggage_agent' && !form.assigned_airline) {
-      setError('Select which airline this Baggage POS agent is assigned to.'); setSaving(false); return;
+    if (form.role === 'baggage_agent') {
+      setError('Baggage POS role is no longer assignable.'); setSaving(false); return;
     }
     try {
       const tempPassword = form.password;
@@ -446,15 +445,6 @@ export const StaffManagement = ({ user, onBack }: { user: User; onBack: () => vo
                   ))}
                 </select>
               </div>
-              {form.role === 'baggage_agent' && (
-                <div>
-                  <label htmlFor="staff-create-airline" className="ehi-label">Assigned Airline *</label>
-                  <select id="staff-create-airline" value={form.assigned_airline} onChange={e => setForm(f => ({...f, assigned_airline: e.target.value}))} className="ehi-input">
-                    <option value="">Select airline...</option>
-                    {airlines.map(a => <option key={a.name} value={a.name}>{a.name}</option>)}
-                  </select>
-                </div>
-              )}
               <div>
                 <label htmlFor="staff-create-hub" className="ehi-label">Station / Hub *</label>
                 <select id="staff-create-hub" value={form.hub_id} onChange={e => setForm(f => ({...f, hub_id: e.target.value}))} className="ehi-input">
@@ -533,21 +523,18 @@ export const StaffManagement = ({ user, onBack }: { user: User; onBack: () => vo
                   {ROLES.filter(r => isSuperAdmin || r.value !== 'super_admin').map(r => (
                     <option key={r.value} value={r.value}>{r.label} — {r.desc}</option>
                   ))}
+                  {editingStaff.role === 'baggage_agent' && (
+                    <option value="baggage_agent" disabled>Baggage POS (Deprecated — Unassignable)</option>
+                  )}
                 </select>
               </div>
-              {/* Assigned Airline (baggage_agent only) */}
-              {editingStaff.role === 'baggage_agent' && (
+              {/* Assigned Airline (baggage_agent only, legacy read-only) */}
+              {editingStaff.role === 'baggage_agent' && editingStaff.assigned_airline && (
                 <div>
-                  <label htmlFor="staff-edit-airline" className="ehi-label">Assigned Airline</label>
-                  <select
-                    id="staff-edit-airline"
-                    value={editingStaff.assigned_airline || ''}
-                    onChange={e => setEditingStaff(s => s ? {...s, assigned_airline: e.target.value} : null)}
-                    className="ehi-input"
-                  >
-                    <option value="">Select airline...</option>
-                    {airlines.map(a => <option key={a.name} value={a.name}>{a.name}</option>)}
-                  </select>
+                  <label className="ehi-label">Assigned Airline (Legacy)</label>
+                  <div className="text-[12px] font-mono text-[var(--color-muted)] px-3 py-2 bg-[var(--color-surface-2)] rounded-lg">
+                    {editingStaff.assigned_airline}
+                  </div>
                 </div>
               )}
               {/* Hub (super_admin only) */}

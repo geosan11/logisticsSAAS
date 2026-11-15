@@ -45,7 +45,7 @@ window.addEventListener('unhandledrejection', (event) => {
 // open for days) that was already loaded before a new deploy went out: the
 // hashed chunk filenames baked into the code already running in that tab
 // no longer exist on the server, so import() rejects and every button that
-// lazy-loads a print/report module (e.g. escposBaggagePrinting,
+// lazy-loads a print/report module (e.g. escposCargoReceiptPrinting,
 // escposMarketingPrinting) fails with a "Failed to fetch dynamically
 // imported module" error that has nothing to do with the feature itself.
 // A reload re-fetches the current index.html and gets the right hashes.
