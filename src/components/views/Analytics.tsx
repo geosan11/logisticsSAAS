@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { User, Transaction, Expense } from '../../lib/types';
 import { fmt, getShiftBoundary, sanitizeSpreadsheetRows, lagosBusinessDate } from '../../lib/helpers';
 import { supabase } from '../../lib/supabase';
@@ -47,6 +47,24 @@ export const Analytics = ({
   const [searchQuery, setSearchQuery] = useState('');
   const { showToast } = useToast();
   const { isCompact } = useDensity();
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close export dropdown when clicking outside
+  useEffect(() => {
+    if (!showExportMenu) return;
+    const handleOutsideClick = (e: MouseEvent | TouchEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setShowExportMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('touchstart', handleOutsideClick);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('touchstart', handleOutsideClick);
+    };
+  }, [showExportMenu]);
 
   // Custom Date Range State
   const defaultShift = useMemo(() => {
@@ -438,25 +456,25 @@ export const Analytics = ({
       }`}
     >
       {/* ── 1. Unified Quiet Header & Actions ───────────────────────── */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-[var(--color-border)] pb-3.5">
-        <div>
-          <h2 className="text-[20px] font-semibold font-sans text-[var(--color-foreground)] tracking-tight">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--color-border)] pb-3.5">
+        <div className="min-w-0">
+          <h2 className="text-[20px] font-semibold font-sans text-[var(--color-foreground)] tracking-tight truncate">
             Sales &amp; Collections
           </h2>
-          <p className="text-[12px] text-[var(--color-muted)] mt-0.5 font-sans">
+          <p className="text-[12px] text-[var(--color-muted)] mt-0.5 font-sans truncate">
             Shift summary, collection breakdown, and financial reconciliation
           </p>
         </div>
 
-        {/* Quiet secondary toolbar */}
-        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
+        {/* Quiet secondary toolbar (guaranteed single row) */}
+        <div className="flex items-center gap-2 shrink-0">
           {/* Hub Selector */}
           <div className="relative shrink-0">
             <select
               value={selectedHub}
               onChange={(e) => setSelectedHub(e.target.value)}
               aria-label="Select hub or terminal"
-              className="bg-[var(--color-surface-1)] text-[var(--color-foreground)] text-[12px] font-sans font-medium min-h-[44px] h-11 pl-3.5 pr-8 max-w-[175px] truncate rounded-xl border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-border-strong)] appearance-none cursor-pointer transition-colors"
+              className="bg-[var(--color-surface-1)] text-[var(--color-foreground)] text-[12px] font-sans font-medium min-h-[44px] h-11 pl-3 pr-7 max-w-[160px] truncate rounded-xl border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-border-strong)] appearance-none cursor-pointer transition-colors"
             >
               {activeHubs.map((hub) => (
                 <option key={hub.id} value={hub.id}>
@@ -465,7 +483,7 @@ export const Analytics = ({
               ))}
             </select>
             <ChevronDown
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--color-muted)] pointer-events-none"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--color-muted)] pointer-events-none"
               size={14}
             />
           </div>
@@ -488,46 +506,83 @@ export const Analytics = ({
             <Radar size={15} className={flightAttentionCount > 0 ? 'text-[var(--color-error)]' : 'text-[var(--color-muted)]'} />
             <span>Flights</span>
             {flightAttentionCount > 0 && (
-              <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-[var(--color-error)] text-white">
+              <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-[var(--color-error)]/20 text-[var(--color-error)] border border-[var(--color-error)]/30">
                 {flightAttentionCount}
               </span>
             )}
           </button>
 
-          {/* Grouped Secondary Export Actions (Unified & Compact) */}
-          <div className="flex items-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] shrink-0 overflow-hidden">
+          {/* Unified Quiet Export Dropdown Menu (Single Button) */}
+          <div className="relative shrink-0" ref={exportMenuRef}>
             <button
-              onClick={exportExcelReport}
-              title="Export current summary and entries to Excel"
-              aria-label="Export to Excel"
-              className="min-h-[44px] h-11 px-3 text-[12px] font-sans font-medium text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)] flex items-center gap-1.5 transition-colors cursor-pointer border-r border-[var(--color-border)]"
-            >
-              <FileSpreadsheet size={15} className="text-[var(--color-muted)]" />
-              <span>Excel</span>
-            </button>
-            <button
-              onClick={handleDownloadPDF}
-              title="Download PDF report"
-              aria-label="Download PDF report"
-              className="min-h-[44px] h-11 px-3 text-[12px] font-sans font-medium text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)] flex items-center gap-1.5 transition-colors cursor-pointer"
+              type="button"
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              aria-expanded={showExportMenu}
+              aria-haspopup="true"
+              aria-label="Export options"
+              className="min-h-[44px] h-11 px-3 text-[12px] font-sans font-medium text-[var(--color-foreground)] bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] rounded-xl border border-[var(--color-border)] flex items-center gap-1.5 transition-colors cursor-pointer"
             >
               <Download size={15} className="text-[var(--color-muted)]" />
-              <span>PDF</span>
+              <span>Export</span>
+              <ChevronDown
+                size={14}
+                className={`text-[var(--color-muted)] transition-transform duration-150 ${
+                  showExportMenu ? 'rotate-180' : ''
+                }`}
+              />
             </button>
+
+            {showExportMenu && (
+              <div
+                className="absolute right-0 top-full mt-1.5 w-52 bg-[var(--color-surface-1)] border border-[var(--color-border-strong)] rounded-xl shadow-lg z-30 py-1 divide-y divide-[var(--color-border)] animate-in fade-in zoom-in-95 duration-100"
+                role="menu"
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setShowExportMenu(false);
+                    exportExcelReport();
+                  }}
+                  className="w-full min-h-[44px] px-3.5 py-2.5 text-left text-[12px] font-sans font-medium text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)] flex items-center gap-2.5 transition-colors cursor-pointer"
+                >
+                  <FileSpreadsheet size={16} className="text-[var(--color-muted)] shrink-0" />
+                  <div className="flex flex-col">
+                    <span className="font-semibold">Excel spreadsheet</span>
+                    <span className="text-[10px] text-[var(--color-muted)]">.xlsx with tabs & auto-fit</span>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setShowExportMenu(false);
+                    handleDownloadPDF();
+                  }}
+                  className="w-full min-h-[44px] px-3.5 py-2.5 text-left text-[12px] font-sans font-medium text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)] flex items-center gap-2.5 transition-colors cursor-pointer"
+                >
+                  <Download size={16} className="text-[var(--color-muted)] shrink-0" />
+                  <div className="flex flex-col">
+                    <span className="font-semibold">PDF summary report</span>
+                    <span className="text-[10px] text-[var(--color-muted)]">Printable station manifest</span>
+                  </div>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       {/* ── 2. Filter & Time Period Toolbar ─────────────────────────── */}
       <div
-        className={`flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-2xl ${
+        className={`flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-2xl ${
           isCompact ? 'p-2.5' : 'p-3'
         }`}
       >
         {/* Period Selector & Loading Telemetry */}
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar shrink-0">
           {/* Segmented Period Tabs */}
-          <div className="flex items-center gap-1 bg-[var(--color-surface-1)] p-1 rounded-xl border border-[var(--color-border)] flex-wrap">
+          <div className="flex items-center gap-1 bg-[var(--color-surface-1)] p-1 rounded-xl border border-[var(--color-border)] shrink-0">
             {([
               ['shift', 'Current shift'],
               ['today', 'Today'],
@@ -538,7 +593,7 @@ export const Analytics = ({
               <button
                 key={id}
                 onClick={() => handlePeriodChange(id)}
-                className={`min-h-[44px] px-3.5 py-2 text-[12px] font-sans rounded-lg transition-colors cursor-pointer ${
+                className={`min-h-[44px] px-3.5 py-2 text-[12px] font-sans rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
                   period === id
                     ? 'bg-[var(--color-surface-3)] text-[var(--color-foreground)] font-semibold border border-[var(--color-border-strong)] shadow-xs'
                     : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)]'
@@ -560,7 +615,7 @@ export const Analytics = ({
 
         {/* Custom Date Range Controls (shown only when Custom is active) */}
         {period === 'custom' && (
-          <div className="flex items-center gap-2 text-[12px] font-sans text-[var(--color-muted)] flex-wrap">
+          <div className="flex items-center gap-2 text-[12px] font-sans text-[var(--color-muted)] flex-wrap shrink-0">
             <input
               type="datetime-local"
               value={customStart}
@@ -586,7 +641,7 @@ export const Analytics = ({
         )}
 
         {/* Search input with 44px tap target */}
-        <div className="relative flex-1 lg:max-w-xs">
+        <div className="relative flex-1 min-w-[160px] sm:max-w-xs">
           <input
             type="text"
             placeholder="Filter entries..."
@@ -920,13 +975,19 @@ export const Analytics = ({
             </p>
           </div>
           {summary.topCustomers.length === 0 ? (
-            <div className="p-12 text-center text-[13px] font-sans text-[var(--color-muted)]">
-              No customer records found for this period.
+            <div className="py-16 px-4 text-center space-y-2">
+              <Building2 size={28} className="mx-auto text-[var(--color-muted)] opacity-30" />
+              <div className="text-[14px] font-semibold text-[var(--color-foreground)] font-sans">
+                No customer records found
+              </div>
+              <p className="text-[12px] font-sans text-[var(--color-muted)] max-w-sm mx-auto">
+                No transactions recorded for the selected hub and period.
+              </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left font-sans text-[13px]">
-                <thead>
+                <thead className="sticky top-0 z-10">
                   <tr className="bg-[var(--color-surface-1)] text-[var(--color-muted)] border-b border-[var(--color-border)] text-[11px] font-medium">
                     <th className="py-3 px-3.5 w-12 text-center">#</th>
                     <th className="py-3 px-3.5">Customer</th>
@@ -1059,8 +1120,14 @@ export const Analytics = ({
               <Loader2 className="animate-spin text-[var(--color-muted)]" size={24} />
             </div>
           ) : pastShifts.length === 0 ? (
-            <div className="text-center p-12 text-[var(--color-muted)] font-sans text-[13px]">
-              No closed shifts found.
+            <div className="bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-2xl py-16 px-4 text-center space-y-2">
+              <Calendar size={28} className="mx-auto text-[var(--color-muted)] opacity-30" />
+              <div className="text-[14px] font-semibold text-[var(--color-foreground)] font-sans">
+                No closed shifts found
+              </div>
+              <p className="text-[12px] font-sans text-[var(--color-muted)] max-w-sm mx-auto">
+                Closed station shifts and reconciliation summaries will appear here.
+              </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
