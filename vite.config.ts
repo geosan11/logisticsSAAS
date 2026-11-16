@@ -92,17 +92,54 @@ export default defineConfig(() => {
       minify: 'esbuild' as const,
       rollupOptions: {
         output: {
-          manualChunks: {
-            'react-vendor':  ['react', 'react-dom', 'react-router-dom'],
-            'ui-vendor':     ['lucide-react', 'motion'],
-            'charts':        ['recharts'],
-            'virtual':       ['@tanstack/react-virtual'],
-            'supabase':      ['@supabase/supabase-js'],
-            'pdf':           ['@react-pdf/renderer'],
-            'excel':         ['exceljs', 'xlsx', 'papaparse'],
-            'maps':          ['leaflet', 'react-leaflet'],
-            'qr':            ['html5-qrcode'],
-            'offline':       ['dexie'],
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              if (
+                id.includes('@react-pdf') ||
+                id.includes('pdfkit') ||
+                id.includes('fontkit') ||
+                id.includes('png-js') ||
+                id.includes('restructure') ||
+                id.includes('unicode-properties')
+              ) {
+                return 'pdf';
+              }
+              if (id.includes('exceljs') || id.includes('xlsx') || id.includes('papaparse') || id.includes('pako')) {
+                return 'excel';
+              }
+              if (id.includes('recharts')) {
+                return 'charts';
+              }
+              if (id.includes('html5-qrcode')) {
+                return 'qr';
+              }
+              if (id.includes('leaflet')) {
+                return 'maps';
+              }
+              if (id.includes('@tanstack/react-virtual')) {
+                return 'virtual';
+              }
+              if (id.includes('@supabase')) {
+                return 'supabase';
+              }
+              if (id.includes('dexie')) {
+                return 'offline';
+              }
+              if (id.includes('lucide-react') || id.includes('motion')) {
+                return 'ui-vendor';
+              }
+              if (
+                id.includes('/react/') ||
+                id.includes('/react-dom/') ||
+                id.includes('/react-router/') ||
+                id.includes('/react-router-dom/') ||
+                id.includes('/buffer/') ||
+                id.includes('/base64-js/') ||
+                id.includes('/ieee754/')
+              ) {
+                return 'react-vendor';
+              }
+            }
           },
         },
       },

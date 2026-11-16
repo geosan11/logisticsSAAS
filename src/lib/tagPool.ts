@@ -19,7 +19,7 @@ const DEFAULT_REFILL_SIZE = 20;
 
 function isOnline(): boolean {
   try {
-    return navigator.onLine;
+    return typeof navigator !== 'undefined' && typeof navigator.onLine === 'boolean' ? navigator.onLine : true;
   } catch {
     return true;
   }

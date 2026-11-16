@@ -425,23 +425,29 @@ export const EODReconciliation = ({ user, transactions, expenses, onBack, onEOD 
     // Send EOD summary to manager (fetch phone from settings or user's own phone)
     const managerPhone = localStorage.getItem('ehi_manager_phone') || '';
     if (managerPhone) {
-      fetch('/api/notify/eod-summary', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          managerPhone,
-          hubName: user.hub,
-          date,
-          cargoTotal:    expectedTotals.cargoTotal,
-          vjTotal:       expectedTotals.vjTotal,
-          mktTotal:      expectedTotals.mktgTotal,
-          grossTotal:    expectedTotals.grossTotal,
-          cashTotal:     expectedTotals.cashTotal,
-          transferTotal: expectedTotals.transferTotal,
-          posTotal:      expectedTotals.posTotal,
-          debtTotal:     expectedTotals.debtTotal,
-          lockedBy:      user.name,
-        }),
+      supabase.auth.getSession().then(({ data: sess }) => {
+        const token = sess.session?.access_token || '';
+        fetch('/api/notify/eod-summary', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            managerPhone,
+            hubName: user.hub,
+            date,
+            cargoTotal:    expectedTotals.cargoTotal,
+            vjTotal:       expectedTotals.vjTotal,
+            mktTotal:      expectedTotals.mktgTotal,
+            grossTotal:    expectedTotals.grossTotal,
+            cashTotal:     expectedTotals.cashTotal,
+            transferTotal: expectedTotals.transferTotal,
+            posTotal:      expectedTotals.posTotal,
+            debtTotal:     expectedTotals.debtTotal,
+            lockedBy:      user.name,
+          }),
+        }).catch(() => {});
       }).catch(() => {});
     }
 
