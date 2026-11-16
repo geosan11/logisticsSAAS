@@ -244,6 +244,15 @@ export const PackageForm = ({
   const [showSalesAnalysis, setShowSalesAnalysis] = useState(false);
   const [closingDay, setClosingDay] = useState(false);
 
+  useEffect(() => {
+    if (!showCloseModal) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !closingDay) setShowCloseModal(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [showCloseModal, closingDay]);
+
   const [selectedWalletOverride, setSelectedWalletOverride] = useState<CustomerWallet | null>(null);
   const [walletRemainderMode, setWalletRemainderMode] = useState<'Cash' | 'Transfer' | 'POS'>('Cash');
   const [walletRemainderBank, setWalletRemainderBank] = useState('');
@@ -505,14 +514,14 @@ export const PackageForm = ({
   const formRootRef = useRef<HTMLDivElement>(null);
   useEnterToNextField(formRootRef);
 
-  const cardPadClass = isCompact ? 'p-3.5 space-y-3' : 'p-4 sm:p-5 space-y-4';
+  const cardPadClass = isCompact ? 'p-3.5 space-y-3' : 'p-3.5 sm:p-5 space-y-4';
   const spaceYClass = isCompact ? 'space-y-3' : 'space-y-4';
   const gridGapClass = isCompact ? 'gap-3.5' : 'gap-4 sm:gap-5';
 
   return (
     <div ref={formRootRef} className="w-full flex-1 flex flex-col min-h-0 bg-[var(--color-canvas)]">
       {/* UNIFIED QUIET HEADER TOOLBAR */}
-      <div className="border-b border-[var(--color-border)] px-4 py-3 bg-[var(--color-surface-card)]">
+      <div className="border-b border-[var(--color-border)] px-3.5 sm:px-4 py-3 bg-[var(--color-surface-card)]">
         <div className="flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
           <div className="min-w-0">
             <h1 className="text-[18px] sm:text-[20px] font-sans font-semibold text-[var(--color-foreground)] tracking-tight">
@@ -530,8 +539,9 @@ export const PackageForm = ({
                 <select
                   value={adminSelectedHubId}
                   onChange={(e) => setAdminSelectedHubId(e.target.value)}
-                  className="max-w-[115px] sm:max-w-[130px] truncate h-11 px-2.5 rounded-full text-[12px] font-sans font-medium bg-[var(--color-surface-2)] text-[var(--color-foreground)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-border-strong)] cursor-pointer"
+                  className="min-w-[72px] sm:min-w-[88px] max-w-[115px] sm:max-w-[130px] truncate min-h-[44px] h-11 px-2.5 rounded-full text-[12px] font-sans font-medium bg-[var(--color-surface-2)] text-[var(--color-foreground)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-border-strong)] cursor-pointer"
                   title="Global Hub Context"
+                  aria-label="Global Hub Context"
                 >
                   {hubList.map((h) => (
                     <option key={h.id} value={h.id}>
@@ -549,19 +559,24 @@ export const PackageForm = ({
             <button
               type="button"
               onClick={() => setShowSalesAnalysis(true)}
-              className="min-h-[44px] h-11 px-2.5 sm:px-3 rounded-full text-[12px] font-sans font-medium bg-[var(--color-surface-2)] border border-[var(--color-border)] hover:bg-[var(--color-surface-3)] text-[var(--color-foreground)] transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer"
+              className="min-w-[44px] min-h-[44px] h-11 px-2.5 sm:px-3 rounded-full text-[12px] font-sans font-medium bg-[var(--color-surface-2)] border border-[var(--color-border)] hover:bg-[var(--color-surface-3)] text-[var(--color-foreground)] transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer"
+              title="Sales analysis"
+              aria-label="Sales analysis"
             >
-              <BarChart2 size={14} className="text-[var(--color-muted)]" />
-              <span>Sales analysis</span>
+              <BarChart2 size={14} className="text-[var(--color-muted)] shrink-0" />
+              <span className="hidden sm:inline">Sales analysis</span>
+              <span className="inline sm:hidden">Sales</span>
             </button>
 
             {onShowHistory && (
               <button
                 type="button"
                 onClick={onShowHistory}
-                className="min-h-[44px] h-11 px-2.5 sm:px-3 rounded-full text-[12px] font-sans font-medium bg-[var(--color-surface-2)] border border-[var(--color-border)] hover:bg-[var(--color-surface-3)] text-[var(--color-foreground)] transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer"
+                className="min-w-[44px] min-h-[44px] h-11 px-2.5 sm:px-3 rounded-full text-[12px] font-sans font-medium bg-[var(--color-surface-2)] border border-[var(--color-border)] hover:bg-[var(--color-surface-3)] text-[var(--color-foreground)] transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer"
+                title="History"
+                aria-label="History"
               >
-                <ClipboardList size={14} className="text-[var(--color-muted)]" />
+                <ClipboardList size={14} className="text-[var(--color-muted)] shrink-0" />
                 <span>History</span>
               </button>
             )}
@@ -570,8 +585,8 @@ export const PackageForm = ({
       </div>
 
       {/* MAIN TWO-COLUMN CONTENT GRID */}
-      <div className={`p-4 grid items-start ${isCompact ? 'gap-3.5 md:grid-cols-[1fr_240px] lg:grid-cols-[1fr_250px]' : 'gap-4 sm:gap-5 md:grid-cols-[1fr_260px] lg:grid-cols-[1fr_275px] xl:grid-cols-[1fr_300px]'}`}>
-        <div className={spaceYClass}>
+      <div className={`p-3 sm:p-4 grid grid-cols-1 items-start min-w-0 w-full ${isCompact ? 'gap-3.5 md:grid-cols-[1fr_240px] lg:grid-cols-[1fr_250px]' : 'gap-4 sm:gap-5 md:grid-cols-[1fr_260px] lg:grid-cols-[1fr_275px] xl:grid-cols-[1fr_300px]'}`}>
+        <div className={`min-w-0 w-full ${spaceYClass}`}>
           {successTx ? (
             /* SUCCESS CONFIRMATION CARD */
             <div className="p-4 sm:p-5 space-y-4 max-w-md mx-auto w-full select-none bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-2xl shadow-sm">
@@ -973,9 +988,9 @@ export const PackageForm = ({
                       ))}
                     </select>
                     {assignedVehicle && (
-                      <div className="mt-1 flex items-center justify-between text-[11px] font-sans text-[var(--color-muted)] px-1">
-                        <span>Vehicle: <strong className="font-medium text-[var(--color-foreground)]">{assignedVehicle}</strong></span>
-                        <span>{assignedDriver ? `Driver: ${assignedDriver}` : 'No driver registered'}</span>
+                      <div className="mt-1.5 flex items-center gap-1.5 text-[11px] font-sans text-[var(--color-muted)] px-1">
+                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--color-success)] shrink-0" />
+                        <span>{assignedDriver ? `Driver: ${assignedDriver}` : 'No driver registered for this vehicle'}</span>
                       </div>
                     )}
                   </div>
@@ -1002,7 +1017,7 @@ export const PackageForm = ({
                         placeholder="1"
                         value={pcs}
                         onChange={(e) => setPcs(e.target.value)}
-                        className={formInputClass}
+                        className={`${formInputClass} tabular-nums font-mono [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
                       />
                     </div>
 
@@ -1017,7 +1032,7 @@ export const PackageForm = ({
                         placeholder="0.0"
                         value={kg}
                         onChange={(e) => setKg(e.target.value)}
-                        className={formInputClass}
+                        className={`${formInputClass} tabular-nums font-mono [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
                       />
                     </div>
                   </div>
@@ -1070,20 +1085,20 @@ export const PackageForm = ({
                   {/* Payment Mode Pills */}
                   <div>
                     {renderLabel(CreditCard, "Payment method")}
-                    <div className={`grid ${isOnline ? "grid-cols-4" : "grid-cols-3"} gap-1 p-1 bg-[var(--color-surface-2)] rounded-full border border-[var(--color-border)]`}>
+                    <div className={`grid ${isOnline ? "grid-cols-4" : "grid-cols-3"} gap-1 p-1 bg-[var(--color-surface-2)] rounded-full border border-[var(--color-border)] min-w-0 w-full`}>
                       {(isOnline ? ["Cash", "POS", "Transfer", "Wallet"] : ["Cash", "POS", "Transfer"]).map((m) => (
                         <button
                           key={m}
                           type="button"
                           onClick={() => setMode(m as any)}
-                          className={`min-h-[44px] h-11 text-[13px] font-sans font-medium rounded-full transition-all flex items-center justify-center gap-1.5 cursor-pointer select-none ${
+                          className={`min-h-[44px] h-11 text-[12px] sm:text-[13px] font-sans font-medium rounded-full transition-all flex items-center justify-center gap-1 px-1 sm:px-2 cursor-pointer select-none truncate ${
                             mode === m
                               ? "bg-[var(--color-surface-1)] text-[var(--color-foreground)] border border-[var(--color-border-strong)] shadow-xs"
                               : "text-[var(--color-muted)] hover:text-[var(--color-foreground)]"
                           }`}
                         >
-                          {m === "Wallet" ? <CreditCard size={14} /> : null}
-                          <span>{m}</span>
+                          {m === "Wallet" ? <CreditCard size={13} className="shrink-0 hidden xs:inline" /> : null}
+                          <span className="truncate">{m}</span>
                         </button>
                       ))}
                     </div>
@@ -1128,7 +1143,7 @@ export const PackageForm = ({
                         : "bg-transparent border-[var(--color-border)] text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:border-[var(--color-border-strong)]"
                     }`}
                   >
-                    <span>Log as credit sale</span>
+                    <span>{mode === "Debt" ? "Active: Credit sale (debt) · Tap to cancel" : "Log as credit sale"}</span>
                   </button>
 
                   {mode === "Debt" && (
@@ -1290,8 +1305,8 @@ export const PackageForm = ({
           )}
         </div>
 
-        {/* RIGHT COLUMN ASIDE: SHIFT SALES ANALYSIS */}
-        <aside className="space-y-4">
+        {/* RIGHT COLUMN ASIDE: SHIFT SUMMARY */}
+        <aside className={`min-w-0 w-full ${spaceYClass}`}>
           <div className="sticky top-4 space-y-4">
             <div className={`rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] ${cardPadClass}`}>
               <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-2.5">
@@ -1386,7 +1401,9 @@ export const PackageForm = ({
                   <span className="tabular-nums">{packageTxs.length}</span>
                 </div>
                 {packageTxs.length === 0 ? (
-                  <EmptyState icon={<ClipboardList size={28} strokeWidth={1.5} />} message="No entries logged yet" />
+                  <p className="text-[12px] font-sans text-[var(--color-muted)] text-center py-4">
+                    No entries logged yet
+                  </p>
                 ) : (
                   <div className="divide-y divide-[var(--color-border)] max-h-[260px] overflow-y-auto">
                     {[...packageTxs].reverse().map((t) => (

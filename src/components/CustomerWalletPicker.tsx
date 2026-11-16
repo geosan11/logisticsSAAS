@@ -85,7 +85,7 @@ export const CustomerWalletPicker: React.FC<CustomerWalletPickerProps> = ({
           <button
             type="button"
             onClick={() => setIsOpen(true)}
-            className="flex-1 min-h-[44px] h-11 py-2 px-3.5 bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-xl flex items-center justify-between text-left transition-colors cursor-pointer"
+            className="flex-1 min-h-[44px] h-11 py-2 px-3.5 bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-full flex items-center justify-between text-left transition-colors cursor-pointer"
           >
             <div className="flex items-center gap-2 min-w-0">
               <Wallet size={15} className="text-[var(--color-muted)] shrink-0" />
@@ -101,7 +101,7 @@ export const CustomerWalletPicker: React.FC<CustomerWalletPickerProps> = ({
             <button
               type="button"
               onClick={() => onOpenCreateModal(currentCustomerName)}
-              className="min-h-[44px] min-w-[44px] h-11 w-11 flex items-center justify-center bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] border border-[var(--color-border)] rounded-xl transition-colors cursor-pointer shrink-0"
+              className="min-h-[44px] min-w-[44px] h-11 w-11 flex items-center justify-center bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] border border-[var(--color-border)] rounded-full transition-colors cursor-pointer shrink-0"
               title="Create new credit wallet"
               aria-label="Create new credit wallet"
             >
