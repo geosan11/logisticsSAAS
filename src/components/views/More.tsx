@@ -68,7 +68,6 @@ const FlatTierRates = lazy(() => import('./FlatTierRates').then((m) => ({ defaul
 const SizeTierRates = lazy(() => import('./SizeTierRates').then((m) => ({ default: m.SizeTierRates })));
 const RatesList = lazy(() => import('./RatesList').then((m) => ({ default: m.RatesList })));
 const CustomerWallets = lazy(() => import('./CustomerWallets').then((m) => ({ default: m.CustomerWallets })));
-const GatPrintQueue = lazy(() => import('./GatPrintQueue').then((m) => ({ default: m.GatPrintQueue })));
 const DebtCollectionRetrievalLog = lazy(() => import('./DebtCollectionRetrievalLog').then((m) => ({ default: m.DebtCollectionRetrievalLog })));
 const StaffManagement = lazy(() => import('./StaffManagement').then((m) => ({ default: m.StaffManagement })));
 
@@ -92,7 +91,6 @@ export const MORE_SUB_ROUTES = {
   fraudAlerts: 'fraud-alerts',
   auditLog: 'audit-log',
   ledger: 'ledger',
-  gatPrintQueue: 'gat-print-queue',
   podLog: 'pod-log',
   dispatch: 'dispatch',
   airlineCommissions: 'airline-commissions',
@@ -445,10 +443,6 @@ export const More = ({
           </ErrorBoundary>
         ),
       };
-    }
-
-    if (activeSub === 'gatPrintQueue') {
-      return { key: 'gatPrintQueue', element: <GatPrintQueue user={user} onBack={closeSub} /> };
     }
 
     if (activeSub === 'auditLog') {

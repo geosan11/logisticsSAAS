@@ -21,7 +21,6 @@ import { useEnterToNextField } from "../../lib/useEnterToNextField";
 import { isTagAlreadyDelivered } from "../../lib/scanLogic";
 import { getNextTag } from "../../lib/tagPool";
 import { CustomerWalletPicker } from "../CustomerWalletPicker";
-import { TerminalSwitch, usePersistedTerminal } from "../TerminalSwitch";
 import { DepartmentSalesAnalysisModal } from "../DepartmentSalesAnalysis";
 import { PrintRangeModal } from "../PrintRangeModal";
 import {
@@ -146,7 +145,6 @@ export const CargoForm = ({
   onShowHistory,
   customerWallets: passedWallets,
   setCustomerWallets: passedSetWallets,
-  forcedTerminal,
   activeShift,
 }: {
   onAddTx: (tx: Transaction) => void;
@@ -155,10 +153,6 @@ export const CargoForm = ({
   onShowHistory?: () => void;
   customerWallets?: CustomerWallet[];
   setCustomerWallets?: React.Dispatch<React.SetStateAction<CustomerWallet[]>>;
-  // Set by GatWorkspace.tsx to pin this form's terminal to 'GAT' for as
-  // long as it's mounted there -- being in the GAT tab IS the switch, so
-  // no override control is shown (see the TerminalSwitch render below).
-  forcedTerminal?: 'MMA2' | 'GAT';
   // Whichever hub_shifts row is currently open for this hub's 'cargo'
   // department (EHIApp.tsx's activeShiftsByDept['cargo']) -- stamped onto
   // every new entry as created_shift_id so clear_cargo_debt can later tell
@@ -192,11 +186,8 @@ export const CargoForm = ({
         hub_code: selectedHubRecord?.code || propUser.hub_code,
       }
     : propUser;
-  // GAT (General Aviation Terminal / MM1) is a second physical Lagos counter,
-  // not a new hub -- only show the switch to LOS-hub agents, same hub-code
-  // derivation the AWB tag pool already uses below.
   const userHubCode = getHubCode(user.hub_code || user.hub);
-  const [terminal, setTerminal] = usePersistedTerminal(forcedTerminal);
+  const terminal: 'MMA2' = 'MMA2';
 
   // Navigation tabs between Regular & Corporate Billing
   const [activePortal, setActivePortal] = useState<"retail" | "corporate">(
@@ -2468,7 +2459,7 @@ export const CargoForm = ({
               Air cargo
             </h1>
             <p className="text-[12px] font-sans text-[var(--color-muted)] mt-0.5 truncate max-w-xs md:max-w-md">
-              Log shipments, track air waybills, and manage terminal dispatches
+              Log shipments, track air waybills, and manage dispatches
             </p>
           </div>
 
@@ -2484,10 +2475,6 @@ export const CargoForm = ({
                   {hubList.map(h => <option key={h.id} value={h.id}>{h.code}/{h.name}</option>)}
                 </select>
               </label>
-            )}
-
-            {userHubCode === 'LOS' && !forcedTerminal && (
-              <TerminalSwitch value={terminal} onChange={setTerminal} />
             )}
 
             <button
@@ -3144,7 +3131,6 @@ export const CargoForm = ({
                       { label: 'Weight', value: `${effectiveKg} KG${volumetricWeight > (parseFloat(kg) || 0) ? ' (Volumetric)' : ''}` },
                       { label: 'Amount', value: parsedAmount },
                       { label: 'Payment mode', value: mode },
-                      ...(userHubCode === 'LOS' && !forcedTerminal ? [{ label: 'Terminal', value: terminal }] : []),
                     ]}
                     onConfirm={() => { handleRetailSubmit(); }}
                     onCancel={() => setShowRetailReview(false)}

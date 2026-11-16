@@ -72,7 +72,7 @@ export const STATIC_VIEWS: ViewDef[] = [
   { id: 'More:AuditLog', label: 'Revision Audit Log', roles: ['super_admin', 'auditor'], category: 'Intelligence' },
   { id: 'DataImport', label: 'Import Historical Data', roles: ['super_admin', 'admin'], category: 'Data & Records' },
   { id: 'AirlineLogos', label: 'Airline Logos', roles: ['super_admin', 'admin'], category: 'Administration', modes: ['air', 'intermodal'] },
-  { id: 'More:GatPrintQueue', label: 'GAT Print Queue', roles: MORE_TAB_ROLES, category: 'Hardware & Printing' },
+  { id: 'More:PrinterSettings', label: 'Thermal & Label Printers', roles: MORE_TAB_ROLES, category: 'Hardware & Printing' },
   { id: 'More:PricingConfiguration', label: 'Pricing & Rates Configuration', roles: ['super_admin', 'admin', 'accountant'], category: 'Administration' },
   { id: 'More:ContentTypes', label: 'Content Types', roles: ['super_admin', 'admin', 'accountant'], category: 'Administration' },
   { id: 'More:MinimumCharges', label: 'Minimum Charges', roles: ['super_admin', 'admin', 'accountant'], category: 'Administration' },

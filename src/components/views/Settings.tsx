@@ -667,7 +667,7 @@ export const Settings = ({
                     value={companyAddress}
                     onChange={e => setCompanyAddress(e.target.value)}
                     rows={2}
-                    placeholder="MMA2, Ikeja, Lagos"
+                    placeholder="Ikeja, Lagos"
                     className="w-full px-3 py-2 text-[12px] font-mono rounded bg-[var(--color-surface-2)] border border-[var(--color-border)] text-[var(--color-foreground)] focus:outline-none focus:border-[var(--color-accent-amber)] resize-none"
                   />
                 </div>

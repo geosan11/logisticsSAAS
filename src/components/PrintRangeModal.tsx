@@ -15,8 +15,7 @@ interface PrintRangeModalProps {
 // Deliberately "dumb" -- hands back a 1-indexed, inclusive {from, to} and
 // nothing else. What that range MEANS (slice a plain array, or replace a
 // Set-based multi-select) is entirely the caller's business, which is what
-// lets CargoForm.tsx's batch and GatPrintQueue.tsx's queue -- two different
-// selection models -- share this one component instead of each growing
+// lets batch print callers share this one component instead of each growing
 // their own copy.
 export const PrintRangeModal = ({
   totalCount,

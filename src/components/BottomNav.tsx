@@ -1,5 +1,4 @@
 import { User, TabView, ExcessBaggageAirline } from '../lib/types';
-import { getHubCode } from '../lib/helpers';
 import {
   Home,
   Package,
@@ -7,7 +6,6 @@ import {
   QrCode,
   Settings,
   Truck,
-  Building,
   Radar,
   ArrowDownToLine,
   ArrowUpToLine,
@@ -27,7 +25,6 @@ const VIEW_ICON: Record<string, any> = {
   OutboundArrivals: ArrowUpToLine,
   MyTrips: Truck,
   More: Settings,
-  GAT: Building,
 };
 
 const VIEW_TITLE: Record<string, string> = {
@@ -42,7 +39,6 @@ const VIEW_TITLE: Record<string, string> = {
   OutboundArrivals: 'Outbound',
   MyTrips: 'My Trips',
   More: 'Settings',
-  GAT: 'GAT',
 };
 
 export const BottomNav = ({
@@ -59,11 +55,10 @@ export const BottomNav = ({
   const { mode } = useLogisticsMode();
   const allowedTabs = getAllowedTabs(user, excessBaggageAirlines, mode);
   const allowedSet = new Set(allowedTabs);
-  const userHubCode = getHubCode(user.hub_code || user.hub);
 
   if (user.view_overrides != null) {
     const overrideTabs = user.view_overrides
-      .filter((id) => (id !== 'GAT' || userHubCode === 'LOS') && allowedSet.has(id as TabView))
+      .filter((id) => id !== 'GAT' && allowedSet.has(id as TabView))
       .map((id) => ({
         id: id as TabView,
         title: VIEW_TITLE[id] || id,

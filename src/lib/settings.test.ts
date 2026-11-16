@@ -87,7 +87,7 @@ describe('Grok Settings Progressive Disclosure & Permissions', () => {
 
     // 4. By keywords
     const resThermal = searchSettings(SETTING_ITEMS, 'thermal');
-    assert.ok(resThermal.some((i) => i.id === 'gat-print-queue'));
+    assert.ok(resThermal.some((i) => i.id === 'printer-config'));
 
     const resB2B = searchSettings(SETTING_ITEMS, 'b2b');
     assert.ok(resB2B.some((i) => i.id === 'corporate-billing'));

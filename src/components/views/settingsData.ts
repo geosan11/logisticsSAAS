@@ -400,15 +400,15 @@ export const SETTING_ITEMS: SettingItem[] = [
 
   // 4. Hardware & Printing
   {
-    id: 'gat-print-queue',
+    id: 'printer-config',
     groupId: 'hardware',
-    title: 'GAT Print Queue',
-    subtitle: 'Batch-print tags & receipts for GAT sales',
+    title: 'Thermal & Label Printers',
+    subtitle: 'Configure QZ Tray, silent printing, and label/receipt hardware',
     icon: Printer,
     level: 'primary',
-    keywords: ['gat', 'print', 'queue', 'tags', 'receipts', 'barcode', 'thermal', 'batch', 'qz'],
-    permission: 'More:GatPrintQueue',
-    target: { type: 'sub', subKey: 'gatPrintQueue', path: '/more/gat-print-queue' },
+    keywords: ['print', 'printers', 'qz', 'tray', 'thermal', 'hardware', 'labels', 'receipts', 'usb', 'bluetooth'],
+    permission: 'More:PrinterSettings',
+    target: { type: 'sub', subKey: 'settings', path: '/more/settings' },
   },
 
   // 5. Fleet & Logistics

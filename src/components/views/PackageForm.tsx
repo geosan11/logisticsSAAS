@@ -50,7 +50,6 @@ import { EmptyState } from "./EmptyState";
 import { CustomerWalletPicker } from "../CustomerWalletPicker";
 import { CustomerWallet } from "../../lib/types";
 import { ReviewEntryModal } from "./ReviewEntryModal";
-import { TerminalSwitch, usePersistedTerminal } from "../TerminalSwitch";
 import { DepartmentSalesAnalysisModal } from "../DepartmentSalesAnalysis";
 import { QRCode } from "../QRCode";
 
@@ -64,7 +63,6 @@ export const PackageForm = ({
   onShowHistory,
   customerWallets = [],
   setCustomerWallets,
-  forcedTerminal,
   activeShift,
 }: {
   user: User;
@@ -76,7 +74,6 @@ export const PackageForm = ({
   onShowHistory?: () => void;
   customerWallets?: CustomerWallet[];
   setCustomerWallets?: React.Dispatch<React.SetStateAction<CustomerWallet[]>>;
-  forcedTerminal?: 'MMA2' | 'GAT';
   activeShift?: HubShift | null;
 }) => {
   const { isCompact } = useDensity();
@@ -94,7 +91,7 @@ export const PackageForm = ({
     : propUser;
 
   const userHubCode = getHubCode(user.hub_code || user.hub);
-  const [terminal, setTerminal] = usePersistedTerminal(forcedTerminal);
+  const terminal: 'MMA2' = 'MMA2';
 
   const { showToast } = useToast();
   const [markingPaidId, setMarkingPaidId] = useState<string | null>(null);
@@ -550,10 +547,6 @@ export const PackageForm = ({
                   ))}
                 </select>
               </div>
-            )}
-
-            {userHubCode === 'LOS' && !forcedTerminal && (
-              <TerminalSwitch value={terminal} onChange={setTerminal} />
             )}
 
             <button
@@ -1452,7 +1445,6 @@ export const PackageForm = ({
             { label: 'Amount', value: parseFloat(amount) || 0 },
             { label: 'Payment mode', value: mode },
             ...(assignedVehicle ? [{ label: 'Assigned vehicle', value: `${assignedVehicle}${assignedDriver ? ` (${assignedDriver})` : ''}` }] : []),
-            ...(userHubCode === 'LOS' && !forcedTerminal ? [{ label: 'Terminal', value: terminal }] : []),
           ]}
           onConfirm={() => {
             handleAddEntry();

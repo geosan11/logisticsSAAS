@@ -61,7 +61,6 @@ const MoreRaw = lazy(() => import('./views/More').then(m => ({ default: m.More }
 const TransactionLedgerRaw = lazy(() => import('./views/TransactionLedger').then(m => ({ default: m.TransactionLedger })));
 const MarketingWorkspaceRaw = lazy(() => import('./views/MarketingWorkspace').then(m => ({ default: m.MarketingWorkspace })));
 const PackageFormRaw = lazy(() => import('./views/PackageForm').then(m => ({ default: m.PackageForm })));
-const GatWorkspaceRaw = lazy(() => import('./views/GatWorkspace').then(m => ({ default: m.GatWorkspace })));
 const ScannerRaw = lazy(() => import('./views/Scanner').then(m => ({ default: m.Scanner })));
 const IncomingToHubRaw = lazy(() => import('./views/IncomingToHub').then(m => ({ default: m.IncomingToHub })));
 const OutboundArrivalsRaw = lazy(() => import('./views/OutboundArrivals').then(m => ({ default: m.OutboundArrivals })));
@@ -90,7 +89,6 @@ const More = memo(MoreRaw);
 const TransactionLedger = memo(TransactionLedgerRaw);
 const MarketingWorkspace = memo(MarketingWorkspaceRaw);
 const PackageForm = memo(PackageFormRaw);
-const GatWorkspace = memo(GatWorkspaceRaw);
 const Scanner = memo(ScannerRaw);
 const IncomingToHub = memo(IncomingToHubRaw);
 const OutboundArrivals = memo(OutboundArrivalsRaw);
@@ -138,7 +136,6 @@ const TAB_PATHS: Partial<Record<TabView, string>> = {
   'AirlineLedger':      '/airline-ledger',
   'WeightManifest':     '/weight-manifest',
   'AirlinePerformance': '/airline-performance',
-  'GAT':                '/gat',
   'FlightRadar':        '/flight-radar',
   'Dispatch':           '/dispatch',
   'Fleet':              '/fleet',
@@ -228,11 +225,8 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
       localStorage.setItem(CURRENT_TAB_KEY(user.id), currentTab);
     } catch { /* ignore -- non-fatal, just won't restore next time */ }
   }, [currentTab, user.id]);
-  // GAT needs a two-dimensional filter (both cargo AND package streams,
-  // scoped to the GAT terminal tag) -- every other per-tab History button
-  // needs just one stream and no terminal scope.
   type StreamLedgerScope =
-    | { streams: ('cargo' | 'baggage' | 'marketing' | 'package')[]; terminal?: 'MMA2' | 'GAT' }
+    | { streams: ('cargo' | 'baggage' | 'marketing' | 'package')[] }
     | null;
   const [streamLedger, setStreamLedger] = useState<StreamLedgerScope>(null);
   // Yesterday + today, not a longer lookback -- fetchInitial's own window
@@ -3021,11 +3015,6 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
   const handleShowCargoHistory = useCallback(() => setStreamLedger({ streams: ['cargo'] }), []);
   const handleShowMarketingHistory = useCallback(() => setStreamLedger({ streams: ['marketing'] }), []);
   const handleShowPackageHistory = useCallback(() => setStreamLedger({ streams: ['package'] }), []);
-  // Only cargo/package entries ever carry a terminal tag -- filtering by
-  // terminal='GAT' alone (typeFilter left at 'All' downstream) already
-  // excludes marketing/baggage, which default to 'MMA2' when untagged. The
-  // explicit streams list here is a belt-and-braces match on top of that.
-  const handleShowGatHistory = useCallback(() => setStreamLedger({ streams: ['cargo', 'package'], terminal: 'GAT' }), []);
   const handleCloseLedger = useCallback(() => setStreamLedger(null), []);
   const handleEOD = useCallback(async (summary: { 
     hub: string; hub_id: string; date: string; 
@@ -3051,17 +3040,13 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
     }
   }, [user.name, showToast]);
 
-  // Which department's shift this per-tab History overlay Start/End Day
-  // control (and current-shift boundary) should track -- GAT's scope
-  // spans two Transaction types but is its own single department.
   const streamLedgerDepartment: ShiftDepartment | null = useMemo(() => {
     if (!streamLedger) return null;
-    if (streamLedger.terminal === 'GAT') return 'gat';
     return streamLedger.streams.length === 1 ? streamLedger.streams[0] : 'all';
   }, [streamLedger]);
 
   const STREAM_LEDGER_DEPT_LABEL: Record<Exclude<ShiftDepartment, 'all'>, string> = {
-    cargo: 'Cargo', package: 'Package', marketing: 'Marketing', baggage: 'Baggage', gat: 'GAT',
+    cargo: 'Cargo', package: 'Package', marketing: 'Marketing', baggage: 'Baggage', gat: 'All',
   };
 
   // TransactionLedger is wrapped in memo() -- these three were previously
@@ -3097,12 +3082,7 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
   const filteredLedgerTransactions = useMemo(() => {
     if (!streamLedger) return [];
     return transactions.filter(t => {
-      if (!streamLedger.streams.includes(t.type as any)) return false;
-      if (streamLedger.terminal) {
-        const rowTerminal = (t as any).raw?.terminal ?? (t as any).terminal ?? 'MMA2';
-        if (rowTerminal !== streamLedger.terminal) return false;
-      }
-      return true;
+      return streamLedger.streams.includes(t.type as any);
     });
   }, [transactions, streamLedger]);
 
@@ -3240,19 +3220,6 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
                   customerWallets={customerWallets}
                   setCustomerWallets={setCustomerWallets}
                   activeShift={activeShiftsByDept['package'] || null}
-                />
-              )}
-              {currentTab === 'GAT' && (
-                <GatWorkspace
-                  user={user}
-                  transactions={transactions}
-                  expenses={expenses}
-                  onAddTx={handleAddTx}
-                  onUpdateTx={handleUpdateTx}
-                  onAddExpense={handleAddExpense}
-                  onShowHistory={handleShowGatHistory}
-                  customerWallets={customerWallets}
-                  setCustomerWallets={setCustomerWallets}
                 />
               )}
               {currentTab === 'Scan' && <Scanner transactions={transactions} user={user} showToast={showToast} />}
@@ -3417,7 +3384,6 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
                 onUpdateTx={handleUpdateTx}
                 onDeleteTx={handleDeleteTx}
                 defaultTypeFilter={streamLedger.streams.length === 1 ? streamLedger.streams[0] : null}
-                defaultTerminalFilter={streamLedger.terminal}
                 viewOnly={user.role !== 'super_admin' && !user.can_edit_ledger}
                 dateRange={globalDateRange}
                 onDateRangeChange={handleGlobalDateRangeChange}

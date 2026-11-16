@@ -228,7 +228,6 @@ export const TransactionLedger = ({
   onUpdateTx,
   onDeleteTx,
   defaultTypeFilter,
-  defaultTerminalFilter,
   viewOnly = false,
   dateRange,
   onDateRangeChange,
@@ -260,15 +259,12 @@ export const TransactionLedger = ({
   // for this financially-sensitive path regardless of that cache's state.
   refetchCustomerWallets?: () => void;
   defaultTypeFilter?: 'cargo' | 'baggage' | 'marketing' | 'package' | null;
-  // Seeds the terminal filter chip -- used by the GAT tab's History button,
-  // where defaultTypeFilter can't express "cargo AND package" alone.
-  defaultTerminalFilter?: 'MMA2' | 'GAT';
   viewOnly?: boolean;
   dateRange?: { start: string; end: string };
   onDateRangeChange?: (range: { start: string; end: string }) => void;
   activeShift?: any;
   shifts?: any[];
-  // Human label for the Start/End Day controls below ("Cargo", "GAT", ...)
+  // Human label for the Start/End Day controls below ("Cargo", "Package", ...)
   // -- shift management is now per-department (each stream has its own
   // independent hub_shifts lifecycle), so the generic "Shift"/"Day" wording
   // alone would be ambiguous when several departments can be open at once.
@@ -575,10 +571,6 @@ export const TransactionLedger = ({
   // already-in-progress selection, which would otherwise force staff to
   // re-pick the mode after every single click.
   useEffect(() => { if (selectedDebtIds.size === 0) setBatchDebtMode(''); }, [selectedDebtIds]);
-  // GAT (General Aviation Terminal / MM1) is a second physical Lagos
-  // counter tagged on cargo/package entries, not a separate hub -- see
-  // TerminalSwitch.tsx.
-  const [terminalFilter, setTerminalFilter] = useState<'All' | 'MMA2' | 'GAT'>(defaultTerminalFilter || 'All');
   const [timeFilter, setTimeFilter] = useState<"All" | "Morning" | "Afternoon" | "Evening" | "Custom">("All");
   const [timeStart, setTimeStart] = useState("");
   const [timeEnd, setTimeEnd] = useState("");
@@ -953,13 +945,13 @@ export const TransactionLedger = ({
     return {
       query: searchQuery,
       types,
-      terminal: terminalFilter !== 'All' ? terminalFilter : null,
+      terminal: null,
       mode: RAW_MODE_VALUES.includes(modeFilter) ? modeFilter : null,
       officeWorkOnly: typeFilter === 'Office Work',
       debtClass: debtClassFilter !== 'All' ? debtClassFilter : null,
       includeExpenses: typeFilter === 'All' || typeFilter === 'Expense',
     };
-  }, [searchQuery, typeFilter, terminalFilter, modeFilter, debtClassFilter]);
+  }, [searchQuery, typeFilter, modeFilter, debtClassFilter]);
 
   const splitPageRows = (rows: { transaction?: Transaction; expense?: Expense }[]) => {
     const tx: Transaction[] = [], exp: Expense[] = [];
@@ -1241,11 +1233,6 @@ export const TransactionLedger = ({
       if (cleanRoute(entryDest) !== cleanRoute(destFilter)) return false;
     }
 
-    if (terminalFilter !== 'All') {
-      const t = (e.raw as any)?.terminal || 'MMA2';
-      if (t !== terminalFilter) return false;
-    }
-
     if (modeFilter !== "All") {
       if (modeFilter === "Revenue") {
         if (e.source === "expense" || e.mode === "Debt") return false;
@@ -1380,7 +1367,7 @@ export const TransactionLedger = ({
     }
 
     return true;
-  }), [entries, typeFilter, modeFilter, terminalFilter, timeFilter, timeStart, timeEnd, searchQuery, shiftFilter, shiftBoundary, vjFlightFilter, vjDestFilter, destFilter, debtClassFilter, dateRange, allTimeEngaged]);
+  }), [entries, typeFilter, modeFilter, timeFilter, timeStart, timeEnd, searchQuery, shiftFilter, shiftBoundary, vjFlightFilter, vjDestFilter, destFilter, debtClassFilter, dateRange, allTimeEngaged]);
 
   // Per-airline weight/pieces/revenue roll-up for whatever's currently in
   // filteredEntries -- recomputes with every filter change so it always
@@ -1408,10 +1395,7 @@ export const TransactionLedger = ({
     return Array.from(byAirline.values()).sort((a, b) => b.kg - a.kg);
   }, [filteredEntries]);
 
-  // Terminal filter chip only shows for Lagos-hub users or once a GAT row
-  // has actually shown up -- other states never see an irrelevant filter.
   const userHubCode = getHubCode(user.hub_code || user.hub);
-  const hasGat = useMemo(() => entries.some((e) => (e.raw as any)?.terminal === 'GAT'), [entries]);
 
   // The entry open in the Edit modal has nothing left to owe -- every naira
   // is already recorded as paid, retrieved, or wallet-deducted. "Customer
@@ -3503,7 +3487,6 @@ export const TransactionLedger = ({
     const hasNDF =
       normalizeType(typeFilter) !== normalizeType(defaultTypeFilter) ||
       modeFilter !== "All" ||
-      terminalFilter !== (defaultTerminalFilter || "All") ||
       timeFilter !== "All" ||
       searchQuery.trim() !== "" ||
       vjFlightFilter !== "All" ||
@@ -3513,7 +3496,6 @@ export const TransactionLedger = ({
     const count =
       (normalizeType(typeFilter) !== normalizeType(defaultTypeFilter) ? 1 : 0) +
       (modeFilter !== "All" ? 1 : 0) +
-      (terminalFilter !== (defaultTerminalFilter || "All") ? 1 : 0) +
       (timeFilter !== "All" ? 1 : 0) +
       (searchQuery.trim() !== "" ? 1 : 0) +
       (vjFlightFilter !== "All" ? 1 : 0) +
@@ -3521,12 +3503,11 @@ export const TransactionLedger = ({
       (destFilter !== "All" ? 1 : 0) +
       (debtClassFilter !== "All" ? 1 : 0);
     return { hasNonDefaultFilters: hasNDF, activeFilterCount: count };
-  }, [typeFilter, defaultTypeFilter, modeFilter, terminalFilter, defaultTerminalFilter, timeFilter, searchQuery, vjFlightFilter, vjDestFilter, destFilter, debtClassFilter, normalizeType]);
+  }, [typeFilter, defaultTypeFilter, modeFilter, timeFilter, searchQuery, vjFlightFilter, vjDestFilter, destFilter, debtClassFilter, normalizeType]);
 
   const resetAllFilters = () => {
     setTypeFilter(normalizeType(defaultTypeFilter));
     setModeFilter("All");
-    setTerminalFilter(defaultTerminalFilter || "All");
     setTimeFilter("All");
     setTimeStart("");
     setTimeEnd("");
@@ -3761,7 +3742,6 @@ export const TransactionLedger = ({
            : defaultTypeFilter === 'baggage' ? 'Excess Baggage Ledger'
            : defaultTypeFilter === 'marketing' ? 'Marketing Ledger'
            : defaultTypeFilter === 'package' ? 'Package Ledger'
-           : defaultTerminalFilter === 'GAT' ? 'GAT Ledger'
            : 'Master Ledger'}
         </div>
         <div className="text-[10px] font-mono text-[var(--color-muted)] leading-tight mt-0.5 truncate">
@@ -4564,25 +4544,6 @@ export const TransactionLedger = ({
                     <ChevronDown size={10} className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--color-muted)] pointer-events-none group-hover:text-[var(--color-accent-amber)] transition-colors" />
                   </div>
 
-                  {/* Terminal filter */}
-                  {(userHubCode === 'LOS' || hasGat) && (
-                    <div className="flex items-center gap-0.5 h-8 p-0.5 bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-full font-mono text-[10px]">
-                      {(['All', 'MMA2', 'GAT'] as const).map((t) => (
-                        <button
-                          key={t}
-                          onClick={() => setTerminalFilter(t)}
-                          className={`h-7 px-2.5 rounded-full text-[10px] font-mono font-bold transition-all cursor-pointer ${
-                            terminalFilter === t
-                              ? 'bg-[var(--color-accent-amber)] text-[var(--color-on-accent)] shadow-sm'
-                              : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)]'
-                          }`}
-                        >
-                          {t}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
                   {/* Time filter */}
                   <div className="relative flex items-center h-8 pl-2.5 pr-6 bg-[var(--color-surface-1)] border border-[var(--color-border)] hover:border-[var(--color-accent-amber)] rounded-full font-mono text-[10px] text-[var(--color-foreground)] transition-colors group">
                     <Clock size={10} className="text-[var(--color-muted)] group-hover:text-[var(--color-accent-amber)] mr-1.5 shrink-0 transition-colors" />
@@ -4871,9 +4832,6 @@ export const TransactionLedger = ({
                               WALLET
                             </span>
                           )}
-                          {(e.raw as any)?.terminal === 'GAT' && (
-                            <span className="text-[10px] font-bold font-mono px-1.5 py-0.5 rounded bg-[rgba(59,130,246,0.15)] text-[var(--color-accent-cobalt)] border border-[var(--color-accent-cobalt)]">GAT</span>
-                          )}
                         </div>
 
                         {/* Bottom Row: Mode & Amount & Quick Actions */}
@@ -5156,9 +5114,6 @@ export const TransactionLedger = ({
                           <span className="px-1.5 py-0.5 rounded text-[10px] font-bold font-mono bg-[rgba(251,191,36,0.12)] text-[var(--color-accent-amber)] border border-[rgba(251,191,36,0.25)]">
                             WALLET
                           </span>
-                        )}
-                        {(e.raw as any)?.terminal === 'GAT' && (
-                          <span className="text-[10px] font-bold font-mono px-1.5 py-0.5 rounded bg-[rgba(59,130,246,0.15)] text-[var(--color-accent-cobalt)] border border-[var(--color-accent-cobalt)]">GAT</span>
                         )}
                       </div>
                       <div className="flex items-center flex-wrap gap-1.5">

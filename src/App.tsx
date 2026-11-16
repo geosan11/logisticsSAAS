@@ -209,7 +209,7 @@ const PublicTrackingPage = () => {
                 searchTracking(ref.trim().toUpperCase());
               }
             }}
-            placeholder="EHI-MMA2-CGO-000482"
+            placeholder="EHI-LOS-CGO-000482"
             style={{
               flex: 1, height: 44, padding: '0 12px',
               fontSize: 13, fontFamily: 'monospace',
@@ -414,7 +414,7 @@ const PublicTrackingPage = () => {
 
       {/* Footer */}
       <div style={{ marginTop: 32, fontSize: 11, color: 'var(--color-muted)', textAlign: 'center' }}>
-        EHI Multisystems Nigeria Limited · MMA2, Ikeja, Lagos
+        EHI Multisystems Nigeria Limited · Ikeja, Lagos
       </div>
     </div>
   );
