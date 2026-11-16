@@ -52,7 +52,7 @@ export const CustomerWalletPicker: React.FC<CustomerWalletPickerProps> = ({
                 <span className="text-[13px] font-semibold font-sans text-[var(--color-foreground)] truncate">
                   {selectedWallet.customer_name}
                 </span>
-                <span className="text-[10px] font-sans font-medium px-2 py-0.5 rounded-full bg-[rgba(34,197,94,0.12)] text-[var(--color-success)]">
+                <span className="text-[10px] font-sans font-medium px-2 py-0.5 rounded-full bg-[var(--color-success)]/15 text-[var(--color-success)] border border-[var(--color-success)]/20">
                   Active credit
                 </span>
               </div>

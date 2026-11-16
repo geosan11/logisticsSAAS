@@ -31,6 +31,7 @@ import {
   Layers,
   Hash,
   Package as PackageIcon,
+  Scale,
   Truck,
   Phone,
   FileText,
@@ -520,14 +521,14 @@ export const PackageForm = ({
             </p>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap sm:flex-nowrap justify-start sm:justify-end shrink-0 max-w-full">
             {isAdmin && (
               <div className="flex items-center gap-1.5 shrink-0">
                 <span className="text-[11px] font-sans text-[var(--color-muted)] hidden sm:inline">Hub:</span>
                 <select
                   value={adminSelectedHubId}
                   onChange={(e) => setAdminSelectedHubId(e.target.value)}
-                  className="max-w-[130px] truncate h-11 px-2.5 rounded-full text-[12px] font-sans font-medium bg-[var(--color-surface-2)] text-[var(--color-foreground)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-border-strong)] cursor-pointer"
+                  className="max-w-[115px] sm:max-w-[130px] truncate h-11 px-2.5 rounded-full text-[12px] font-sans font-medium bg-[var(--color-surface-2)] text-[var(--color-foreground)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-border-strong)] cursor-pointer"
                   title="Global Hub Context"
                 >
                   {hubList.map((h) => (
@@ -546,7 +547,7 @@ export const PackageForm = ({
             <button
               type="button"
               onClick={() => setShowSalesAnalysis(true)}
-              className="min-h-[44px] h-11 px-3 rounded-full text-[12px] font-sans font-medium bg-[var(--color-surface-2)] border border-[var(--color-border)] hover:bg-[var(--color-surface-3)] text-[var(--color-foreground)] transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer"
+              className="min-h-[44px] h-11 px-2.5 sm:px-3 rounded-full text-[12px] font-sans font-medium bg-[var(--color-surface-2)] border border-[var(--color-border)] hover:bg-[var(--color-surface-3)] text-[var(--color-foreground)] transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer"
             >
               <BarChart2 size={14} className="text-[var(--color-muted)]" />
               <span>Sales analysis</span>
@@ -556,7 +557,7 @@ export const PackageForm = ({
               <button
                 type="button"
                 onClick={onShowHistory}
-                className="min-h-[44px] h-11 px-3 rounded-full text-[12px] font-sans font-medium bg-[var(--color-surface-2)] border border-[var(--color-border)] hover:bg-[var(--color-surface-3)] text-[var(--color-foreground)] transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer"
+                className="min-h-[44px] h-11 px-2.5 sm:px-3 rounded-full text-[12px] font-sans font-medium bg-[var(--color-surface-2)] border border-[var(--color-border)] hover:bg-[var(--color-surface-3)] text-[var(--color-foreground)] transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer"
               >
                 <ClipboardList size={14} className="text-[var(--color-muted)]" />
                 <span>History</span>
@@ -567,7 +568,7 @@ export const PackageForm = ({
       </div>
 
       {/* MAIN TWO-COLUMN CONTENT GRID */}
-      <div className={`p-4 grid items-start ${isCompact ? 'gap-3.5 md:grid-cols-[1fr_260px]' : 'gap-4 sm:gap-5 md:grid-cols-[1fr_280px] lg:grid-cols-[1fr_300px]'}`}>
+      <div className={`p-4 grid items-start ${isCompact ? 'gap-3.5 md:grid-cols-[1fr_240px] lg:grid-cols-[1fr_250px]' : 'gap-4 sm:gap-5 md:grid-cols-[1fr_260px] lg:grid-cols-[1fr_275px] xl:grid-cols-[1fr_300px]'}`}>
         <div className={spaceYClass}>
           {successTx ? (
             /* SUCCESS CONFIRMATION CARD */
@@ -603,11 +604,11 @@ export const PackageForm = ({
                           navigator.clipboard.writeText((successTx as any).pickupPin);
                           showToast({ message: "Pickup PIN copied!", type: "success" });
                         }}
-                        className="text-[var(--color-muted)] hover:text-[var(--color-foreground)] transition-colors cursor-pointer p-1 rounded-md"
+                        className="min-w-[44px] min-h-[44px] w-11 h-11 -mr-2 rounded-full flex items-center justify-center text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
                         title="Copy PIN"
                         aria-label="Copy PIN"
                       >
-                        <Copy size={13} />
+                        <Copy size={15} />
                       </button>
                     </div>
                     <div className="text-[22px] font-mono font-bold text-[var(--color-foreground)] tracking-widest tabular-nums mt-0.5">
@@ -841,11 +842,11 @@ export const PackageForm = ({
                   {/* Consignee Name & Phone */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      {renderLabel(UserIcon, mode === "Debt" ? "Debtor name" : "Consignee / Customer")}
+                      {renderLabel(UserIcon, mode === "Debt" ? "Debtor name" : "Consignee name")}
                       <input
                         id="pkg-name"
                         name="name"
-                        placeholder={mode === "Debt" ? "Debtor name" : "Full customer name"}
+                        placeholder={mode === "Debt" ? "Debtor name" : "Full consignee name"}
                         value={name}
                         onChange={upperOnChange(setName)}
                         className={formInputClass}
@@ -894,14 +895,14 @@ export const PackageForm = ({
                                 }
                               }
                             }}
-                            className="min-h-[36px] px-3.5 py-1.5 rounded-full bg-[var(--color-surface-1)] text-[var(--color-foreground)] border border-[var(--color-border-strong)] text-[11px] font-sans font-medium hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
+                            className="min-h-[44px] h-11 px-4 rounded-full bg-[var(--color-surface-1)] text-[var(--color-foreground)] border border-[var(--color-border-strong)] text-[12px] font-sans font-medium hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer select-none"
                           >
                             Yes, link as corporate
                           </button>
                           <button
                             type="button"
                             onClick={() => setLinkedAsOfficeWork(false)}
-                            className="min-h-[36px] px-3 py-1.5 rounded-full border border-[var(--color-border)] text-[var(--color-muted)] hover:text-[var(--color-foreground)] text-[11px] font-sans transition-colors cursor-pointer"
+                            className="min-h-[44px] h-11 px-4 rounded-full border border-[var(--color-border)] text-[var(--color-muted)] hover:text-[var(--color-foreground)] text-[12px] font-sans font-medium transition-colors cursor-pointer select-none"
                           >
                             Keep as retail
                           </button>
@@ -921,7 +922,7 @@ export const PackageForm = ({
                       <button
                         type="button"
                         onClick={() => { setLinkedAsOfficeWork(false); setAmount(''); wasLinkedRef.current = false; }}
-                        className="text-[11px] font-sans text-[var(--color-muted)] hover:text-[var(--color-error)] transition-colors cursor-pointer shrink-0"
+                        className="min-h-[32px] px-2.5 py-1 text-[11px] font-sans font-medium text-[var(--color-muted)] hover:text-[var(--color-error)] bg-[var(--color-surface-3)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg transition-colors cursor-pointer shrink-0"
                       >
                         Unlink
                       </button>
@@ -960,7 +961,7 @@ export const PackageForm = ({
 
                   {/* Vehicle / Truck Assignment */}
                   <div>
-                    {renderLabel(Truck, "Vehicle assignment (optional · road dispatch)")}
+                    {renderLabel(Truck, "Vehicle assignment (optional)")}
                     <select
                       value={assignedVehicle}
                       onChange={(e) => {
@@ -1013,7 +1014,7 @@ export const PackageForm = ({
                     </div>
 
                     <div>
-                      {renderLabel(PackageIcon, "Weight in kg (optional)")}
+                      {renderLabel(Scale, "Weight in kg (optional)")}
                       <input
                         id="pkg-kg"
                         name="kg"
@@ -1210,7 +1211,7 @@ export const PackageForm = ({
                 </div>
 
                 <div className="space-y-3 pt-1">
-                  <div className="grid grid-cols-1 sm:grid-cols-[1fr_120px] gap-2.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-[1fr_140px] gap-2.5">
                     <select
                       value={expType}
                       onChange={(e) => setExpType(e.target.value)}
@@ -1282,7 +1283,7 @@ export const PackageForm = ({
                             type="button"
                             onClick={() => handleMarkDebtPaid(t)}
                             disabled={markingPaidId === t.id}
-                            className="min-h-[36px] px-3 rounded-full text-[11px] font-sans font-medium bg-[var(--color-success)]/10 text-[var(--color-success)] border border-[var(--color-success)]/25 hover:bg-[var(--color-success)]/20 transition-colors cursor-pointer disabled:opacity-50"
+                            className="min-h-[44px] h-11 px-3.5 rounded-full text-[12px] font-sans font-medium bg-[var(--color-success)]/10 text-[var(--color-success)] border border-[var(--color-success)]/25 hover:bg-[var(--color-success)]/20 transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center select-none"
                           >
                             {markingPaidId === t.id ? 'Saving…' : 'Mark paid'}
                           </button>
@@ -1456,10 +1457,10 @@ export const PackageForm = ({
             <div className="px-5 py-4 border-b border-[var(--color-border)] flex items-center justify-between shrink-0">
               <div>
                 <h2 className="text-[16px] font-sans font-semibold text-[var(--color-foreground)]">
-                  Package desk sales analysis
+                  End day &amp; close session
                 </h2>
                 <p className="text-[12px] font-sans text-[var(--color-muted)] mt-0.5">
-                  {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })} · {user.name}
+                  Package desk reconciliation · {new Date().toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" })} · {user.name}
                 </p>
               </div>
               <button

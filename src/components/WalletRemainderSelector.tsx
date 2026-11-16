@@ -14,7 +14,7 @@ export const WalletRemainderSelector = ({
   onBankChange: (b: string) => void;
   banks?: string[];
 }) => (
-  <div className="mt-2 p-3.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-card)] space-y-3">
+  <div className="mt-2 p-3.5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] space-y-3">
     <div className="text-[12px] font-sans text-[var(--color-foreground)]">
       <span>{walletName}&apos;s wallet covers </span>
       <span className="font-semibold text-[var(--color-success)] tabular-nums">₦{fmt(coverage)}</span>.
@@ -28,7 +28,7 @@ export const WalletRemainderSelector = ({
           key={m}
           type="button"
           onClick={() => onModeChange(m)}
-          className={`flex-1 min-h-[44px] h-11 rounded-lg text-[12px] font-sans font-medium transition-colors cursor-pointer ${
+          className={`flex-1 min-h-[44px] h-11 rounded-full text-[12px] font-sans font-medium transition-colors cursor-pointer select-none flex items-center justify-center ${
             mode === m
               ? 'bg-[var(--color-surface-3)] text-[var(--color-foreground)] font-semibold border border-[var(--color-border-strong)] shadow-xs'
               : 'bg-[var(--color-surface-1)] text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)]'
