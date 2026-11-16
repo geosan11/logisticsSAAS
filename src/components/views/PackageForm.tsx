@@ -37,6 +37,8 @@ import {
   FileText,
   X,
   Building2,
+  Clock,
+  Lock,
 } from "lucide-react";
 import { Spinner, useDensity } from "../ui";
 import { supabase, writeAuditLog } from "../../lib/supabase";
@@ -513,7 +515,7 @@ export const PackageForm = ({
       <div className="border-b border-[var(--color-border)] px-4 py-3 bg-[var(--color-surface-card)]">
         <div className="flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
           <div className="min-w-0">
-            <h1 className="text-[17px] font-sans font-semibold text-[var(--color-foreground)] tracking-tight">
+            <h1 className="text-[18px] sm:text-[20px] font-sans font-semibold text-[var(--color-foreground)] tracking-tight">
               Package desk
             </h1>
             <p className="text-[12px] font-sans text-[var(--color-muted)] truncate max-w-xs md:max-w-md">
@@ -574,15 +576,10 @@ export const PackageForm = ({
             /* SUCCESS CONFIRMATION CARD */
             <div className="p-4 sm:p-5 space-y-4 max-w-md mx-auto w-full select-none bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-2xl shadow-sm">
               {/* Status Header Banner */}
-              <div className="bg-[var(--color-success)]/10 border border-[var(--color-success)]/30 rounded-xl px-3.5 py-2.5 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <CheckCircle size={18} className="text-[var(--color-success)] shrink-0" />
-                  <span className="text-[13px] font-sans font-semibold text-[var(--color-success)]">
-                    Package saved successfully
-                  </span>
-                </div>
-                <span className="text-[11px] font-mono text-[var(--color-muted)] truncate max-w-[130px] tabular-nums">
-                  Ref: {successTx.id}
+              <div className="bg-[var(--color-success)]/10 border border-[var(--color-success)]/30 rounded-xl px-3.5 py-2.5 flex items-center gap-2">
+                <CheckCircle size={18} className="text-[var(--color-success)] shrink-0" />
+                <span className="text-[13px] font-sans font-semibold text-[var(--color-success)]">
+                  Package saved successfully
                 </span>
               </div>
 
@@ -674,13 +671,13 @@ export const PackageForm = ({
               <button
                 type="button"
                 onClick={handleReset}
-                className="min-h-[48px] h-12 w-full rounded-full font-semibold text-[15px] font-sans bg-white text-black hover:bg-neutral-200 dark:bg-white dark:text-black shadow-xs flex items-center justify-center gap-2 cursor-pointer transition-all"
+                className="min-h-[48px] h-12 w-full rounded-full font-semibold text-[15px] font-sans bg-white text-black hover:bg-neutral-200 dark:bg-white dark:text-black dark:hover:bg-neutral-200 shadow-xs flex items-center justify-center gap-2 cursor-pointer transition-all"
               >
                 <Plus size={16} />
                 <span>Log another package</span>
               </button>
 
-              {/* Action Buttons: Bluetooth POS */}
+              {/* Action Buttons: Bluetooth POS & PDF Documents */}
               <div className="grid grid-cols-2 gap-2 pt-1">
                 <button
                   type="button"
@@ -753,10 +750,6 @@ export const PackageForm = ({
                   <Bluetooth size={14} className="text-[var(--color-muted)]" />
                   <span>POS (58mm)</span>
                 </button>
-              </div>
-
-              {/* Action Buttons: PDF Documents */}
-              <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => {
@@ -833,7 +826,7 @@ export const PackageForm = ({
                 <div className="space-y-3 pt-1">
                   {/* Tracking Ref Row */}
                   <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-[var(--color-surface-2)] border border-[var(--color-border)]">
-                    <span className="text-[12px] font-sans text-[var(--color-muted)]">Tracking reference (auto-assigned)</span>
+                    <span className="text-[12px] font-sans text-[var(--color-muted)]">Tracking reference</span>
                     <span className="text-[13px] font-mono font-semibold text-[var(--color-foreground)] tabular-nums">
                       {trackingRef || 'Allocating…'}
                     </span>
@@ -922,7 +915,7 @@ export const PackageForm = ({
                       <button
                         type="button"
                         onClick={() => { setLinkedAsOfficeWork(false); setAmount(''); wasLinkedRef.current = false; }}
-                        className="min-h-[32px] px-2.5 py-1 text-[11px] font-sans font-medium text-[var(--color-muted)] hover:text-[var(--color-error)] bg-[var(--color-surface-3)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg transition-colors cursor-pointer shrink-0"
+                        className="min-h-[44px] h-11 px-3.5 text-[12px] font-sans font-medium text-[var(--color-muted)] hover:text-[var(--color-error)] bg-[var(--color-surface-3)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-full transition-colors cursor-pointer shrink-0 flex items-center justify-center"
                       >
                         Unlink
                       </button>
@@ -1076,10 +1069,8 @@ export const PackageForm = ({
                 <div className="space-y-3 pt-1">
                   {/* Payment Mode Pills */}
                   <div>
-                    <label className="text-[12px] font-sans font-medium text-[var(--color-text-secondary)] mb-1.5 block">
-                      Payment method
-                    </label>
-                    <div className="grid grid-cols-4 gap-1 p-1 bg-[var(--color-surface-2)] rounded-full border border-[var(--color-border)]">
+                    {renderLabel(CreditCard, "Payment method")}
+                    <div className={`grid ${isOnline ? "grid-cols-4" : "grid-cols-3"} gap-1 p-1 bg-[var(--color-surface-2)] rounded-full border border-[var(--color-border)]`}>
                       {(isOnline ? ["Cash", "POS", "Transfer", "Wallet"] : ["Cash", "POS", "Transfer"]).map((m) => (
                         <button
                           key={m}
@@ -1137,7 +1128,7 @@ export const PackageForm = ({
                         : "bg-transparent border-[var(--color-border)] text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:border-[var(--color-border-strong)]"
                     }`}
                   >
-                    <span>Log as credit sale (debt)</span>
+                    <span>Log as credit sale</span>
                   </button>
 
                   {mode === "Debt" && (
@@ -1161,9 +1152,7 @@ export const PackageForm = ({
 
                   {/* Amount Field */}
                   <div>
-                    <label className="text-[12px] font-sans font-medium text-[var(--color-text-secondary)] mb-1.5 block">
-                      Amount
-                    </label>
+                    {renderLabel(Banknote, "Amount")}
                     <div className="relative">
                       <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-muted)] font-sans text-[16px]">
                         ₦
@@ -1176,7 +1165,11 @@ export const PackageForm = ({
                         value={amount}
                         onChange={(e) => setAmount(e.target.value)}
                         placeholder="0"
-                        className="w-full min-h-[44px] h-11 pl-9 pr-3.5 text-[15px] font-sans tabular-nums rounded-xl bg-[var(--color-surface-2)] text-[var(--color-foreground)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-border-strong)] transition-all"
+                        className={`w-full min-h-[44px] h-11 pl-9 pr-3.5 text-[15px] font-sans tabular-nums rounded-xl bg-[var(--color-surface-2)] text-[var(--color-foreground)] border transition-all ${
+                          !(linkedAsOfficeWork && officeWorkRate) && amount !== "" && parsedAmount < MIN_PACKAGE_AMOUNT
+                            ? "border-[var(--color-error)] focus:outline-none focus:border-[var(--color-error)]"
+                            : "border-[var(--color-border)] focus:outline-none focus:border-[var(--color-border-strong)]"
+                        }`}
                       />
                     </div>
                     {!(linkedAsOfficeWork && officeWorkRate) && amount !== "" && parsedAmount < MIN_PACKAGE_AMOUNT && (
@@ -1193,7 +1186,7 @@ export const PackageForm = ({
                       type="button"
                       onClick={() => setShowPackageReview(true)}
                       disabled={!isValid || submitting}
-                      className="min-h-[48px] h-12 w-full rounded-full font-semibold text-[15px] font-sans bg-white text-black hover:bg-neutral-200 dark:bg-white dark:text-black shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed select-none"
+                      className="min-h-[48px] h-12 w-full rounded-full font-semibold text-[15px] font-sans bg-white text-black hover:bg-neutral-200 dark:bg-white dark:text-black dark:hover:bg-neutral-200 shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed select-none"
                     >
                       {submitting && <Spinner size="sm" tone="current" />}
                       <span>{submitting ? "Logging package..." : "Log package entry"}</span>
@@ -1238,7 +1231,7 @@ export const PackageForm = ({
                     </div>
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <input
                       id="pkg-exp-desc"
                       name="exp-desc"
@@ -1251,7 +1244,7 @@ export const PackageForm = ({
                       type="button"
                       onClick={handleAddExpense}
                       disabled={!(parseFloat(expAmount) > 0)}
-                      className="min-h-[44px] h-11 px-4 rounded-full bg-[var(--color-surface-2)] text-[var(--color-foreground)] text-[12px] font-sans font-medium hover:bg-[var(--color-surface-3)] border border-[var(--color-border)] transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                      className="min-h-[44px] h-11 px-4 rounded-full bg-[var(--color-surface-2)] text-[var(--color-foreground)] text-[12px] font-sans font-medium hover:bg-[var(--color-surface-3)] border border-[var(--color-border)] transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shrink-0 w-full sm:w-auto flex items-center justify-center"
                     >
                       Log expense
                     </button>
@@ -1263,7 +1256,7 @@ export const PackageForm = ({
               {unpaidDebts.length > 0 && (
                 <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] overflow-hidden shadow-xs">
                   <div className="px-4 py-3 border-b border-[var(--color-border)] flex items-center justify-between">
-                    <h3 className="text-[13px] font-sans font-semibold text-[var(--color-foreground)]">
+                    <h3 className="text-[14px] font-sans font-semibold text-[var(--color-foreground)]">
                       Unpaid debts today
                     </h3>
                     <span className="text-[11px] font-sans font-medium px-2 py-0.5 rounded-full bg-[var(--color-error)]/15 text-[var(--color-error)] border border-[var(--color-error)]/20">
@@ -1303,7 +1296,7 @@ export const PackageForm = ({
             <div className={`rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] ${cardPadClass}`}>
               <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-2.5">
                 <h3 className="text-[14px] font-sans font-semibold text-[var(--color-foreground)]">
-                  Shift sales analysis
+                  Shift summary
                 </h3>
                 <span className="text-[11px] font-sans text-[var(--color-muted)] bg-[var(--color-surface-2)] px-2 py-0.5 rounded-full border border-[var(--color-border)] tabular-nums">
                   {packageTxs.length} entries
@@ -1350,7 +1343,7 @@ export const PackageForm = ({
               {/* Net Cash Position Box */}
               <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-2)] p-3 space-y-1.5 mt-2">
                 <div className="flex justify-between text-[12px] font-sans text-[var(--color-muted)]">
-                  <span>Cash in hand (sales + recovered)</span>
+                  <span>Cash in hand</span>
                   <span className="tabular-nums">₦{fmt(physicalCash)}</span>
                 </div>
                 <div className="flex justify-between text-[12px] font-sans text-[var(--color-error)]">
@@ -1386,7 +1379,10 @@ export const PackageForm = ({
               {/* Entries Today */}
               <div className="pt-2 border-t border-[var(--color-border)] space-y-2">
                 <div className="flex items-center justify-between text-[12px] font-sans font-medium text-[var(--color-muted)]">
-                  <span>Recent entries</span>
+                  <div className="flex items-center gap-1.5">
+                    <Clock size={13} className="shrink-0 text-[var(--color-muted)]" />
+                    <span>Recent entries</span>
+                  </div>
                   <span className="tabular-nums">{packageTxs.length}</span>
                 </div>
                 {packageTxs.length === 0 ? (
@@ -1416,8 +1412,9 @@ export const PackageForm = ({
                 <button
                   type="button"
                   onClick={() => setShowCloseModal(true)}
-                  className="min-h-[44px] h-11 w-full rounded-full font-medium text-[13px] font-sans bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] border border-[var(--color-border)] transition-colors cursor-pointer flex items-center justify-center gap-1.5 select-none"
+                  className="min-h-[44px] h-11 w-full rounded-full font-medium text-[13px] font-sans bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] border border-[var(--color-border)] transition-colors cursor-pointer flex items-center justify-center gap-2 select-none"
                 >
+                  <Lock size={14} className="text-[var(--color-muted)]" />
                   <span>End day &amp; close session</span>
                 </button>
               </div>
@@ -1451,7 +1448,12 @@ export const PackageForm = ({
 
       {/* CLOSE DAY MODAL */}
       {showCloseModal && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-200">
+        <div
+          className="fixed inset-0 w-screen h-screen ehi-scrim z-[99999] flex items-center justify-center p-3 sm:p-4 select-none animate-in fade-in duration-200"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !closingDay) setShowCloseModal(false);
+          }}
+        >
           <div className="bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
             {/* Modal Header */}
             <div className="px-5 py-4 border-b border-[var(--color-border)] flex items-center justify-between shrink-0">
@@ -1528,9 +1530,6 @@ export const PackageForm = ({
                     ₦{fmt(Math.abs(balanceCash))}
                   </span>
                 </div>
-                <p className="text-[11px] font-sans text-[var(--color-muted)]">
-                  (₦{fmt(physicalCash)} cash in hand − ₦{fmt(totalExpenses)} expenses)
-                </p>
               </div>
             </div>
 
@@ -1573,7 +1572,7 @@ export const PackageForm = ({
                 type="button"
                 onClick={handleCloseDay}
                 disabled={closingDay}
-                className="min-h-[44px] h-11 px-4 rounded-full font-semibold text-[13px] font-sans bg-white text-black hover:bg-neutral-200 dark:bg-white dark:text-black flex-1 shadow-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed select-none"
+                className="min-h-[44px] h-11 px-4 rounded-full font-semibold text-[13px] font-sans bg-white text-black hover:bg-neutral-200 dark:bg-white dark:text-black dark:hover:bg-neutral-200 flex-1 shadow-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed select-none"
               >
                 {closingDay && <Spinner size="sm" tone="current" />}
                 <span>{closingDay ? 'Closing…' : 'Confirm & close day'}</span>

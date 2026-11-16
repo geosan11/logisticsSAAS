@@ -65,14 +65,14 @@ export const CustomerWalletPicker: React.FC<CustomerWalletPickerProps> = ({
             <button
               type="button"
               onClick={() => setIsOpen(true)}
-              className="min-h-[44px] h-11 px-3 text-[12px] font-sans font-medium text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)] bg-[var(--color-surface-2)] rounded-xl border border-[var(--color-border)] transition-colors cursor-pointer"
+              className="min-h-[44px] h-11 px-3 text-[12px] font-sans font-medium text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)] bg-[var(--color-surface-2)] rounded-full border border-[var(--color-border)] transition-colors cursor-pointer"
             >
               Change
             </button>
             <button
               type="button"
               onClick={() => onSelectWallet(null)}
-              className="min-w-[44px] min-h-[44px] w-11 h-11 flex items-center justify-center text-[var(--color-muted)] hover:text-[var(--color-error)] rounded-xl hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
+              className="min-w-[44px] min-h-[44px] w-11 h-11 flex items-center justify-center text-[var(--color-muted)] hover:text-[var(--color-error)] rounded-full hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
               title="Deselect wallet"
               aria-label="Deselect wallet"
             >
