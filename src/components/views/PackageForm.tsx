@@ -12,10 +12,32 @@ import { useHubRoutes, useValidatedRouteSelection, useHubs } from "../../lib/hub
 import { useContentTypes } from "../../lib/contentTypes";
 import { useExpenseCategories } from "../../lib/expenseCategories";
 import { useBanks } from "../../lib/banks";
-import {  MIN_PACKAGE_AMOUNT , CARGO_ROUTES } from "../../lib/constants";
+import { MIN_PACKAGE_AMOUNT } from "../../lib/constants";
 import { getNextTag } from "../../lib/tagPool";
-import { Plus, CheckCircle, ClipboardList, BarChart2, Printer, MessageSquare, Bluetooth, Copy, AlertTriangle, User as UserIcon, Banknote, CreditCard, Landmark, MapPin, Layers, Hash, Package as PackageIcon, Truck } from "lucide-react";
-import { Spinner } from "../ui";
+import {
+  Plus,
+  CheckCircle,
+  ClipboardList,
+  BarChart2,
+  Printer,
+  Bluetooth,
+  Copy,
+  AlertTriangle,
+  User as UserIcon,
+  Banknote,
+  CreditCard,
+  Landmark,
+  MapPin,
+  Layers,
+  Hash,
+  Package as PackageIcon,
+  Truck,
+  Phone,
+  FileText,
+  X,
+  Building2,
+} from "lucide-react";
+import { Spinner, useDensity } from "../ui";
 import { supabase, writeAuditLog } from "../../lib/supabase";
 import { clearDebt, DEBT_TABLE_NAME } from "../../lib/debt";
 import { sendReceiptWhatsApp, buildPackageWhatsApp } from "../../lib/notifications";
@@ -51,21 +73,11 @@ export const PackageForm = ({
   onShowHistory?: () => void;
   customerWallets?: CustomerWallet[];
   setCustomerWallets?: React.Dispatch<React.SetStateAction<CustomerWallet[]>>;
-  // Set by GatWorkspace.tsx to pin this form's terminal to 'GAT' for as
-  // long as it's mounted there -- see CargoForm.tsx's identical prop.
   forcedTerminal?: 'MMA2' | 'GAT';
-  // Whichever hub_shifts row is currently open for this hub's 'package'
-  // department -- see CargoForm.tsx's identical prop for why (same-shift
-  // debt reclassification, 20260947_same_shift_debt_reclassification.sql).
   activeShift?: HubShift | null;
 }) => {
+  const { isCompact } = useDensity();
   const isAdmin = ['super_admin', 'admin', 'accountant'].includes(propUser.role);
-  // See CargoForm.tsx's identical fix for the full explanation: this used
-  // to default to the raw propUser.hub_id (a UUID) and be sourced from
-  // CARGO_ROUTES route-display-strings, corrupting both user.hub (shown as
-  // a garbled "74D"-style code via getHubCode()) and user.hub_id (a
-  // Postgres uuid column rejects a "LOS/Lagos" string) once an admin
-  // picked anything from the dropdown.
   const hubList = useHubs();
   const [adminSelectedHubId, setAdminSelectedHubId] = useState<string>(propUser.hub_id || '');
   const selectedHubRecord = hubList.find(h => h.id === adminSelectedHubId);
@@ -77,18 +89,10 @@ export const PackageForm = ({
         hub_code: selectedHubRecord?.code || propUser.hub_code,
       }
     : propUser;
-  // GAT (General Aviation Terminal / MM1) is a second physical Lagos counter,
-  // not a new hub -- only show the switch to LOS-hub agents.
+
   const userHubCode = getHubCode(user.hub_code || user.hub);
   const [terminal, setTerminal] = usePersistedTerminal(forcedTerminal);
 
-  // Destinations are the live hub list from Supabase (not a hardcoded
-  // constant) so a new hub added in Settings shows up here immediately --
-  // each option is prefixed with its IATA-style hub code for consistency
-  // with the Cargo/ValueJet route pickers. Cached to localStorage for an
-  // instant first paint / offline fallback while the fetch is in flight.
-  // No 'Other' option and no bundled-constant cold fallback, matching this
-  // form's original behavior exactly.
   const { showToast } = useToast();
   const [markingPaidId, setMarkingPaidId] = useState<string | null>(null);
   const confirm = useConfirm();
@@ -97,12 +101,6 @@ export const PackageForm = ({
 
   const [trackingRef, setTrackingRef] = useState<string>('');
   useEffect(() => {
-    // Tracking numbers are allocated atomically server-side, keyed per hub
-    // with a "-PKG" suffix on the same counter cargo and marketing use, so
-    // two agents can never be issued the same one. Popped from the local
-    // tag pool (src/lib/tagPool.ts) rather than a direct RPC call -- a
-    // pure local operation once the pool's been reserved while online, so
-    // it works offline too, still guaranteed unique.
     const allocate = async () => {
       const hubCode = getHubCode(user.hub_code || user.hub);
       const tag = await getNextTag(`${hubCode}-PKG`, `EHI-${hubCode}-PKG`);
@@ -114,42 +112,25 @@ export const PackageForm = ({
       }
     };
     allocate();
-    // Re-fetch when the admin's hub context changes -- the pool key above
-    // is derived from user.hub_code/hub, so a mount-only effect left a
-    // tracking number reserved from whichever hub was active at mount,
-    // unrelated to whatever the admin later switches "Global Hub
-    // Context" to.
   }, [user.hub_code, user.hub]);
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  // Left empty rather than defaulting to destinations[0] -- a pre-filled
-  // dropdown looks like a deliberate choice, so staff could submit against
-  // whatever destination happened to be first without ever consciously
-  // picking it. isValid above already requires it explicitly.
   const [destination, setDestination] = useState<string>('');
   useValidatedRouteSelection(destinations, destination, setDestination);
   const [contentType, setContentType] = useState<'Package' | 'Parcel'>('Package');
-  // Pieces/weight/contents were never captured for this stream at all --
-  // every other business line (Cargo, Marketing, ValueJet) tracks these, and
-  // reuses the same shared content-types list as Cargo rather than a new
-  // hardcoded one, so this scales the same way the rest of the app does.
   const [pcs, setPcs] = useState("1");
   const [kg, setKg] = useState("");
-  // Left empty rather than defaulting to contentTypes[0] -- same reasoning
-  // as destination above. isValid now requires actualContents explicitly.
   const [contents, setContents] = useState<string>('');
   const [customContents, setCustomContents] = useState("");
   const [remark, setRemark] = useState("");
   const [amount, setAmount] = useState("");
   const [mode, setMode] = useState<string>("Cash");
-  // Wallet-mode charges are a real-time, non-reversible atomic RPC with no
-  // offline queue -- see chargeWalletForSale's own comment -- blocked
-  // outright while offline instead of risking a cross-device double-spend.
   const isOnline = useIsOnline();
   useEffect(() => {
     if (!isOnline && mode === 'Wallet') setMode('Cash');
   }, [isOnline, mode]);
+
   const banks = useBanks();
   const [bank, setBank] = useState<string>(banks[0]);
   const [narrationCode, setNarrationCode] = useState<string>("");
@@ -178,28 +159,11 @@ export const PackageForm = ({
     return () => { mounted = false; };
   }, []);
 
-  // Office-work (B2B corporate) auto-detection -- shared with Cargo/
-  // Marketing/Excess Baggage intake via src/lib/officeWork.ts. Previously
-  // only CargoForm.tsx had this, so a corporate client's package deliveries
-  // were always silently booked at retail pricing with no way to bill them
-  // against the negotiated contract rate.
   const corpClients = useCorporateClients();
   const corpRates = useCorporateRouteRates();
   const officeMatch = useMemo(() => matchOfficeClient(name, corpClients), [name, corpClients]);
   const detectedOfficeClient = officeMatch.client;
   const [linkedAsOfficeWork, setLinkedAsOfficeWork] = useState(false);
-  // Neither match type auto-links anymore -- both exact and fuzzy matches
-  // only populate the suggestion banner below and require the explicit
-  // "Yes, Link as Office Work" click. An exact match used to auto-link and
-  // auto-bill instantly with zero confirmation, silently applying a
-  // corporate account's negotiated rate to anyone who happened to type
-  // that exact name (including a coincidentally-same-named walk-in).
-  // Any change to the matched name/client also un-confirms a previously
-  // confirmed link and clears a stale office-work-computed amount --
-  // otherwise editing the name away from a confirmed match (or losing the
-  // match entirely) left the corporate-rate price sitting in `amount`,
-  // which then billed as a plain individual sale with no trace of the
-  // corporate link that produced it.
   const wasLinkedRef = useRef(false);
   useEffect(() => {
     if (wasLinkedRef.current) setAmount('');
@@ -226,54 +190,27 @@ export const PackageForm = ({
   const [expType, setExpType] = useState<string>('');
   useEffect(() => {
     if (expenseCategoryNames.length > 0 && !expenseCategoryNames.includes(expType)) setExpType(expenseCategoryNames[0]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [expenseCategoryNames]);
   const [expAmount, setExpAmount] = useState("");
   const [expDesc, setExpDesc] = useState("");
 
-  // "Other" in the Contents dropdown needs a free-text fallback, same
-  // pattern CargoForm.tsx already uses for customConsignee/customAirline --
-  // otherwise the ledger would literally record the word "Other" instead
-  // of what the agent actually typed.
   const actualContents = contents === "Other" ? customContents : contents;
   const parsedAmount = parseFloat(amount) || 0;
   const pcsNum = parseInt(pcs) || 0;
   const kgNum = parseFloat(kg) || 0;
-  // actualContents wasn't required at all before -- contents defaulting to
-  // contentTypes[0] made it always truthy, so this never actually bit;
-  // now that it starts empty, it needs an explicit check like destination
-  // already has.
-  // A confirmed office-work link only exempts the MIN_PACKAGE_AMOUNT floor
-  // when there's an actual contract rate backing it (officeWorkRate) -- a
-  // negotiated rate is authoritative pricing the company already agreed to
-  // (e.g. a bulk-volume discount) and can legitimately fall below the
-  // standard minimum package fee, but linking to a client with no
-  // configured rate for this specific route is not itself a pricing
-  // decision, so the normal retail floor still applies (matches
-  // CargoForm.tsx's identical exemption for size/flat-tier pricing).
-  const isValidCore = name.trim().length > 0
-    && ((linkedAsOfficeWork && officeWorkRate) ? parsedAmount > 0 : parsedAmount >= MIN_PACKAGE_AMOUNT) && destination.trim().length > 0 && actualContents.trim().length > 0 && !!trackingRef && pcsNum > 0;
 
-  // "Today" here means the actual calendar day, not whatever the app-wide
-  // date-range picker (globalDateRange, defaults to a trailing 7 days) is
-  // currently set to -- transactions/expenses are fetched against that
-  // wider range, so without this filter every panel below silently sums
-  // up to a week of activity and End Day would record that week's total
-  // as a single day's close.
+  const isValidCore = name.trim().length > 0
+    && ((linkedAsOfficeWork && officeWorkRate) ? parsedAmount > 0 : parsedAmount >= MIN_PACKAGE_AMOUNT)
+    && destination.trim().length > 0
+    && actualContents.trim().length > 0
+    && !!trackingRef
+    && pcsNum > 0;
+
   const todayStr = new Date().toISOString().split('T')[0];
   const isToday = (createdAt?: string) => !!createdAt && createdAt.split('T')[0] === todayStr;
 
   const packageTxs = transactions.filter((t) => t.type === "package" && isToday(t.created_at));
   const totalSales = packageTxs.reduce((sum, t) => sum + t.amount, 0);
-  // A short wallet's remainder is recorded with `mode` set to whatever
-  // collected the gap (e.g. "Cash") but `amount` left as the FULL sale
-  // total -- only `wallet_deduction_amount` records the wallet portion.
-  // Without subtracting it here, a split sale double-counts: the
-  // wallet-covered part is credited both to the wallet AND to this
-  // physical cash/transfer/POS total, overstating what's actually in the
-  // till. Matches AccountingConsole.tsx/EODReconciliation.tsx's identical
-  // nonWalletPortion fix for the shared reconciliation screens -- this
-  // department-local day-close total never got the same fix.
   const nonWalletPortion = (t: Transaction) => Math.max(0, (t.amount || 0) - (t.wallet_deduction_amount || 0));
   const cashSales = packageTxs.reduce((sum, t) => sum + (t.mode === "Cash" ? nonWalletPortion(t) : 0), 0);
   const posSales = packageTxs.reduce((sum, t) => sum + (t.mode === "POS" ? nonWalletPortion(t) : 0), 0);
@@ -299,10 +236,6 @@ export const PackageForm = ({
     destinationCounts[d] = (destinationCounts[d] || 0) + 1;
   });
 
-  // Balance-based, not just !debtPaid -- a payment recorded via DebtorsTab
-  // (used generically by every stream) only ever touches amountPaid/mode,
-  // never this component's own debtPaid flag, so checking debtPaid alone
-  // left debts paid off elsewhere still showing as unpaid here.
   const unpaidDebts = packageTxs.filter(t => t.mode === 'Debt' && (t.amount - (t.amountPaid || 0)) > 0);
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [showSalesAnalysis, setShowSalesAnalysis] = useState(false);
@@ -316,14 +249,6 @@ export const PackageForm = ({
     return matchWallet(customerWallets, name, phone);
   }, [name, phone, customerWallets, selectedWalletOverride]);
 
-  // Wallet mode requires an actual resolved wallet -- previously `!activeWallet`
-  // made this whole condition (and thus isValid) pass even with no wallet
-  // matched/selected, and handleAddEntry's wallet-charging block is itself
-  // gated on `activeWallet` truthy, so it silently no-op'd: the sale
-  // recorded mode: "Wallet" at the full amount with no money ever
-  // collected and no wallet debited.
-  // A short wallet paying its remainder by Transfer/POS needs a bank before
-  // the entry can be submitted -- mirrors the same guard in handleAddEntry.
   const saleIdempotencyKeyRef = useRef<string>(crypto.randomUUID());
   const walletRemainderBankOk = mode !== 'Wallet' || (!!activeWallet && (activeWallet.balance >= parsedAmount ||
     !(walletRemainderMode === 'Transfer' || walletRemainderMode === 'POS') || walletRemainderBank.trim().length > 0));
@@ -336,126 +261,103 @@ export const PackageForm = ({
     }
     if (!isValid || submitting) return;
     setSubmitting(true);
-    // See CargoForm.tsx's handleRetailSubmit for why this is wrapped: an
-    // unhandled exception must still release `submitting`, or the Review
-    // modal (which now stays open through submission) gets stuck open with
-    // no way out but a page reload.
     try {
-
-    const tx: Transaction = {
-      id: trackingRef,
-      name: name.trim(),
-      detail: `${destination} · ${contentType} · ${pcsNum}pcs · ${kgNum}kg · ${actualContents}${assignedVehicle ? ` · 🚚 ${assignedVehicle}` : ''}`,
-      amount: parsedAmount,
-      mode,
-      bank: (mode === "Transfer" || mode === "POS") ? bank : undefined,
-      paymentNarration: (mode === "Transfer" || mode === "POS") ? narrationCode : undefined,
-      time: tnow(),
-      created_at: new Date().toISOString(),
-      type: "package",
-      status: "Intake",
-      destination,
-      contentType,
-      pieces: pcsNum,
-      kg: kgNum,
-      contents: actualContents,
-      vehiclePlate: assignedVehicle || undefined,
-      driverName: assignedDriver || undefined,
-      hub: user.hub,
-      hub_id: user.hub_id,
-      enteredByName: user.name,
-      debtPaid: mode === "Debt" ? false : undefined,
-      terminal,
-      linked_as_office_work: linkedAsOfficeWork || undefined,
-      corporate_client_id: linkedAsOfficeWork && detectedOfficeClient ? detectedOfficeClient.id : undefined,
-      applied_rate_per_kg: linkedAsOfficeWork && officeWorkRate ? officeWorkRate.rate_per_kg : undefined,
-      clientType: linkedAsOfficeWork ? "Corporate" : "Individual",
-      created_shift_id: activeShift?.id,
-      // Was captured into local form state only and never attached to the
-      // Transaction itself -- package_entries had nowhere to store it, so
-      // it was silently lost the moment this session ended, and any later
-      // reprint from the ledger always showed a blank phone.
-      consigneePhone: phone.trim() || undefined,
-      pickupPin: generatePickupPin(),
-      remarks: remark.trim(),
-    } as any;
-
-    // Wallet payment — AUTO-SPLIT. Wallet covers what it can; any remainder is
-    // collected by the chosen Cash/Transfer/POS method and recorded as the
-    // receipt_mode, so the till isn't silently short. EOD nets
-    // wallet_deduction_amount out of the cash/transfer/POS totals.
-    if (mode === "Wallet" && activeWallet) {
-      // Guard: a short wallet needs a remainder method (Cash needs nothing;
-      // Transfer/POS need a bank/terminal reference). Checked BEFORE
-      // chargeWalletForSale -- that call commits an atomic, non-reversible
-      // wallet deduction, so this can never run after the money has already
-      // moved (previously it did, silently deducting the wallet even when
-      // the bank field was left blank).
-      const walletRemainder = Math.max(0, parsedAmount - activeWallet.balance);
-      if (walletRemainder > 0 && (walletRemainderMode === 'Transfer' || walletRemainderMode === 'POS') && !walletRemainderBank.trim()) {
-        showToast({ message: `Enter the bank/terminal for the ₦${fmt(walletRemainder)} remainder.`, type: 'warning' });
-        setSubmitting(false);
-        return;
-      }
-      const charge = await chargeWalletForSale({
-        wallet: activeWallet,
+      const tx: Transaction = {
+        id: trackingRef,
+        name: name.trim(),
+        detail: `${destination} · ${contentType} · ${pcsNum}pcs · ${kgNum}kg · ${actualContents}${assignedVehicle ? ` · 🚚 ${assignedVehicle}` : ''}`,
         amount: parsedAmount,
-        cargoRef: trackingRef,
-        description: `Package Consignment ${trackingRef}`,
-        loggedBy: user.name,
-        department: 'package',
-        idempotencyKey: saleIdempotencyKeyRef.current,
-      });
-      if (!charge.ok) {
-        showToast({ message: `Wallet deduction failed: ${charge.error}. Entry was not logged.`, type: 'error' });
-        setSubmitting(false);
-        return;
-      }
-      tx.wallet_id = activeWallet.id;
-      tx.wallet_deduction_amount = charge.walletDeduction;
-      (tx as any).wallet_balance_before = activeWallet.balance;
-      (tx as any).wallet_balance_after = charge.newBalance;
-      if (charge.remainder > 0) {
-        tx.mode = walletRemainderMode;
-        tx.bank = (walletRemainderMode === 'Transfer' || walletRemainderMode === 'POS') ? walletRemainderBank.trim() : undefined;
-      }
+        mode,
+        bank: (mode === "Transfer" || mode === "POS") ? bank : undefined,
+        paymentNarration: (mode === "Transfer" || mode === "POS") ? narrationCode : undefined,
+        time: tnow(),
+        created_at: new Date().toISOString(),
+        type: "package",
+        status: "Intake",
+        destination,
+        contentType,
+        pieces: pcsNum,
+        kg: kgNum,
+        contents: actualContents,
+        vehiclePlate: assignedVehicle || undefined,
+        driverName: assignedDriver || undefined,
+        hub: user.hub,
+        hub_id: user.hub_id,
+        enteredByName: user.name,
+        debtPaid: mode === "Debt" ? false : undefined,
+        terminal,
+        linked_as_office_work: linkedAsOfficeWork || undefined,
+        corporate_client_id: linkedAsOfficeWork && detectedOfficeClient ? detectedOfficeClient.id : undefined,
+        applied_rate_per_kg: linkedAsOfficeWork && officeWorkRate ? officeWorkRate.rate_per_kg : undefined,
+        clientType: linkedAsOfficeWork ? "Corporate" : "Individual",
+        created_shift_id: activeShift?.id,
+        consigneePhone: phone.trim() || undefined,
+        pickupPin: generatePickupPin(),
+        remarks: remark.trim(),
+      } as any;
 
-      if (setCustomerWallets) {
-        setCustomerWallets(prev => prev.map(w => w.id === activeWallet.id ? { ...w, balance: charge.newBalance! } : w));
-      }
-      showToast({
-        message: charge.remainder > 0
-          ? `₦${fmt(charge.walletDeduction)} from ${activeWallet.customer_name}'s wallet · ₦${fmt(charge.remainder)} by ${walletRemainderMode}. Balance: ₦${fmt(charge.newBalance!)}`
-          : `💰 ₦${fmt(charge.walletDeduction)} deducted from ${activeWallet.customer_name}'s Credit Wallet. Remaining Balance: ₦${fmt(charge.newBalance!)}`,
-        type: 'success'
-      });
-    }
-
-    setSuccessTx(tx);
-    // Never reset back to false on confirm (only on Cancel) -- left true,
-    // this reappeared as soon as "New Entry" cleared successTx and put the
-    // main form back on screen, since the modal's own render condition
-    // (`showPackageReview && <ReviewEntryModal .../>`) was still satisfied.
-    setShowPackageReview(false);
-    setSubmitting(false);
-    onAddTx(tx);
-
-    if (phone.trim().length > 0) {
-      sendReceiptWhatsApp({
-        phone: phone.trim(),
-        ref: tx.id,
-        message: buildPackageWhatsApp({
-          ref: tx.id,
-          customer: tx.name,
-          destination,
-          contentType,
+      if (mode === "Wallet" && activeWallet) {
+        const walletRemainder = Math.max(0, parsedAmount - activeWallet.balance);
+        if (walletRemainder > 0 && (walletRemainderMode === 'Transfer' || walletRemainderMode === 'POS') && !walletRemainderBank.trim()) {
+          showToast({ message: `Enter the bank/terminal for the ₦${fmt(walletRemainder)} remainder.`, type: 'warning' });
+          setSubmitting(false);
+          return;
+        }
+        const charge = await chargeWalletForSale({
+          wallet: activeWallet,
           amount: parsedAmount,
-          mode,
-          bank: (mode === "Transfer" || mode === "POS") ? bank : undefined,
-          paymentNarration: (mode === "Transfer" || mode === "POS") ? narrationCode : undefined,
-        }),
-      });
-    }
+          cargoRef: trackingRef,
+          description: `Package Consignment ${trackingRef}`,
+          loggedBy: user.name,
+          department: 'package',
+          idempotencyKey: saleIdempotencyKeyRef.current,
+        });
+        if (!charge.ok) {
+          showToast({ message: `Wallet deduction failed: ${charge.error}. Entry was not logged.`, type: 'error' });
+          setSubmitting(false);
+          return;
+        }
+        tx.wallet_id = activeWallet.id;
+        tx.wallet_deduction_amount = charge.walletDeduction;
+        (tx as any).wallet_balance_before = activeWallet.balance;
+        (tx as any).wallet_balance_after = charge.newBalance;
+        if (charge.remainder > 0) {
+          tx.mode = walletRemainderMode;
+          tx.bank = (walletRemainderMode === 'Transfer' || walletRemainderMode === 'POS') ? walletRemainderBank.trim() : undefined;
+        }
+
+        if (setCustomerWallets) {
+          setCustomerWallets(prev => prev.map(w => w.id === activeWallet.id ? { ...w, balance: charge.newBalance! } : w));
+        }
+        showToast({
+          message: charge.remainder > 0
+            ? `₦${fmt(charge.walletDeduction)} from ${activeWallet.customer_name}'s wallet · ₦${fmt(charge.remainder)} by ${walletRemainderMode}. Balance: ₦${fmt(charge.newBalance!)}`
+            : `₦${fmt(charge.walletDeduction)} deducted from ${activeWallet.customer_name}'s credit wallet. Remaining balance: ₦${fmt(charge.newBalance!)}`,
+          type: 'success'
+        });
+      }
+
+      setSuccessTx(tx);
+      setShowPackageReview(false);
+      setSubmitting(false);
+      onAddTx(tx);
+
+      if (phone.trim().length > 0) {
+        sendReceiptWhatsApp({
+          phone: phone.trim(),
+          ref: tx.id,
+          message: buildPackageWhatsApp({
+            ref: tx.id,
+            customer: tx.name,
+            destination,
+            contentType,
+            amount: parsedAmount,
+            mode,
+            bank: (mode === "Transfer" || mode === "POS") ? bank : undefined,
+            paymentNarration: (mode === "Transfer" || mode === "POS") ? narrationCode : undefined,
+          }),
+        });
+      }
     } catch (err: any) {
       setSubmitting(false);
       showToast({ message: `Unexpected error: ${err?.message || 'please try again'}`, type: 'error' });
@@ -468,12 +370,6 @@ export const PackageForm = ({
     setPhone("");
     setPcs("1");
     setKg("");
-    // Blank, not contentTypes[0]/destination left untouched -- both start
-    // blank on mount specifically to force a conscious pick (see their own
-    // useState('') declarations); silently repopulating a default (or
-    // leaving the previous customer's destination in place) let the next
-    // package submit priced/filed under content/destination nobody
-    // actually chose for it.
     setContents('');
     setCustomContents("");
     setDestination('');
@@ -484,22 +380,9 @@ export const PackageForm = ({
     setAssignedVehicle("");
     setAssignedDriver("");
     setSuccessTx(null);
-    // Wallet override/remainder-payment state otherwise survives into the
-    // next customer's sale -- if Wallet mode is used again without
-    // explicitly re-picking a wallet, the charge would silently apply to
-    // THIS (previous) customer's wallet instead of the new one.
     setSelectedWalletOverride(null);
     setWalletRemainderMode('Cash');
     setWalletRemainderBank('');
-    // Cleared synchronously, not just reassigned once the RPC below
-    // resolves -- setSuccessTx(null) above immediately returns to the
-    // enterable form, but trackingRef previously stayed equal to the
-    // JUST-USED ref until the new one arrived. isValid only checks
-    // !!trackingRef (truthy), not freshness, so a fast agent (or a slow/
-    // failed RPC) could submit a second entry during that window with the
-    // same tracking ref as the first -- package_entries is upserted on
-    // entry_ref (sync.ts), so the second submission silently overwrote the
-    // first one's row, losing a sale that was already collected.
     setTrackingRef('');
     const hubCodeReset = getHubCode(user.hub_code || user.hub);
     getNextTag(`${hubCodeReset}-PKG`, `EHI-${hubCodeReset}-PKG`).then(tag => {
@@ -525,14 +408,6 @@ export const PackageForm = ({
 
   const handleMarkDebtPaid = async (tx: Transaction) => {
     if (markingPaidId) return;
-    // Routed through clear_package_debt (the same RPC TransactionLedger's
-    // Clear Debt and DebtorsTab's Confirm already use) instead of a bare
-    // onAddTx upsert -- that upsert bypassed the entry's row lock/balance
-    // re-check entirely and logged a misleading `action: 'CREATE'` audit
-    // entry for what is actually a debt collection. Any staff can still do
-    // this (no role gate), same as the other two entry points -- see
-    // TransactionLedger.tsx's comment on the Clear Debt button for the
-    // maker-checker rationale.
     const remaining = tx.amount - (tx.amountPaid || 0) - ((tx.raw as any)?.retrieved_amount || 0);
     if (remaining <= 0) return;
     setMarkingPaidId(tx.id);
@@ -576,9 +451,9 @@ export const PackageForm = ({
   const handleCloseDay = async () => {
     if (closingDay) return;
     const ok = await confirm({
-      title: 'Close Package Desk session?',
-      message: "Close today's Package Desk session? This cannot be undone.",
-      confirmLabel: 'Close Day',
+      title: 'Close package desk session?',
+      message: "Close today's package desk session? This cannot be undone.",
+      confirmLabel: 'Close day',
       tone: 'danger',
     });
     if (!ok) return;
@@ -611,95 +486,116 @@ export const PackageForm = ({
     }
   };
 
-  const focusClasses = "focus:outline-none focus:ring-2 focus:ring-[rgba(59,130,246,0.5)] focus:border-[rgba(59,130,246,0.5)] transition-colors";
-
-  // Mirrors CargoForm.tsx's formInputClass/renderLabel pattern (bigger,
-  // labeled fields instead of placeholder-only ghost text) but keeps
-  // Package's own cobalt focus color instead of Cargo's amber, so this
-  // desk stays visually distinct from Cargo's.
   const formInputClass =
-    "w-full h-12 px-4 text-[16px] rounded-[var(--radius-sm)] bg-[var(--color-input-bg)] text-[var(--color-input-text)] border border-[var(--color-border)] font-sans focus:outline-none focus:border-[rgba(59,130,246,0.5)] focus:ring-2 focus:ring-[rgba(59,130,246,0.3)] transition-all";
+    "w-full min-h-[44px] h-11 px-3.5 text-[14px] rounded-xl bg-[var(--color-surface-2)] text-[var(--color-foreground)] border border-[var(--color-border)] font-sans focus:outline-none focus:border-[var(--color-border-strong)] transition-all placeholder:text-[var(--color-muted)]";
 
   const renderLabel = (icon: any, text: string) => {
     const Icon = icon;
     return (
-      <div className="flex items-center space-x-1.5 mb-1.5">
-        <Icon size={14} style={{ color: "var(--color-light-muted)" }} />
-        <label className="text-[13px] font-sans font-semibold text-[var(--color-light-muted)]">
-          {text}
-        </label>
-      </div>
+      <label className="text-[12px] font-sans font-medium text-[var(--color-text-secondary)] mb-1.5 flex items-center gap-1.5">
+        <Icon size={14} className="text-[var(--color-muted)] shrink-0" />
+        <span>{text}</span>
+      </label>
     );
   };
 
   const formRootRef = useRef<HTMLDivElement>(null);
   useEnterToNextField(formRootRef);
 
-  return (
-    <div ref={formRootRef} className="p-4 max-w-5xl mx-auto" style={{ width: "100%", boxSizing: "border-box", minHeight: 0, flex: 1 }}>
-      
-      {isAdmin && (
-        <div className="mb-4 p-3 max-w-[220px] bg-[var(--color-surface-2)] rounded-lg border border-[var(--color-accent-amber)] border-opacity-30 animate-in fade-in">
-           <label className="text-[10px] uppercase font-bold text-[var(--color-accent-amber)] mb-1 block flex items-center gap-1">
-             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-             Admin: Global Hub Context
-           </label>
-           <select value={adminSelectedHubId} onChange={(e) => setAdminSelectedHubId(e.target.value)} className="w-full bg-[var(--color-surface-1)] text-[var(--color-foreground)] font-bold text-[13px] p-2 rounded border border-[var(--color-border)] focus:border-[var(--color-accent-amber)] focus:outline-none cursor-pointer">
-             {hubList.map(h => <option key={h.id} value={h.id}>{h.code}/{h.name}</option>)}
-           </select>
-        </div>
-      )}
+  const cardPadClass = isCompact ? 'p-3.5 space-y-3' : 'p-4 sm:p-5 space-y-4';
+  const spaceYClass = isCompact ? 'space-y-3' : 'space-y-4';
+  const gridGapClass = isCompact ? 'gap-3.5' : 'gap-4 sm:gap-5';
 
-      <div className="flex justify-between items-center text-[10px] font-mono text-[var(--color-muted)] uppercase tracking-widest border-b border-[var(--color-border)] pb-2 mb-6">
-        <div>{new Date().toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}</div>
-        <div className="flex items-center gap-3">
-          {userHubCode === 'LOS' && !forcedTerminal && <TerminalSwitch value={terminal} onChange={setTerminal} />}
-          <button onClick={() => setShowSalesAnalysis(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--color-surface-2)] border border-[var(--color-border-strong)] rounded-lg text-[11px] font-mono font-semibold text-[var(--color-foreground)] hover:bg-[var(--color-surface-3)] hover:border-[var(--color-accent-amber)] hover:text-[var(--color-accent-amber)] transition-colors shadow-[var(--shadow-xs)] normal-case tracking-normal">
-            <BarChart2 size={14} /> <span>Sales Analysis</span>
-          </button>
-          {onShowHistory && (
-            <button onClick={onShowHistory} className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--color-surface-2)] border border-[var(--color-border-strong)] rounded-lg text-[11px] font-mono font-semibold text-[var(--color-foreground)] hover:bg-[var(--color-surface-3)] hover:border-[var(--color-accent-amber)] hover:text-[var(--color-accent-amber)] transition-colors shadow-[var(--shadow-xs)] normal-case tracking-normal">
-              <ClipboardList size={14} /> <span>History</span>
+  return (
+    <div ref={formRootRef} className="w-full flex-1 flex flex-col min-h-0 bg-[var(--color-canvas)]">
+      {/* UNIFIED QUIET HEADER TOOLBAR */}
+      <div className="border-b border-[var(--color-border)] px-4 py-3 bg-[var(--color-surface-card)]">
+        <div className="flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
+          <div className="min-w-0">
+            <h1 className="text-[17px] font-sans font-semibold text-[var(--color-foreground)] tracking-tight">
+              Package desk
+            </h1>
+            <p className="text-[12px] font-sans text-[var(--color-muted)] truncate max-w-xs md:max-w-md">
+              Road waybill &amp; parcel consignments
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
+            {isAdmin && (
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-[11px] font-sans text-[var(--color-muted)] hidden sm:inline">Hub:</span>
+                <select
+                  value={adminSelectedHubId}
+                  onChange={(e) => setAdminSelectedHubId(e.target.value)}
+                  className="max-w-[130px] truncate h-11 px-2.5 rounded-full text-[12px] font-sans font-medium bg-[var(--color-surface-2)] text-[var(--color-foreground)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-border-strong)] cursor-pointer"
+                  title="Global Hub Context"
+                >
+                  {hubList.map((h) => (
+                    <option key={h.id} value={h.id}>
+                      {h.code} · {h.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {userHubCode === 'LOS' && !forcedTerminal && (
+              <TerminalSwitch value={terminal} onChange={setTerminal} />
+            )}
+
+            <button
+              type="button"
+              onClick={() => setShowSalesAnalysis(true)}
+              className="min-h-[44px] h-11 px-3 rounded-full text-[12px] font-sans font-medium bg-[var(--color-surface-2)] border border-[var(--color-border)] hover:bg-[var(--color-surface-3)] text-[var(--color-foreground)] transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer"
+            >
+              <BarChart2 size={14} className="text-[var(--color-muted)]" />
+              <span>Sales analysis</span>
             </button>
-          )}
-          <div>Agent: {user.name.split(" ")[0]}</div>
+
+            {onShowHistory && (
+              <button
+                type="button"
+                onClick={onShowHistory}
+                className="min-h-[44px] h-11 px-3 rounded-full text-[12px] font-sans font-medium bg-[var(--color-surface-2)] border border-[var(--color-border)] hover:bg-[var(--color-surface-3)] text-[var(--color-foreground)] transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer"
+              >
+                <ClipboardList size={14} className="text-[var(--color-muted)]" />
+                <span>History</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-[1fr_280px]">
-        <div className="space-y-6">
+      {/* MAIN TWO-COLUMN CONTENT GRID */}
+      <div className={`p-4 grid items-start ${isCompact ? 'gap-3.5 md:grid-cols-[1fr_260px]' : 'gap-4 sm:gap-5 md:grid-cols-[1fr_280px] lg:grid-cols-[1fr_300px]'}`}>
+        <div className={spaceYClass}>
           {successTx ? (
-            <div className="p-4 space-y-4 max-w-md mx-auto w-full select-none bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-2xl shadow-xl animate-in fade-in zoom-in-95 duration-200">
-              
-              {/* Compact Header banner */}
-              <div className="bg-[rgba(16,185,129,0.05)] border border-[var(--color-success)] rounded-xl px-3.5 py-2.5 flex items-center justify-between gap-3 shadow-sm">
+            /* SUCCESS CONFIRMATION CARD */
+            <div className="p-4 sm:p-5 space-y-4 max-w-md mx-auto w-full select-none bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-2xl shadow-sm">
+              {/* Status Header Banner */}
+              <div className="bg-[var(--color-success)]/10 border border-[var(--color-success)]/30 rounded-xl px-3.5 py-2.5 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
-                  <CheckCircle
-                    size={18}
-                    className="text-[var(--color-success)] shrink-0"
-                  />
-                  <span className="text-[13px] font-bold text-[var(--color-success)] tracking-wide">
-                    Package Saved Successfully!
+                  <CheckCircle size={18} className="text-[var(--color-success)] shrink-0" />
+                  <span className="text-[13px] font-sans font-semibold text-[var(--color-success)]">
+                    Package saved successfully
                   </span>
                 </div>
-                <span className="text-[10px] font-mono text-[var(--color-muted)] truncate max-w-[130px]">
-                  REF: {successTx.id.slice(0, 10)}...
+                <span className="text-[11px] font-mono text-[var(--color-muted)] truncate max-w-[130px] tabular-nums">
+                  Ref: {successTx.id}
                 </span>
               </div>
 
-              {/* QR Code + Pickup PIN Side-by-Side row */}
+              {/* QR Code + Pickup PIN Side-by-Side Row */}
               <div className="flex gap-3 items-stretch">
-                {/* QR Code Container */}
-                <div className="flex items-center justify-center p-2 bg-white rounded-xl border border-[var(--color-border)] shrink-0 shadow-sm">
+                <div className="flex items-center justify-center p-2 bg-white rounded-xl border border-[var(--color-border)] shrink-0 shadow-xs">
                   <QRCode id={successTx.id} size={72} />
                 </div>
-                
-                {/* Pickup PIN or Reference details */}
+
                 {(successTx as any).pickupPin ? (
-                  <div className="flex-1 border border-[var(--color-accent-amber)] rounded-xl bg-[rgba(251,191,36,0.05)] flex flex-col justify-center px-3.5 py-2 shadow-sm">
+                  <div className="flex-1 border border-[var(--color-border)] rounded-xl bg-[var(--color-surface-2)] flex flex-col justify-center px-3.5 py-2.5">
                     <div className="flex justify-between items-center">
-                      <span className="text-[10px] font-mono font-bold text-[var(--color-accent-amber)] uppercase tracking-wider">
-                        Pickup PIN
+                      <span className="text-[11px] font-sans font-medium text-[var(--color-muted)]">
+                        Pickup pin
                       </span>
                       <button
                         type="button"
@@ -707,24 +603,25 @@ export const PackageForm = ({
                           navigator.clipboard.writeText((successTx as any).pickupPin);
                           showToast({ message: "Pickup PIN copied!", type: "success" });
                         }}
-                        className="text-[var(--color-accent-amber)] hover:text-[var(--color-foreground)] transition-colors cursor-pointer p-0.5"
+                        className="text-[var(--color-muted)] hover:text-[var(--color-foreground)] transition-colors cursor-pointer p-1 rounded-md"
                         title="Copy PIN"
+                        aria-label="Copy PIN"
                       >
-                        <Copy size={12} />
+                        <Copy size={13} />
                       </button>
                     </div>
-                    <div className="text-[22px] font-mono font-extrabold text-[var(--color-foreground)] tracking-widest mt-0.5">
+                    <div className="text-[22px] font-mono font-bold text-[var(--color-foreground)] tracking-widest tabular-nums mt-0.5">
                       {(successTx as any).pickupPin}
                     </div>
-                    <p className="text-[10px] text-[var(--color-muted)] leading-tight mt-0.5">
+                    <p className="text-[11px] font-sans text-[var(--color-muted)] leading-tight mt-0.5">
                       Share this PIN with consignee for pickup verification.
                     </p>
                   </div>
                 ) : (
-                  <div className="flex-1 flex flex-col justify-center border border-[var(--color-border)] rounded-xl bg-[var(--color-surface-2)] px-3.5 py-2 shadow-sm">
-                    <span className="text-[10px] font-mono text-[var(--color-muted)] uppercase tracking-wider">Tracking Reference</span>
-                    <span className="text-[12px] font-mono font-semibold text-[var(--color-foreground)] truncate mt-0.5">{successTx.id}</span>
-                    <p className="text-[10px] text-[var(--color-muted)] leading-tight mt-0.5">
+                  <div className="flex-1 flex flex-col justify-center border border-[var(--color-border)] rounded-xl bg-[var(--color-surface-2)] px-3.5 py-2.5">
+                    <span className="text-[11px] font-sans font-medium text-[var(--color-muted)]">Tracking reference</span>
+                    <span className="text-[13px] font-mono font-semibold text-[var(--color-foreground)] truncate mt-0.5 tabular-nums">{successTx.id}</span>
+                    <p className="text-[11px] font-sans text-[var(--color-muted)] leading-tight mt-0.5">
                       Scannable tracking QR code generated for package tags.
                     </p>
                   </div>
@@ -732,59 +629,60 @@ export const PackageForm = ({
               </div>
 
               {/* Details Card */}
-              <div className="w-full bg-[var(--color-surface-2)] rounded-xl p-3.5 border border-[var(--color-border)] text-left space-y-2 shadow-sm">
-                
+              <div className="w-full bg-[var(--color-surface-2)] rounded-xl p-3.5 border border-[var(--color-border)] text-left space-y-2">
                 <div className="flex justify-between border-b border-[var(--color-border)] pb-1.5">
-                  <span className="text-[11px] font-sans text-[var(--color-muted)]">Customer / Consignee</span>
-                  <span className="text-[12px] font-sans font-bold text-[var(--color-foreground)] truncate max-w-[65%]">{successTx.name}</span>
+                  <span className="text-[12px] font-sans text-[var(--color-muted)]">Consignee</span>
+                  <span className="text-[13px] font-sans font-medium text-[var(--color-foreground)] truncate max-w-[65%]">{successTx.name}</span>
                 </div>
 
-                {/* WALLET DEBITED SUMMARY ROW */}
                 {successTx.wallet_deduction_amount && (
-                  <div className="flex justify-between border-b border-[var(--color-border)] pb-1.5 text-[11px] font-mono text-[var(--color-accent-amber)] font-bold">
-                    <span>Wallet Ded. (Bal: ₦{fmt((successTx as any).wallet_balance_after || 0)})</span>
-                    <span className="text-[var(--color-error)]">-₦{fmt(successTx.wallet_deduction_amount)}</span>
+                  <div className="flex justify-between border-b border-[var(--color-border)] pb-1.5 text-[12px] font-sans">
+                    <span className="text-[var(--color-muted)]">Wallet debited (Bal: ₦{fmt((successTx as any).wallet_balance_after || 0)})</span>
+                    <span className="text-[var(--color-error)] font-medium tabular-nums">-₦{fmt(successTx.wallet_deduction_amount)}</span>
                   </div>
                 )}
 
                 <div className="flex justify-between border-b border-[var(--color-border)] pb-1.5">
-                  <span className="text-[11px] font-sans text-[var(--color-muted)]">Tracking Ref / Tag</span>
-                  <span className="text-[12px] font-mono font-bold text-[var(--color-accent-amber)]">{successTx.id}</span>
+                  <span className="text-[12px] font-sans text-[var(--color-muted)]">Tracking reference</span>
+                  <span className="text-[12px] font-mono font-semibold text-[var(--color-foreground)] tabular-nums">{successTx.id}</span>
                 </div>
 
                 <div className="flex justify-between border-b border-[var(--color-border)] pb-1.5">
-                  <span className="text-[11px] font-sans text-[var(--color-muted)]">Destination / Content</span>
-                  <span className="text-[12px] font-sans font-bold text-[var(--color-foreground)] truncate max-w-[65%]">
+                  <span className="text-[12px] font-sans text-[var(--color-muted)]">Destination / Content</span>
+                  <span className="text-[13px] font-sans text-[var(--color-foreground)] truncate max-w-[65%]">
                     {successTx.detail}
                   </span>
                 </div>
 
                 <div className="flex justify-between border-b border-[var(--color-border)] pb-1.5">
-                  <span className="text-[11px] font-sans text-[var(--color-muted)]">Payment Method</span>
-                  <span className="text-[12px] font-mono font-semibold text-[var(--color-foreground)]">
+                  <span className="text-[12px] font-sans text-[var(--color-muted)]">Payment method</span>
+                  <span className="text-[13px] font-sans text-[var(--color-foreground)]">
                     {successTx.mode} {successTx.bank ? `· ${successTx.bank}` : ''}
                   </span>
                 </div>
 
                 <div className="flex justify-between pt-0.5">
-                  <span className="text-[11px] font-sans text-[var(--color-muted)]">Amount Paid</span>
-                  <span className="text-[15px] font-mono font-extrabold text-[var(--color-accent-cobalt)]">
+                  <span className="text-[12px] font-sans text-[var(--color-muted)]">Amount paid</span>
+                  <span className="text-[16px] font-sans font-bold text-[var(--color-foreground)] tabular-nums">
                     ₦{fmt(successTx.amount)}
                   </span>
                 </div>
               </div>
 
-              {/* Primary Reset CTA Button */}
+              {/* Primary Flat White Pill Button */}
               <button
+                type="button"
                 onClick={handleReset}
-                className="w-full py-3 bg-[var(--color-accent-amber)] text-[var(--color-on-accent)] font-bold text-[13px] font-mono rounded-xl cursor-pointer flex justify-center items-center gap-2 hover:opacity-90 shadow-md transition-all"
+                className="min-h-[48px] h-12 w-full rounded-full font-semibold text-[15px] font-sans bg-white text-black hover:bg-neutral-200 dark:bg-white dark:text-black shadow-xs flex items-center justify-center gap-2 cursor-pointer transition-all"
               >
-                <Plus size={16} /> LOG ANOTHER PACKAGE ENTRY
+                <Plus size={16} />
+                <span>Log another package</span>
               </button>
 
-              {/* Action Buttons Grid: Thermal Print & PDF */}
+              {/* Action Buttons: Bluetooth POS */}
               <div className="grid grid-cols-2 gap-2 pt-1">
                 <button
+                  type="button"
                   onClick={() => {
                     import('../../lib/escpos').then(async ({ printViaBluetooth }) => {
                       await printViaBluetooth(async () => {
@@ -813,13 +711,14 @@ export const PackageForm = ({
                       showToast({ message: err?.message || 'Bluetooth print failed. Ensure the printer is paired and powered on.', type: 'error' });
                     });
                   }}
-                  className="py-2.5 bg-[var(--color-accent-cobalt)] text-[var(--color-on-accent-inverse)] text-[11px] font-bold font-mono rounded-xl cursor-pointer flex items-center justify-center gap-1.5 hover:opacity-90 border-none shadow-sm"
+                  className="min-h-[44px] h-11 px-3 rounded-full bg-[var(--color-surface-2)] text-[var(--color-foreground)] text-[12px] font-sans font-medium hover:bg-[var(--color-surface-3)] border border-[var(--color-border)] cursor-pointer flex items-center justify-center gap-1.5 transition-colors"
                 >
-                  <Bluetooth size={14} />
+                  <Bluetooth size={14} className="text-[var(--color-muted)]" />
                   <span>POS (80mm)</span>
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => {
                     import('../../lib/escpos').then(async ({ printViaBluetooth }) => {
                       await printViaBluetooth(async () => {
@@ -848,15 +747,17 @@ export const PackageForm = ({
                       showToast({ message: err?.message || 'Bluetooth print failed. Ensure the printer is paired and powered on.', type: 'error' });
                     });
                   }}
-                  className="py-2.5 bg-[var(--color-surface-2)] text-[var(--color-foreground)] text-[11px] font-bold font-mono rounded-xl cursor-pointer flex items-center justify-center gap-1.5 hover:bg-[var(--color-surface-3)] border border-[var(--color-border)]"
+                  className="min-h-[44px] h-11 px-3 rounded-full bg-[var(--color-surface-2)] text-[var(--color-foreground)] text-[12px] font-sans font-medium hover:bg-[var(--color-surface-3)] border border-[var(--color-border)] cursor-pointer flex items-center justify-center gap-1.5 transition-colors"
                 >
-                  <Bluetooth size={14} />
+                  <Bluetooth size={14} className="text-[var(--color-muted)]" />
                   <span>POS (58mm)</span>
                 </button>
               </div>
 
+              {/* Action Buttons: PDF Documents */}
               <div className="grid grid-cols-2 gap-2">
                 <button
+                  type="button"
                   onClick={() => {
                     import('./PackageReceipt').then(m => m.downloadPackageReceipt({
                       entryRef: successTx.id,
@@ -877,12 +778,14 @@ export const PackageForm = ({
                       bankName: bank || undefined,
                     }));
                   }}
-                  className="py-2.5 bg-transparent border border-[var(--color-border-strong)] rounded-xl cursor-pointer text-[11px] font-bold font-mono text-[var(--color-foreground)] flex items-center justify-center gap-1.5 hover:bg-[var(--color-surface-2)] transition-colors"
+                  className="min-h-[44px] h-11 px-3 rounded-full bg-[var(--color-surface-2)] text-[var(--color-foreground)] text-[12px] font-sans font-medium hover:bg-[var(--color-surface-3)] border border-[var(--color-border)] cursor-pointer flex items-center justify-center gap-1.5 transition-colors"
                 >
-                  <Printer size={14} /> RECEIPT PDF
+                  <FileText size={14} className="text-[var(--color-muted)]" />
+                  <span>Receipt PDF</span>
                 </button>
 
                 <button
+                  type="button"
                   onClick={async () => {
                     const preOpenedWindow = isStandalonePWA() ? null : window.open('', '_blank');
                     showToast({ message: 'Generating tag PDF…', type: 'info' });
@@ -907,563 +810,733 @@ export const PackageForm = ({
                       showToast({ message: 'Failed to open tag PDF', type: 'error' });
                     }
                   }}
-                  className="py-2.5 bg-transparent border border-[var(--color-border-strong)] rounded-xl cursor-pointer text-[11px] font-bold font-mono text-[var(--color-foreground)] flex items-center justify-center gap-1.5 hover:bg-[var(--color-surface-2)] transition-colors"
+                  className="min-h-[44px] h-11 px-3 rounded-full bg-[var(--color-surface-2)] text-[var(--color-foreground)] text-[12px] font-sans font-medium hover:bg-[var(--color-surface-3)] border border-[var(--color-border)] cursor-pointer flex items-center justify-center gap-1.5 transition-colors"
                   title="Fixed 100mm x 80mm label -- for thermal label printers or browser print"
                 >
-                  <Printer size={14} /> TAG PDF
+                  <Printer size={14} className="text-[var(--color-muted)]" />
+                  <span>Tag PDF</span>
                 </button>
               </div>
             </div>
           ) : (
-            <div className="space-y-4 bg-[var(--color-surface-2)] p-4 md:mx-0 md:rounded-xl md:border border-y border-[var(--color-border)]">
-              <div className="border-b border-[var(--color-border)] pb-1 mb-2">
-                <span style={{ fontFamily: "JetBrains Mono", fontSize: 10, color: "var(--color-accent-cobalt)", letterSpacing: "0.12em", textTransform: "uppercase" }}>
-                  ▸ NEW PACKAGE / PARCEL ENTRY
-                </span>
-              </div>
-
-              <div className="space-y-3">
-                <div>
-                  {renderLabel(Hash, "Tracking Ref (Auto-generated)")}
-                  <div className={`${formInputClass} flex items-center justify-between cursor-default`}>
-                    <span className="text-[var(--color-muted)]">{trackingRef ? 'Assigned' : 'Allocating…'}</span>
-                    <span className="text-[var(--color-accent-cobalt)] font-bold font-mono">{trackingRef || '—'}</span>
-                  </div>
+            /* ENTERABLE PACKAGE FORM */
+            <div className={spaceYClass}>
+              {/* CARD 1: CONSIGNMENT & ROUTING */}
+              <div className={`rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] ${cardPadClass}`}>
+                <div className="border-b border-[var(--color-border)] pb-2.5">
+                  <h3 className="text-[14px] font-sans font-semibold text-[var(--color-foreground)]">
+                    Consignment &amp; routing
+                  </h3>
                 </div>
 
-                {renderLabel(UserIcon, mode === "Debt" ? "Debtor Name" : "Customer")}
-                <input
-                  id="pkg-name"
-                  name="name"
-                  placeholder={mode === "Debt" ? "Debtor Name" : "Customer Name"}
-                  value={name}
-                  onChange={upperOnChange(setName)}
-                  className={formInputClass}
-                />
-                {mode !== "Debt" && (
-                  <div className="relative">
-                    <MessageSquare size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-muted)]" />
-                    <input
-                      id="pkg-phone"
-                      name="phone"
-                      type="tel"
-                      placeholder="Phone (required)"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      className={`${formInputClass} pl-10`}
-                    />
+                <div className="space-y-3 pt-1">
+                  {/* Tracking Ref Row */}
+                  <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-[var(--color-surface-2)] border border-[var(--color-border)]">
+                    <span className="text-[12px] font-sans text-[var(--color-muted)]">Tracking reference (auto-assigned)</span>
+                    <span className="text-[13px] font-mono font-semibold text-[var(--color-foreground)] tabular-nums">
+                      {trackingRef || 'Allocating…'}
+                    </span>
                   </div>
-                )}
 
-                {/* Office-work detection banner -- see CargoForm.tsx's
-                    equivalent for the reference implementation. officeMatch
-                    is keyed off the single `name` field above regardless of
-                    mode, so this works the same for Debt entries too. */}
-                {detectedOfficeClient && !linkedAsOfficeWork && (
-                  <div className="p-3 rounded-lg border border-[var(--color-accent-amber)] bg-[rgba(251,191,36,0.08)] flex items-start gap-3">
-                    <AlertTriangle size={16} className="text-[var(--color-accent-amber)] shrink-0 mt-0.5" />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[11px] font-mono font-bold text-[var(--color-accent-amber)]">
-                        {officeMatch.type === 'exact' ? 'Registered Client Match' : 'Office Work Client Detected'}
-                      </div>
-                      <div className="text-[10px] font-mono text-[var(--color-muted)] mt-0.5">
-                        <span className="font-semibold text-[var(--color-foreground)]">{detectedOfficeClient.company_name}</span> is a registered corporate account.
-                        {officeWorkRate
-                          ? ` Contract rate for ${destination}: ₦${officeWorkRate.rate_per_kg}/kg`
-                          : ' No contract rate configured for this route — amount stays manual.'}
-                      </div>
-                      <div className="flex gap-2 mt-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setLinkedAsOfficeWork(true);
-                            wasLinkedRef.current = true;
-                            if (officeWorkRate && kg) {
-                              const w = parseFloat(kg) || 0;
-                              if (w > 0) {
-                                const computed = Math.max(w * officeWorkRate.rate_per_kg, officeWorkRate.minimum_amount ?? 0);
-                                setAmount(String(computed));
-                              }
-                            }
-                          }}
-                          className="px-3 py-1 rounded bg-[var(--color-accent-amber)] text-[var(--color-on-accent)] text-[10px] font-bold font-mono"
-                        >
-                          Yes, Link as Office Work
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setLinkedAsOfficeWork(false)}
-                          className="px-3 py-1 rounded border border-[var(--color-border)] text-[var(--color-muted)] text-[10px] font-mono"
-                        >
-                          No, Keep as Retail
-                        </button>
-                      </div>
+                  {/* Consignee Name & Phone */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      {renderLabel(UserIcon, mode === "Debt" ? "Debtor name" : "Consignee / Customer")}
+                      <input
+                        id="pkg-name"
+                        name="name"
+                        placeholder={mode === "Debt" ? "Debtor name" : "Full customer name"}
+                        value={name}
+                        onChange={upperOnChange(setName)}
+                        className={formInputClass}
+                      />
+                    </div>
+
+                    <div>
+                      {renderLabel(Phone, "Consignee phone")}
+                      <input
+                        id="pkg-phone"
+                        name="phone"
+                        type="tel"
+                        placeholder="Phone number"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        className={formInputClass}
+                      />
                     </div>
                   </div>
-                )}
-                {linkedAsOfficeWork && detectedOfficeClient && (
-                  <div className="p-2 rounded border border-[rgba(139,92,246,0.4)] bg-[rgba(139,92,246,0.08)] flex items-center gap-2">
-                    <span className="text-[9px] font-bold font-mono text-[var(--color-purple-fg)] uppercase tracking-wider">OFFICE WORK</span>
-                    <span className="text-[10px] font-mono text-[var(--color-muted)] flex-1">{detectedOfficeClient.company_name}</span>
-                    <button type="button" onClick={() => { setLinkedAsOfficeWork(false); setAmount(''); wasLinkedRef.current = false; }} className="text-[9px] font-mono text-[var(--color-muted)] hover:text-[var(--color-error)]">
-                      unlink
-                    </button>
-                  </div>
-                )}
 
-                <div className="flex space-x-3">
-                  <div className="flex-1 min-w-0">
-                    {renderLabel(MapPin, "Destination")}
-                    <select
-                      value={destination}
-                      onChange={(e) => {
-                        setDestination(e.target.value);
-                        // While linked as office work, the amount is driven by
-                        // officeWorkRate, which is keyed on destination (route)
-                        // -- without clearing it here, switching to a
-                        // destination with no configured contract rate left
-                        // the OLD route's computed price sitting in `amount`
-                        // rather than falling back to manual/no-rate handling.
-                        if (linkedAsOfficeWork) setAmount('');
-                      }}
-                      className={formInputClass}
-                    >
-                      <option value="" disabled>-- Select Destination --</option>
-                      {destinations.map((d) => <option key={d} value={d}>{d}</option>)}
-                    </select>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    {renderLabel(PackageIcon, "Type")}
-                    <select
-                      value={contentType}
-                      onChange={(e) => setContentType(e.target.value as 'Package' | 'Parcel')}
-                      className={formInputClass}
-                    >
-                      <option value="Package">Package</option>
-                      <option value="Parcel">Parcel</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="flex space-x-3">
-                  <div className="flex-1 min-w-0">
-                    {renderLabel(PackageIcon, "Pcs")}
-                    <input
-                      id="pkg-pcs"
-                      name="pcs"
-                      type="number"
-                      min="1"
-                      placeholder="Pcs"
-                      value={pcs}
-                      onChange={(e) => setPcs(e.target.value)}
-                      className={formInputClass}
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    {renderLabel(PackageIcon, "KG (optional)")}
-                    <input
-                      id="pkg-kg"
-                      name="kg"
-                      type="number"
-                      min="0"
-                      step="0.1"
-                      placeholder="KG (optional)"
-                      value={kg}
-                      onChange={(e) => setKg(e.target.value)}
-                      className={formInputClass}
-                    />
-                  </div>
-                </div>
-
-                {renderLabel(Layers, "Contents")}
-                <select
-                  value={contents}
-                  onChange={(e) => setContents(e.target.value)}
-                  className={formInputClass}
-                >
-                  <option value="" disabled>-- Select Contents --</option>
-                  {contentTypes.map((c) => <option key={c} value={c}>{c}</option>)}
-                </select>
-                {contents === "Other" && (
-                  <input
-                    id="pkg-custom-contents"
-                    name="custom-contents"
-                    placeholder="Enter content type"
-                    value={customContents}
-                    onChange={upperOnChange(setCustomContents)}
-                    className={`${formInputClass} mt-2`}
-                  />
-                )}
-
-                <div>
-                  {renderLabel(Truck, "Vehicle / Truck Assignment (Optional · Road Dispatch)")}
-                  <select
-                    value={assignedVehicle}
-                    onChange={(e) => {
-                      const p = e.target.value;
-                      setAssignedVehicle(p);
-                      const match = vehicles.find(v => v.plate === p);
-                      setAssignedDriver(match?.driver_name || '');
-                    }}
-                    className={formInputClass}
-                  >
-                    <option value="">-- No vehicle assigned (Intake counter) --</option>
-                    {vehicles.map((v) => (
-                      <option key={v.plate} value={v.plate}>
-                        {v.plate} {v.driver_name ? `· Driver: ${v.driver_name}` : ''} {v.make ? `(${v.make} ${v.model || ''})` : ''} [{v.status || 'Available'}]
-                      </option>
-                    ))}
-                  </select>
-                  {assignedVehicle && (
-                    <div className="mt-1 flex items-center justify-between text-[11px] font-mono text-[var(--color-accent-cobalt)] px-1">
-                      <span>Assigned: {assignedVehicle}</span>
-                      <span>{assignedDriver ? `Driver: ${assignedDriver}` : 'No driver registered'}</span>
+                  {/* Corporate Client Detection */}
+                  {detectedOfficeClient && !linkedAsOfficeWork && (
+                    <div className="p-3.5 rounded-xl border border-[var(--color-warning)]/30 bg-[var(--color-warning)]/10 flex items-start gap-3">
+                      <AlertTriangle size={16} className="text-[var(--color-warning)] shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[12px] font-sans font-semibold text-[var(--color-foreground)]">
+                          {officeMatch.type === 'exact' ? 'Registered corporate match' : 'Corporate client detected'}
+                        </div>
+                        <div className="text-[11px] font-sans text-[var(--color-muted)] mt-0.5">
+                          <span className="font-medium text-[var(--color-foreground)]">{detectedOfficeClient.company_name}</span> is a registered account.
+                          {officeWorkRate
+                            ? ` Contract rate for ${destination}: ₦${officeWorkRate.rate_per_kg}/kg`
+                            : ' No contract rate configured for this route — pricing stays manual.'}
+                        </div>
+                        <div className="flex gap-2 mt-2.5 flex-wrap">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setLinkedAsOfficeWork(true);
+                              wasLinkedRef.current = true;
+                              if (officeWorkRate && kg) {
+                                const w = parseFloat(kg) || 0;
+                                if (w > 0) {
+                                  const computed = Math.max(w * officeWorkRate.rate_per_kg, officeWorkRate.minimum_amount ?? 0);
+                                  setAmount(String(computed));
+                                }
+                              }
+                            }}
+                            className="min-h-[36px] px-3.5 py-1.5 rounded-full bg-[var(--color-surface-1)] text-[var(--color-foreground)] border border-[var(--color-border-strong)] text-[11px] font-sans font-medium hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
+                          >
+                            Yes, link as corporate
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setLinkedAsOfficeWork(false)}
+                            className="min-h-[36px] px-3 py-1.5 rounded-full border border-[var(--color-border)] text-[var(--color-muted)] hover:text-[var(--color-foreground)] text-[11px] font-sans transition-colors cursor-pointer"
+                          >
+                            Keep as retail
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   )}
-                </div>
 
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    padding: "12px 14px",
-                    margin: "24px 0 16px 0",
-                    background: "linear-gradient(90deg, rgba(59,130,246,0.06) 0%, transparent 100%)",
-                    borderLeft: "3px solid var(--color-accent-cobalt)",
-                    borderRadius: "0 var(--radius-sm) var(--radius-sm) 0",
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 700,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.05em",
-                      color: "var(--color-accent-cobalt)",
-                    }}
-                  >
-                    Payment Details
-                  </span>
-                </div>
+                  {linkedAsOfficeWork && detectedOfficeClient && (
+                    <div className="p-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-2)] flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Building2 size={15} className="text-[var(--color-muted)] shrink-0" />
+                        <span className="text-[12px] font-sans font-medium text-[var(--color-foreground)] truncate">
+                          Corporate: {detectedOfficeClient.company_name}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => { setLinkedAsOfficeWork(false); setAmount(''); wasLinkedRef.current = false; }}
+                        className="text-[11px] font-sans text-[var(--color-muted)] hover:text-[var(--color-error)] transition-colors cursor-pointer shrink-0"
+                      >
+                        Unlink
+                      </button>
+                    </div>
+                  )}
 
-                {renderLabel(CreditCard, "Payment Mode")}
-                <div className="flex bg-[var(--color-surface-3)] rounded-[var(--radius-sm)] p-1 border border-[var(--color-border)] mb-3">
-                  {(isOnline ? ["Cash", "POS", "Transfer", "Wallet"] : ["Cash", "POS", "Transfer"]).map((m) => (
-                    <button
-                      key={m}
-                      type="button"
-                      onClick={() => setMode(m as any)}
-                      style={{
-                        background: mode === m ? "var(--color-surface-1)" : "transparent",
-                        color: mode === m ? "var(--color-accent-cobalt)" : "var(--color-muted)",
-                        border: "none",
-                      }}
-                      className="flex-1 py-2 text-[13px] font-sans font-semibold rounded-[var(--radius-xs)] shadow-sm transition-all focus:outline-none cursor-pointer flex items-center justify-center gap-1"
-                    >
-                      {m === "Wallet" ? "💰 Wallet" : m}
-                    </button>
-                  ))}
-                </div>
-                {!isOnline && (
-                  <div className="text-[11px] font-sans text-[var(--color-muted)] mb-3">
-                    Wallet payments need a connection -- use Cash/Transfer/POS while offline.
+                  {/* Destination & Package Type */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      {renderLabel(MapPin, "Destination")}
+                      <select
+                        value={destination}
+                        onChange={(e) => {
+                          setDestination(e.target.value);
+                          if (linkedAsOfficeWork) setAmount('');
+                        }}
+                        className={formInputClass}
+                      >
+                        <option value="" disabled>Select destination…</option>
+                        {destinations.map((d) => <option key={d} value={d}>{d}</option>)}
+                      </select>
+                    </div>
+
+                    <div>
+                      {renderLabel(PackageIcon, "Package type")}
+                      <select
+                        value={contentType}
+                        onChange={(e) => setContentType(e.target.value as 'Package' | 'Parcel')}
+                        className={formInputClass}
+                      >
+                        <option value="Package">Package</option>
+                        <option value="Parcel">Parcel</option>
+                      </select>
+                    </div>
                   </div>
-                )}
 
-                {mode === "Wallet" && (
-                  <div className="mb-3 space-y-2">
-                    <CustomerWalletPicker
-                      wallets={customerWallets}
-                      selectedWallet={activeWallet}
-                      onSelectWallet={(w) => setSelectedWalletOverride(w)}
-                      currentCustomerName={name}
-                    />
-                    {activeWallet && activeWallet.balance < parsedAmount && (
-                      <WalletRemainderSelector
-                        walletName={activeWallet.customer_name}
-                        coverage={activeWallet.balance}
-                        remainder={parsedAmount - activeWallet.balance}
-                        mode={walletRemainderMode}
-                        bank={walletRemainderBank}
-                        onModeChange={setWalletRemainderMode}
-                        onBankChange={setWalletRemainderBank}
-                        banks={banks}
+                  {/* Vehicle / Truck Assignment */}
+                  <div>
+                    {renderLabel(Truck, "Vehicle assignment (optional · road dispatch)")}
+                    <select
+                      value={assignedVehicle}
+                      onChange={(e) => {
+                        const p = e.target.value;
+                        setAssignedVehicle(p);
+                        const match = vehicles.find(v => v.plate === p);
+                        setAssignedDriver(match?.driver_name || '');
+                      }}
+                      className={formInputClass}
+                    >
+                      <option value="">No vehicle assigned (Counter intake)</option>
+                      {vehicles.map((v) => (
+                        <option key={v.plate} value={v.plate}>
+                          {v.plate} {v.driver_name ? `· Driver: ${v.driver_name}` : ''} {v.make ? `(${v.make} ${v.model || ''})` : ''} [{v.status || 'Available'}]
+                        </option>
+                      ))}
+                    </select>
+                    {assignedVehicle && (
+                      <div className="mt-1 flex items-center justify-between text-[11px] font-sans text-[var(--color-muted)] px-1">
+                        <span>Vehicle: <strong className="font-medium text-[var(--color-foreground)]">{assignedVehicle}</strong></span>
+                        <span>{assignedDriver ? `Driver: ${assignedDriver}` : 'No driver registered'}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* CARD 2: SHIPMENT CONTENT & PIECES */}
+              <div className={`rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] ${cardPadClass}`}>
+                <div className="border-b border-[var(--color-border)] pb-2.5">
+                  <h3 className="text-[14px] font-sans font-semibold text-[var(--color-foreground)]">
+                    Shipment content &amp; pieces
+                  </h3>
+                </div>
+
+                <div className="space-y-3 pt-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      {renderLabel(Hash, "Pieces")}
+                      <input
+                        id="pkg-pcs"
+                        name="pcs"
+                        type="number"
+                        min="1"
+                        placeholder="1"
+                        value={pcs}
+                        onChange={(e) => setPcs(e.target.value)}
+                        className={formInputClass}
+                      />
+                    </div>
+
+                    <div>
+                      {renderLabel(PackageIcon, "Weight in kg (optional)")}
+                      <input
+                        id="pkg-kg"
+                        name="kg"
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        placeholder="0.0"
+                        value={kg}
+                        onChange={(e) => setKg(e.target.value)}
+                        className={formInputClass}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    {renderLabel(Layers, "Content category")}
+                    <select
+                      value={contents}
+                      onChange={(e) => setContents(e.target.value)}
+                      className={formInputClass}
+                    >
+                      <option value="" disabled>Select contents…</option>
+                      {contentTypes.map((c) => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                    {contents === "Other" && (
+                      <input
+                        id="pkg-custom-contents"
+                        name="custom-contents"
+                        placeholder="Describe package content"
+                        value={customContents}
+                        onChange={upperOnChange(setCustomContents)}
+                        className={`${formInputClass} mt-2`}
                       />
                     )}
                   </div>
-                )}
 
-                <div className="flex items-center justify-center space-x-3 my-3">
-                  <div className="flex-1 h-px bg-[var(--color-border)]" />
-                  <div className="text-[11px] font-mono text-[var(--color-muted)] tracking-wider">
-                    OR
-                  </div>
-                  <div className="flex-1 h-px bg-[var(--color-border)]" />
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setMode("Debt")}
-                  className={`w-full py-2.5 text-[13px] font-sans font-semibold rounded-[var(--radius-sm)] border transition-colors cursor-pointer focus:outline-none ${mode === "Debt" ? "bg-[rgba(239,68,68,0.1)] border-[var(--color-error)] text-[var(--color-error)] shadow-sm" : "bg-transparent border-[var(--color-border-strong)] text-[var(--color-error)] hover:bg-[rgba(239,68,68,0.05)]"}`}
-                >
-                  Log as Credit Sale (Debt)
-                </button>
-
-                {mode === "Debt" && (
-                  <div className="mt-2 text-[12px] font-sans text-[var(--color-error)] bg-[rgba(239,68,68,0.05)] p-2.5 rounded-[var(--radius-sm)] border border-[rgba(239,68,68,0.1)]">
-                    This entry will be logged as a credit sale. Collect payment
-                    before dispatch or arrange with management.
-                  </div>
-                )}
-
-                {(mode === "Transfer" || mode === "POS") && (
                   <div>
-                    {renderLabel(Landmark, mode === "POS" ? "POS Terminal / Bank" : "Bank")}
-                    <select
-                      value={bank}
-                      onChange={(e) => setBank(e.target.value)}
-                      className={formInputClass}
-                    >
-                      {banks.map((b) => <option key={b} value={b}>{b}</option>)}
-                    </select>
-                  </div>
-                )}
-
-                <div>
-                  {renderLabel(Banknote, "Amount")}
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-muted)] font-mono text-[18px]">
-                      ₦
-                    </span>
+                    {renderLabel(FileText, "Remark (optional)")}
                     <input
-                      id="pkg-amount"
-                      name="amount"
-                      type="number"
-                      min="0"
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                      placeholder="0"
-                      className={`${formInputClass} pl-12`}
+                      id="pkg-remark"
+                      name="remark"
+                      placeholder="Special handling instructions or notes"
+                      value={remark}
+                      onChange={upperOnChange(setRemark)}
+                      className={formInputClass}
                     />
                   </div>
-                  {!(linkedAsOfficeWork && officeWorkRate) && amount !== "" && parsedAmount < MIN_PACKAGE_AMOUNT && (
-                    <p className="text-[11px] text-red-500 font-mono mt-1">
-                      ⚠ Minimum amount is ₦{MIN_PACKAGE_AMOUNT.toLocaleString()}
-                    </p>
-                  )}
+                </div>
+              </div>
+
+              {/* CARD 3: PAYMENT DETAILS */}
+              <div className={`rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] ${cardPadClass}`}>
+                <div className="border-b border-[var(--color-border)] pb-2.5">
+                  <h3 className="text-[14px] font-sans font-semibold text-[var(--color-foreground)]">
+                    Payment details
+                  </h3>
                 </div>
 
-                <div>
-                  {renderLabel(MessageSquare, "Remark (Optional)")}
-                  <input
-                    id="pkg-remark"
-                    name="remark"
-                    placeholder="Add notes..."
-                    value={remark}
-                    onChange={upperOnChange(setRemark)}
-                    className={formInputClass}
-                  />
-                </div>
-
-                <button
-                  onClick={() => setShowPackageReview(true)}
-                  disabled={!isValid || submitting}
-                  className={`w-full py-4 rounded-[var(--radius-sm)] font-bold font-mono text-[16px] flex items-center justify-center gap-2 transition-all focus:outline-none ${
-                    submitting ? "opacity-80 cursor-wait bg-[var(--color-accent-cobalt)] text-[var(--color-on-accent-inverse)]"
-                    : !isValid ? "bg-[var(--color-surface-2)] text-[var(--color-muted)] cursor-not-allowed"
-                    : "bg-[var(--color-accent-cobalt)] text-[var(--color-on-accent-inverse)] cursor-pointer hover:opacity-90"
-                  }`}
-                >
-                  {submitting && <Spinner size="sm" tone="current" />}
-                  {submitting ? "ADDING ENTRY..." : (<><Plus size={16} /> ADD ENTRY</>)}
-                </button>
-                {showPackageReview && (
-                  <ReviewEntryModal
-                    title="Review Package/Mail Entry"
-                    details={[
-                      { label: 'Customer', value: name },
-                      { label: 'Content', value: actualContents },
-                      { label: 'Amount', value: parseFloat(amount) || 0 },
-                      { label: 'Payment Mode', value: mode },
-                      ...(assignedVehicle ? [{ label: 'Assigned Vehicle', value: `${assignedVehicle}${assignedDriver ? ` (${assignedDriver})` : ''}` }] : []),
-                      // Surfaced right before confirming so a staff member
-                      // can't silently submit under the wrong terminal --
-                      // same reasoning as CargoForm's own review modal.
-                      ...(userHubCode === 'LOS' && !forcedTerminal ? [{ label: 'Terminal', value: terminal }] : []),
-                    ]}
-                    onConfirm={() => {
-                      handleAddEntry();
-                    }}
-                    onCancel={() => setShowPackageReview(false)}
-                    confirmText="Log Package"
-                    isSubmitting={submitting}
-                  />
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Expense Section */}
-          <div className="space-y-4 pt-4 border-t border-[var(--color-border)] md:border-none md:pt-0">
-            <div className="border-b border-[var(--color-border)] pb-1 mb-2">
-              <span style={{ fontFamily: "JetBrains Mono", fontSize: 10, color: "var(--color-accent-cobalt)", letterSpacing: "0.12em", textTransform: "uppercase" }}>
-                ▸ LOG EXPENSE
-              </span>
-            </div>
-            <div className="flex space-x-2">
-              <select value={expType} onChange={(e) => setExpType(e.target.value)} className={`flex-1 h-11 px-3 text-[13px] rounded bg-[var(--color-surface-1)] border border-[var(--color-border)] text-[var(--color-foreground)] font-sans ${focusClasses}`}>
-                {expenseCategoryNames.map((e) => <option key={e} value={e}>{e}</option>)}
-              </select>
-              <input id="pkg-exp-amount" name="exp-amount" type="number" min="0" placeholder="Amount" value={expAmount} onChange={(e) => setExpAmount(e.target.value)} className={`w-[100px] h-11 px-3 text-[13px] rounded bg-[var(--color-surface-1)] border border-[var(--color-border)] text-[var(--color-foreground)] font-sans ${focusClasses}`} />
-            </div>
-            <div className="flex space-x-2">
-              <input id="pkg-exp-desc" name="exp-desc" placeholder="Description (optional)" value={expDesc} onChange={upperOnChange(setExpDesc)} className={`flex-1 h-11 px-3 text-[13px] rounded bg-[var(--color-surface-1)] border border-[var(--color-border)] text-[var(--color-foreground)] font-sans ${focusClasses}`} />
-              <button onClick={handleAddExpense} disabled={!(parseFloat(expAmount) > 0)} className="h-11 px-4 bg-[var(--color-surface-2)] text-[var(--color-foreground)] text-[12px] font-mono font-bold rounded disabled:opacity-50 cursor-pointer hover:bg-[var(--color-surface-3)] transition-colors">
-                LOG
-              </button>
-            </div>
-          </div>
-
-          {/* Unpaid Debtors */}
-          {unpaidDebts.length > 0 && (
-            <div className="bg-[rgba(249,115,22,0.05)] rounded-xl border border-[rgba(249,115,22,0.2)] overflow-hidden">
-              <div className="px-4 py-3 border-b border-[rgba(249,115,22,0.2)]">
-                <span className="text-[10px] font-mono text-orange-400 uppercase tracking-widest font-bold">▸ UNPAID DEBTS TODAY</span>
-              </div>
-              <div className="divide-y divide-[rgba(249,115,22,0.1)]">
-                {unpaidDebts.map((t) => (
-                  <div key={t.id} className="flex justify-between items-center px-4 py-2.5">
-                    <div className="flex-1 min-w-0 pr-3">
-                      <div className="text-[12px] font-bold text-[var(--color-foreground)] truncate">{t.name}</div>
-                      <div className="text-[10px] font-mono text-[var(--color-muted)]">{t.detail}</div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-[12px] font-bold font-mono text-orange-400">{fmt(t.amount)}</span>
-                      <button
-                        onClick={() => handleMarkDebtPaid(t)}
-                        disabled={markingPaidId === t.id}
-                        className="text-[9px] font-mono font-bold uppercase px-2 py-1 rounded bg-[rgba(16,185,129,0.1)] text-[var(--color-success)] border border-[rgba(16,185,129,0.25)] cursor-pointer hover:bg-[rgba(16,185,129,0.2)] disabled:opacity-50"
-                      >
-                        {markingPaidId === t.id ? 'Saving…' : 'Mark Paid'}
-                      </button>
+                <div className="space-y-3 pt-1">
+                  {/* Payment Mode Pills */}
+                  <div>
+                    <label className="text-[12px] font-sans font-medium text-[var(--color-text-secondary)] mb-1.5 block">
+                      Payment method
+                    </label>
+                    <div className="grid grid-cols-4 gap-1 p-1 bg-[var(--color-surface-2)] rounded-full border border-[var(--color-border)]">
+                      {(isOnline ? ["Cash", "POS", "Transfer", "Wallet"] : ["Cash", "POS", "Transfer"]).map((m) => (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => setMode(m as any)}
+                          className={`min-h-[44px] h-11 text-[13px] font-sans font-medium rounded-full transition-all flex items-center justify-center gap-1.5 cursor-pointer select-none ${
+                            mode === m
+                              ? "bg-[var(--color-surface-1)] text-[var(--color-foreground)] border border-[var(--color-border-strong)] shadow-xs"
+                              : "text-[var(--color-muted)] hover:text-[var(--color-foreground)]"
+                          }`}
+                        >
+                          {m === "Wallet" ? <CreditCard size={14} /> : null}
+                          <span>{m}</span>
+                        </button>
+                      ))}
                     </div>
                   </div>
-                ))}
+
+                  {!isOnline && (
+                    <div className="text-[11px] font-sans text-[var(--color-muted)]">
+                      Wallet payments require an active connection — use Cash, Transfer, or POS while offline.
+                    </div>
+                  )}
+
+                  {mode === "Wallet" && (
+                    <div className="space-y-2 pt-1">
+                      <CustomerWalletPicker
+                        wallets={customerWallets}
+                        selectedWallet={activeWallet}
+                        onSelectWallet={(w) => setSelectedWalletOverride(w)}
+                        currentCustomerName={name}
+                      />
+                      {activeWallet && activeWallet.balance < parsedAmount && (
+                        <WalletRemainderSelector
+                          walletName={activeWallet.customer_name}
+                          coverage={activeWallet.balance}
+                          remainder={parsedAmount - activeWallet.balance}
+                          mode={walletRemainderMode}
+                          bank={walletRemainderBank}
+                          onModeChange={setWalletRemainderMode}
+                          onBankChange={setWalletRemainderBank}
+                          banks={banks}
+                        />
+                      )}
+                    </div>
+                  )}
+
+                  {/* Log as Credit Sale (Debt) */}
+                  <button
+                    type="button"
+                    onClick={() => setMode(mode === "Debt" ? "Cash" : "Debt")}
+                    className={`w-full min-h-[44px] h-11 text-[13px] font-sans font-medium rounded-full border transition-all cursor-pointer flex items-center justify-center gap-2 select-none ${
+                      mode === "Debt"
+                        ? "bg-[var(--color-error)]/15 border-[var(--color-error)] text-[var(--color-error)] shadow-xs"
+                        : "bg-transparent border-[var(--color-border)] text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:border-[var(--color-border-strong)]"
+                    }`}
+                  >
+                    <span>Log as credit sale (debt)</span>
+                  </button>
+
+                  {mode === "Debt" && (
+                    <div className="text-[12px] font-sans text-[var(--color-error)] bg-[var(--color-error)]/10 p-3 rounded-xl border border-[var(--color-error)]/20">
+                      This entry will be logged as an unpaid credit sale. Collect payment before dispatch or arrange with management.
+                    </div>
+                  )}
+
+                  {(mode === "Transfer" || mode === "POS") && (
+                    <div>
+                      {renderLabel(Landmark, mode === "POS" ? "POS terminal / bank" : "Receiving bank")}
+                      <select
+                        value={bank}
+                        onChange={(e) => setBank(e.target.value)}
+                        className={formInputClass}
+                      >
+                        {banks.map((b) => <option key={b} value={b}>{b}</option>)}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Amount Field */}
+                  <div>
+                    <label className="text-[12px] font-sans font-medium text-[var(--color-text-secondary)] mb-1.5 block">
+                      Amount
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-muted)] font-sans text-[16px]">
+                        ₦
+                      </span>
+                      <input
+                        id="pkg-amount"
+                        name="amount"
+                        type="number"
+                        min="0"
+                        value={amount}
+                        onChange={(e) => setAmount(e.target.value)}
+                        placeholder="0"
+                        className="w-full min-h-[44px] h-11 pl-9 pr-3.5 text-[15px] font-sans tabular-nums rounded-xl bg-[var(--color-surface-2)] text-[var(--color-foreground)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-border-strong)] transition-all"
+                      />
+                    </div>
+                    {!(linkedAsOfficeWork && officeWorkRate) && amount !== "" && parsedAmount < MIN_PACKAGE_AMOUNT && (
+                      <p className="text-[11px] text-[var(--color-error)] font-sans mt-1.5 flex items-center gap-1">
+                        <AlertTriangle size={12} className="shrink-0" />
+                        <span>Minimum amount is ₦{MIN_PACKAGE_AMOUNT.toLocaleString()}</span>
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Primary Submit Pill Button */}
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowPackageReview(true)}
+                      disabled={!isValid || submitting}
+                      className="min-h-[48px] h-12 w-full rounded-full font-semibold text-[15px] font-sans bg-white text-black hover:bg-neutral-200 dark:bg-white dark:text-black shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed select-none"
+                    >
+                      {submitting && <Spinner size="sm" tone="current" />}
+                      <span>{submitting ? "Logging package..." : "Log package entry"}</span>
+                    </button>
+                  </div>
+                </div>
               </div>
+
+              {/* CARD 4: STATION EXPENSES */}
+              <div className={`rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] ${cardPadClass}`}>
+                <div className="border-b border-[var(--color-border)] pb-2.5">
+                  <h3 className="text-[14px] font-sans font-semibold text-[var(--color-foreground)]">
+                    Station expenses
+                  </h3>
+                </div>
+
+                <div className="space-y-3 pt-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-[1fr_120px] gap-2.5">
+                    <select
+                      value={expType}
+                      onChange={(e) => setExpType(e.target.value)}
+                      className={formInputClass}
+                      title="Expense category"
+                    >
+                      {expenseCategoryNames.map((e) => <option key={e} value={e}>{e}</option>)}
+                    </select>
+
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-muted)] font-sans text-[14px]">
+                        ₦
+                      </span>
+                      <input
+                        id="pkg-exp-amount"
+                        name="exp-amount"
+                        type="number"
+                        min="0"
+                        placeholder="Amount"
+                        value={expAmount}
+                        onChange={(e) => setExpAmount(e.target.value)}
+                        className="w-full min-h-[44px] h-11 pl-7 pr-3 text-[13px] font-sans tabular-nums rounded-xl bg-[var(--color-surface-2)] text-[var(--color-foreground)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-border-strong)]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <input
+                      id="pkg-exp-desc"
+                      name="exp-desc"
+                      placeholder="Expense description (optional)"
+                      value={expDesc}
+                      onChange={upperOnChange(setExpDesc)}
+                      className={`${formInputClass} flex-1`}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddExpense}
+                      disabled={!(parseFloat(expAmount) > 0)}
+                      className="min-h-[44px] h-11 px-4 rounded-full bg-[var(--color-surface-2)] text-[var(--color-foreground)] text-[12px] font-sans font-medium hover:bg-[var(--color-surface-3)] border border-[var(--color-border)] transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                    >
+                      Log expense
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* CARD 5: UNPAID DEBTORS */}
+              {unpaidDebts.length > 0 && (
+                <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] overflow-hidden shadow-xs">
+                  <div className="px-4 py-3 border-b border-[var(--color-border)] flex items-center justify-between">
+                    <h3 className="text-[13px] font-sans font-semibold text-[var(--color-foreground)]">
+                      Unpaid debts today
+                    </h3>
+                    <span className="text-[11px] font-sans font-medium px-2 py-0.5 rounded-full bg-[var(--color-error)]/15 text-[var(--color-error)] border border-[var(--color-error)]/20">
+                      {unpaidDebts.length} pending
+                    </span>
+                  </div>
+                  <div className="divide-y divide-[var(--color-border)]">
+                    {unpaidDebts.map((t) => (
+                      <div key={t.id} className="flex justify-between items-center px-4 py-3">
+                        <div className="flex-1 min-w-0 pr-3">
+                          <div className="text-[13px] font-sans font-medium text-[var(--color-foreground)] truncate">{t.name}</div>
+                          <div className="text-[11px] font-sans text-[var(--color-muted)] truncate">{t.detail}</div>
+                        </div>
+                        <div className="flex items-center gap-2.5 shrink-0">
+                          <span className="text-[13px] font-sans font-semibold text-[var(--color-error)] tabular-nums">₦{fmt(t.amount)}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleMarkDebtPaid(t)}
+                            disabled={markingPaidId === t.id}
+                            className="min-h-[36px] px-3 rounded-full text-[11px] font-sans font-medium bg-[var(--color-success)]/10 text-[var(--color-success)] border border-[var(--color-success)]/25 hover:bg-[var(--color-success)]/20 transition-colors cursor-pointer disabled:opacity-50"
+                          >
+                            {markingPaidId === t.id ? 'Saving…' : 'Mark paid'}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
 
-        {/* Right Column — Sales Analysis */}
+        {/* RIGHT COLUMN ASIDE: SHIFT SALES ANALYSIS */}
         <aside className="space-y-4">
           <div className="sticky top-4 space-y-4">
-            <div className="bg-[var(--color-surface-1)] rounded-xl border border-[var(--color-border)] overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)]">
-                <span className="text-[10px] font-mono text-[var(--color-accent-cobalt)] uppercase tracking-widest font-bold">▸ SALES ANALYSIS</span>
-                <span className="text-[10px] font-mono text-[var(--color-muted)]">{packageTxs.length} entries</span>
+            <div className={`rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] ${cardPadClass}`}>
+              <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-2.5">
+                <h3 className="text-[14px] font-sans font-semibold text-[var(--color-foreground)]">
+                  Shift sales analysis
+                </h3>
+                <span className="text-[11px] font-sans text-[var(--color-muted)] bg-[var(--color-surface-2)] px-2 py-0.5 rounded-full border border-[var(--color-border)] tabular-nums">
+                  {packageTxs.length} entries
+                </span>
               </div>
-              <div className="px-4 py-3 space-y-2 text-[12px] font-mono">
-                <div className="flex justify-between"><span className="text-[var(--color-muted)]">Total Sales</span><span className="font-bold text-[var(--color-foreground)]">{fmt(totalSales)}</span></div>
-                <div className="flex justify-between"><span className="text-[var(--color-muted)]">Cash Sales</span><span className="text-[var(--color-foreground)]">{fmt(cashSales)}</span></div>
-                {debtCashRecoveredToday > 0 && <div className="flex justify-between text-emerald-400"><span>Debt Recovered (Cash)</span><span>+ {fmt(debtCashRecoveredToday)}</span></div>}
-                <div className="flex justify-between"><span className="text-[var(--color-muted)]">POS</span><span className="text-[var(--color-foreground)]">{fmt(posSales)}</span></div>
-                <div className="flex justify-between"><span className="text-[var(--color-muted)]">Bank Transfer</span><span className="text-[var(--color-foreground)]">{fmt(transferSales)}</span></div>
-                {debtSales > 0 && <div className="flex justify-between border-t border-[var(--color-border)] pt-1.5 mt-1"><span className="text-orange-400 font-sans">Unpaid Credit Sales (Owed)</span><span className="text-orange-400 font-bold">{fmt(debtSales)}</span></div>}
-                {debtTotalRecoveredToday > 0 && <div className="flex justify-between"><span className="text-emerald-400 font-sans">Debt Collected Today</span><span className="text-emerald-400 font-bold">{fmt(debtTotalRecoveredToday)}</span></div>}
-              </div>
-            </div>
 
-            <div className="bg-[rgba(59,130,246,0.05)] rounded-xl border border-[rgba(59,130,246,0.2)] px-4 py-3 space-y-1 text-[12px] font-mono">
-              <div className="flex justify-between text-[var(--color-muted)]"><span>Cash in Hand (Sales + Recovered)</span><span>{fmt(physicalCash)}</span></div>
-              <div className="flex justify-between text-red-400"><span>Expenses</span><span>− {fmt(totalExpenses)}</span></div>
-              <div className="flex justify-between font-bold text-[15px] border-t border-[rgba(59,130,246,0.2)] pt-2 mt-1">
-                <span className="text-[var(--color-accent-cobalt)]">Balance Cash</span>
-                <span className={balanceCash >= 0 ? 'text-[var(--color-accent-cobalt)]' : 'text-red-400'}>{fmt(Math.abs(balanceCash))}{balanceCash < 0 ? ' (deficit)' : ''}</span>
-              </div>
-            </div>
-
-            {Object.keys(destinationCounts).length > 0 && (
-              <div className="bg-[var(--color-surface-1)] rounded-xl border border-[var(--color-border)] overflow-hidden">
-                <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--color-border)]">
-                  <BarChart2 size={12} className="text-[var(--color-accent-cobalt)]" />
-                  <span className="text-[10px] font-mono text-[var(--color-accent-cobalt)] uppercase tracking-widest font-bold">DESTINATIONS TODAY</span>
+              <div className="space-y-2 text-[13px] font-sans pt-1">
+                <div className="flex justify-between items-center">
+                  <span className="text-[var(--color-muted)]">Total sales</span>
+                  <span className="font-semibold text-[var(--color-foreground)] tabular-nums">₦{fmt(totalSales)}</span>
                 </div>
-                <div className="px-4 py-3 space-y-1.5">
-                  {Object.entries(destinationCounts).sort((a, b) => b[1] - a[1]).map(([d, cnt]) => (
-                    <div key={d} className="flex justify-between items-center text-[12px] font-mono">
-                      <span className="text-[var(--color-muted)] truncate mr-2">{d}</span>
-                      <span className="font-bold text-[var(--color-foreground)] shrink-0">{cnt}</span>
-                    </div>
-                  ))}
+                <div className="flex justify-between items-center">
+                  <span className="text-[var(--color-muted)]">Cash sales</span>
+                  <span className="text-[var(--color-foreground)] tabular-nums">₦{fmt(cashSales)}</span>
+                </div>
+                {debtCashRecoveredToday > 0 && (
+                  <div className="flex justify-between items-center text-[var(--color-success)]">
+                    <span>Debt recovered (cash)</span>
+                    <span className="tabular-nums font-medium">+ ₦{fmt(debtCashRecoveredToday)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center">
+                  <span className="text-[var(--color-muted)]">POS</span>
+                  <span className="text-[var(--color-foreground)] tabular-nums">₦{fmt(posSales)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-[var(--color-muted)]">Bank transfer</span>
+                  <span className="text-[var(--color-foreground)] tabular-nums">₦{fmt(transferSales)}</span>
+                </div>
+                {debtSales > 0 && (
+                  <div className="flex justify-between items-center border-t border-[var(--color-border)] pt-2 mt-1 text-[var(--color-error)]">
+                    <span>Unpaid credit sales</span>
+                    <span className="font-semibold tabular-nums">₦{fmt(debtSales)}</span>
+                  </div>
+                )}
+                {debtTotalRecoveredToday > 0 && (
+                  <div className="flex justify-between items-center text-[var(--color-success)]">
+                    <span>Debt collected today</span>
+                    <span className="font-semibold tabular-nums">₦{fmt(debtTotalRecoveredToday)}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Net Cash Position Box */}
+              <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-2)] p-3 space-y-1.5 mt-2">
+                <div className="flex justify-between text-[12px] font-sans text-[var(--color-muted)]">
+                  <span>Cash in hand (sales + recovered)</span>
+                  <span className="tabular-nums">₦{fmt(physicalCash)}</span>
+                </div>
+                <div className="flex justify-between text-[12px] font-sans text-[var(--color-error)]">
+                  <span>Expenses</span>
+                  <span className="tabular-nums">− ₦{fmt(totalExpenses)}</span>
+                </div>
+                <div className="flex justify-between items-center font-semibold text-[14px] font-sans border-t border-[var(--color-border)] pt-2 mt-1">
+                  <span className="text-[var(--color-foreground)]">Balance cash</span>
+                  <span className={`tabular-nums ${balanceCash >= 0 ? 'text-[var(--color-foreground)]' : 'text-[var(--color-error)]'}`}>
+                    ₦{fmt(Math.abs(balanceCash))}{balanceCash < 0 ? ' (deficit)' : ''}
+                  </span>
                 </div>
               </div>
-            )}
 
-            <div className="bg-[var(--color-surface-1)] rounded-xl border border-[var(--color-border)] overflow-hidden">
-              <div className="px-4 py-3 border-b border-[var(--color-border)]">
-                <span className="text-[10px] font-mono text-[var(--color-accent-cobalt)] uppercase tracking-widest font-bold">▸ ENTRIES TODAY</span>
-              </div>
-              {packageTxs.length === 0 ? (
-                <EmptyState icon={<ClipboardList size={36} strokeWidth={1.5} />} message="No entries yet" />
-              ) : (
-                <div className="divide-y divide-[var(--color-border)] max-h-[340px] overflow-y-auto">
-                  {[...packageTxs].reverse().map((t) => (
-                    <div key={t.id} className="flex justify-between items-center px-4 py-2.5">
-                      <div className="flex-1 min-w-0 pr-3">
-                        <div className="text-[12px] font-bold text-[var(--color-foreground)] truncate">{t.name}</div>
-                        <div className="text-[10px] font-mono text-[var(--color-muted)]">{t.detail}</div>
+              {/* Destinations Today */}
+              {Object.keys(destinationCounts).length > 0 && (
+                <div className="pt-2 border-t border-[var(--color-border)] space-y-2">
+                  <div className="flex items-center gap-1.5 text-[12px] font-sans font-medium text-[var(--color-muted)]">
+                    <MapPin size={13} className="shrink-0" />
+                    <span>Destinations today</span>
+                  </div>
+                  <div className="space-y-1">
+                    {Object.entries(destinationCounts).sort((a, b) => b[1] - a[1]).map(([d, cnt]) => (
+                      <div key={d} className="flex justify-between items-center text-[12px] font-sans">
+                        <span className="text-[var(--color-muted)] truncate mr-2">{d}</span>
+                        <span className="font-medium text-[var(--color-foreground)] shrink-0 tabular-nums">{cnt}</span>
                       </div>
-                      <div className="text-right shrink-0">
-                        <div className="text-[12px] font-bold font-mono text-[var(--color-accent-cobalt)]">{fmt(t.amount)}</div>
-                        <div className={`text-[9px] font-mono ${t.mode === 'Debt' ? 'text-orange-400' : 'text-[var(--color-muted)]'}`}>{t.mode}{t.bank ? ` · ${t.bank}` : ''}</div>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               )}
-            </div>
 
-            <button onClick={() => setShowCloseModal(true)} className="w-full py-4 bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-2)] text-[var(--color-accent-cobalt)] text-[12px] font-bold font-mono rounded-xl border border-[rgba(59,130,246,0.2)] transition-colors cursor-pointer">
-              END DAY & SUBMIT
-            </button>
+              {/* Entries Today */}
+              <div className="pt-2 border-t border-[var(--color-border)] space-y-2">
+                <div className="flex items-center justify-between text-[12px] font-sans font-medium text-[var(--color-muted)]">
+                  <span>Recent entries</span>
+                  <span className="tabular-nums">{packageTxs.length}</span>
+                </div>
+                {packageTxs.length === 0 ? (
+                  <EmptyState icon={<ClipboardList size={28} strokeWidth={1.5} />} message="No entries logged yet" />
+                ) : (
+                  <div className="divide-y divide-[var(--color-border)] max-h-[260px] overflow-y-auto">
+                    {[...packageTxs].reverse().map((t) => (
+                      <div key={t.id} className="flex justify-between items-center py-2">
+                        <div className="flex-1 min-w-0 pr-2">
+                          <div className="text-[12px] font-sans font-medium text-[var(--color-foreground)] truncate">{t.name}</div>
+                          <div className="text-[11px] font-sans text-[var(--color-muted)] truncate">{t.detail}</div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <div className="text-[12px] font-sans font-semibold text-[var(--color-foreground)] tabular-nums">₦{fmt(t.amount)}</div>
+                          <div className={`text-[10px] font-sans ${t.mode === 'Debt' ? 'text-[var(--color-error)]' : 'text-[var(--color-muted)]'}`}>
+                            {t.mode}{t.bank ? ` · ${t.bank}` : ''}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* End Day Button */}
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCloseModal(true)}
+                  className="min-h-[44px] h-11 w-full rounded-full font-medium text-[13px] font-sans bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] border border-[var(--color-border)] transition-colors cursor-pointer flex items-center justify-center gap-1.5 select-none"
+                >
+                  <span>End day &amp; close session</span>
+                </button>
+              </div>
+            </div>
           </div>
         </aside>
       </div>
 
+      {/* REVIEW ENTRY MODAL */}
+      {showPackageReview && (
+        <ReviewEntryModal
+          title="Review package entry"
+          details={[
+            { label: 'Customer', value: name },
+            { label: 'Destination', value: destination },
+            { label: 'Type & Pieces', value: `${contentType} · ${pcsNum} pcs` },
+            { label: 'Content', value: actualContents },
+            { label: 'Amount', value: parseFloat(amount) || 0 },
+            { label: 'Payment mode', value: mode },
+            ...(assignedVehicle ? [{ label: 'Assigned vehicle', value: `${assignedVehicle}${assignedDriver ? ` (${assignedDriver})` : ''}` }] : []),
+            ...(userHubCode === 'LOS' && !forcedTerminal ? [{ label: 'Terminal', value: terminal }] : []),
+          ]}
+          onConfirm={() => {
+            handleAddEntry();
+          }}
+          onCancel={() => setShowPackageReview(false)}
+          confirmText="Log package"
+          isSubmitting={submitting}
+        />
+      )}
+
+      {/* CLOSE DAY MODAL */}
       {showCloseModal && createPortal(
-        <div style={{ position: "fixed", inset: 0, backgroundColor: "var(--color-overlay)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: 16 }}>
-          <div style={{ background: "var(--color-surface-card)", width: "100%", maxWidth: 480, maxHeight: "90vh", borderRadius: 16, border: "1px solid var(--color-border)", padding: "24px 24px 0 24px", position: "relative", display: "flex", flexDirection: "column" }}>
-            <button onClick={() => setShowCloseModal(false)} aria-label="Close" style={{ position: "absolute", top: 16, right: 16, color: "var(--color-muted)" }}>×</button>
-            {/* Scrollable body -- same fix as TransactionLedger/MarketingWorkspace's
-                close-day modal: keeps CONFIRM & CLOSE DAY reachable even if this
-                grows unbounded content later, rather than assuming today's fixed
-                fields are the ceiling. */}
-            <div style={{ overflowY: "auto", flex: 1 }}>
-            <div className="text-[10px] font-mono text-[var(--color-accent-cobalt)] tracking-widest font-bold mb-1">▸ PACKAGE DESK SALES ANALYSIS</div>
-            <div className="text-[12px] text-[var(--color-muted)] mb-4">
-              {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-              <br />Agent: <span className="text-[var(--color-foreground)]">{user.name}</span>
-            </div>
-            <div className="space-y-1.5 text-[13px] font-mono border-t border-[var(--color-border)] pt-4 mb-4">
-              <div className="flex justify-between"><span className="text-[var(--color-muted)]">Total Sales</span><span className="font-bold text-[var(--color-foreground)]">{fmt(totalSales)}</span></div>
-              <div className="flex justify-between"><span className="text-[var(--color-muted)]">Cash Sales</span><span className="text-[var(--color-foreground)]">{fmt(cashSales)}</span></div>
-              {debtCashRecoveredToday > 0 && <div className="flex justify-between text-emerald-400"><span>Debt Recovered (Cash)</span><span>+ {fmt(debtCashRecoveredToday)}</span></div>}
-              <div className="flex justify-between"><span className="text-[var(--color-muted)]">POS</span><span className="text-[var(--color-foreground)]">{fmt(posSales)}</span></div>
-              <div className="flex justify-between"><span className="text-[var(--color-muted)]">Bank Transfer</span><span className="text-[var(--color-foreground)]">{fmt(transferSales)}</span></div>
-              {debtSales > 0 && <div className="flex justify-between border-t border-[var(--color-border)] pt-1 mt-1"><span className="text-orange-400 font-sans">Unpaid Credit Sales (Owed)</span><span className="text-orange-400 font-bold">{fmt(debtSales)}</span></div>}
-              {debtTotalRecoveredToday > 0 && <div className="flex justify-between"><span className="text-emerald-400 font-sans">Debt Collected Today</span><span className="text-emerald-400 font-bold">{fmt(debtTotalRecoveredToday)}</span></div>}
-            </div>
-            <div className="bg-[rgba(59,130,246,0.1)] border border-[var(--color-accent-cobalt)] rounded-xl p-4 mb-6">
-              <div className="flex justify-between items-center">
-                <span className="text-[14px] text-[var(--color-accent-cobalt)] font-bold font-mono">BAL. CASH</span>
-                <span className={`text-[22px] font-bold font-mono ${balanceCash >= 0 ? 'text-[var(--color-accent-cobalt)]' : 'text-red-400'}`}>{fmt(Math.abs(balanceCash))}</span>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="px-5 py-4 border-b border-[var(--color-border)] flex items-center justify-between shrink-0">
+              <div>
+                <h2 className="text-[16px] font-sans font-semibold text-[var(--color-foreground)]">
+                  Package desk sales analysis
+                </h2>
+                <p className="text-[12px] font-sans text-[var(--color-muted)] mt-0.5">
+                  {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })} · {user.name}
+                </p>
               </div>
-              <div className="text-[11px] text-[rgba(59,130,246,0.7)] mt-1">({fmt(physicalCash)} cash-in-hand − {fmt(totalExpenses)} expenses)</div>
-            </div>
-            </div>{/* end scrollable body */}
-            <div className="flex gap-3" style={{ paddingTop: 16, paddingBottom: 24, flexShrink: 0 }}>
               <button
+                type="button"
+                onClick={() => setShowCloseModal(false)}
+                className="min-w-[44px] min-h-[44px] w-11 h-11 -mr-2 rounded-full flex items-center justify-center text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-2)] transition-colors cursor-pointer"
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Scrollable Body */}
+            <div className="p-5 overflow-y-auto flex-1 space-y-4">
+              <div className="space-y-2 text-[13px] font-sans">
+                <div className="flex justify-between items-center">
+                  <span className="text-[var(--color-muted)]">Total sales</span>
+                  <span className="font-semibold text-[var(--color-foreground)] tabular-nums">₦{fmt(totalSales)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-[var(--color-muted)]">Cash sales</span>
+                  <span className="text-[var(--color-foreground)] tabular-nums">₦{fmt(cashSales)}</span>
+                </div>
+                {debtCashRecoveredToday > 0 && (
+                  <div className="flex justify-between items-center text-[var(--color-success)]">
+                    <span>Debt recovered (cash)</span>
+                    <span className="tabular-nums font-medium">+ ₦{fmt(debtCashRecoveredToday)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center">
+                  <span className="text-[var(--color-muted)]">POS</span>
+                  <span className="text-[var(--color-foreground)] tabular-nums">₦{fmt(posSales)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-[var(--color-muted)]">Bank transfer</span>
+                  <span className="text-[var(--color-foreground)] tabular-nums">₦{fmt(transferSales)}</span>
+                </div>
+                {debtSales > 0 && (
+                  <div className="flex justify-between items-center border-t border-[var(--color-border)] pt-2 mt-1 text-[var(--color-error)]">
+                    <span>Unpaid credit sales</span>
+                    <span className="font-semibold tabular-nums">₦{fmt(debtSales)}</span>
+                  </div>
+                )}
+                {debtTotalRecoveredToday > 0 && (
+                  <div className="flex justify-between items-center text-[var(--color-success)]">
+                    <span>Debt collected today</span>
+                    <span className="font-semibold tabular-nums">₦{fmt(debtTotalRecoveredToday)}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Cash in Hand & Net Balance Box */}
+              <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-2)] p-4 space-y-2">
+                <div className="flex justify-between items-center text-[12px] font-sans text-[var(--color-muted)]">
+                  <span>Cash in hand</span>
+                  <span className="tabular-nums">₦{fmt(physicalCash)}</span>
+                </div>
+                <div className="flex justify-between items-center text-[12px] font-sans text-[var(--color-error)]">
+                  <span>Expenses</span>
+                  <span className="tabular-nums">− ₦{fmt(totalExpenses)}</span>
+                </div>
+                <div className="border-t border-[var(--color-border)] pt-2.5 flex justify-between items-center">
+                  <span className="text-[13px] font-sans font-semibold text-[var(--color-foreground)]">Balance cash</span>
+                  <span className={`text-[20px] font-sans font-bold tabular-nums ${balanceCash >= 0 ? 'text-[var(--color-foreground)]' : 'text-[var(--color-error)]'}`}>
+                    ₦{fmt(Math.abs(balanceCash))}
+                  </span>
+                </div>
+                <p className="text-[11px] font-sans text-[var(--color-muted)]">
+                  (₦{fmt(physicalCash)} cash in hand − ₦{fmt(totalExpenses)} expenses)
+                </p>
+              </div>
+            </div>
+
+            {/* Modal Actions Footer */}
+            <div className="p-4 border-t border-[var(--color-border)] bg-[var(--color-surface-card)] flex gap-2.5 shrink-0">
+              <button
+                type="button"
                 onClick={() => {
                   import('./PackageReceipt').then(m => m.downloadPackageDailySummary({
                     date: new Date().toLocaleDateString("en-GB", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
@@ -1489,12 +1562,20 @@ export const PackageForm = ({
                     balanceCash,
                   }));
                 }}
-                style={{ flex: 1, padding: 12, background: "transparent", border: "1px solid rgba(59,130,246,0.4)", borderRadius: 8, color: "var(--color-accent-cobalt)", fontSize: 11, fontFamily: "monospace", fontWeight: "bold", cursor: "pointer" }}
+                className="min-h-[44px] h-11 px-3.5 rounded-full bg-[var(--color-surface-2)] text-[var(--color-foreground)] border border-[var(--color-border)] text-[12px] font-sans font-medium hover:bg-[var(--color-surface-3)] transition-colors cursor-pointer flex-1 flex items-center justify-center gap-1.5"
               >
-                DOWNLOAD SUMMARY PDF
+                <FileText size={14} className="text-[var(--color-muted)]" />
+                <span>Summary PDF</span>
               </button>
-              <button onClick={handleCloseDay} disabled={closingDay} style={{ flex: 1, padding: 12, background: "var(--color-accent-cobalt)", border: "none", borderRadius: 8, color: "#fff", fontSize: 11, fontFamily: "monospace", fontWeight: "bold", cursor: closingDay ? "not-allowed" : "pointer", opacity: closingDay ? 0.6 : 1 }}>
-                {closingDay ? 'CLOSING…' : 'CONFIRM & CLOSE DAY'}
+
+              <button
+                type="button"
+                onClick={handleCloseDay}
+                disabled={closingDay}
+                className="min-h-[44px] h-11 px-4 rounded-full font-semibold text-[13px] font-sans bg-white text-black hover:bg-neutral-200 dark:bg-white dark:text-black flex-1 shadow-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed select-none"
+              >
+                {closingDay && <Spinner size="sm" tone="current" />}
+                <span>{closingDay ? 'Closing…' : 'Confirm & close day'}</span>
               </button>
             </div>
           </div>
@@ -1502,6 +1583,7 @@ export const PackageForm = ({
         document.body
       )}
 
+      {/* SALES ANALYSIS MODAL */}
       {showSalesAnalysis && (
         <DepartmentSalesAnalysisModal
           user={user}
