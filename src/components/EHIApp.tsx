@@ -1,7 +1,7 @@
 import { useState, useEffect, lazy, Suspense, useRef, useCallback, memo, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { User, TabView, Transaction, Expense, ExcessBaggageAirline, CustomerWallet, HubShift, ShiftDepartment } from '../lib/types';
+import { User, TabView, Transaction, Expense, CustomerWallet, HubShift, ShiftDepartment } from '../lib/types';
 import { processSyncQueue, writeWithOfflineSupport, cleanupOldQueue, getUnsyncedLocalTransactions, getAllLocalMirrorTransactions, requeueQuarantined } from '../lib/sync';
 import { getPendingSyncSummary, reportDeviceSyncHeartbeat, startDeviceHeartbeat, isSessionReallyExpired, type PendingSyncSummary } from '../lib/deviceSync';
 import { PendingSyncBanner } from './PendingSyncBanner';
@@ -56,7 +56,6 @@ import { Loader2 } from 'lucide-react';
 // named export, not a default export.
 const DashboardRaw = lazy(() => import('./views/Dashboard').then(m => ({ default: m.Dashboard })));
 const CargoFormRaw = lazy(() => import('./views/CargoForm').then(m => ({ default: m.CargoForm })));
-const ExcessBaggageFormRaw = lazy(() => import('./views/ExcessBaggageForm').then(m => ({ default: m.ExcessBaggageForm })));
 const AnalyticsRaw = lazy(() => import('./views/Analytics').then(m => ({ default: m.Analytics })));
 const MoreRaw = lazy(() => import('./views/More').then(m => ({ default: m.More })));
 const TransactionLedgerRaw = lazy(() => import('./views/TransactionLedger').then(m => ({ default: m.TransactionLedger })));
@@ -86,7 +85,6 @@ const BottomNav = memo(BottomNavRaw);
 const SideNav = memo(SideNavRaw);
 const Dashboard = memo(DashboardRaw);
 const CargoForm = memo(CargoFormRaw);
-const ExcessBaggageForm = memo(ExcessBaggageFormRaw);
 const Analytics = memo(AnalyticsRaw);
 const More = memo(MoreRaw);
 const TransactionLedger = memo(TransactionLedgerRaw);
@@ -144,23 +142,15 @@ const TAB_PATHS: Partial<Record<TabView, string>> = {
   'FlightRadar':        '/flight-radar',
   'Dispatch':           '/dispatch',
   'Fleet':              '/fleet',
-  // Baggage:{name} and More:{name} are handled by prefix -- see tabToPath/pathToTab below.
+  // More:{name} is handled by prefix -- see tabToPath/pathToTab below.
 };
 
 function tabToPath(tab: TabView): string {
-  if (tab.startsWith('Baggage:')) return '/baggage/' + encodeURIComponent(tab.slice('Baggage:'.length));
   if (tab.startsWith('More:'))    return '/more/'    + encodeURIComponent(tab.slice('More:'.length));
   return TAB_PATHS[tab] || '/tower';
 }
 
 function pathToTab(pathname: string): TabView {
-  // Longest-prefix match against TAB_PATHS, then Baggage: parameterized.
-  // Slug must be non-empty for Baggage -- an empty one falls through to the
-  // plain TAB_PATHS lookup below instead of an invalid 'Baggage:' tab.
-  if (pathname.startsWith('/baggage/')) {
-    const slug = decodeURIComponent(pathname.slice('/baggage/'.length).split('/')[0]);
-    if (slug) return ('Baggage:' + slug) as TabView;
-  }
   // Every /more or /more/<sub-view> path renders the SAME top-level <More>
   // component -- this only needs to know "show More"; which sub-screen is
   // showing is derived independently inside More.tsx from location.pathname
@@ -198,7 +188,7 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
   const resolveRootTab = useCallback((): TabView => {
     try {
       const saved = localStorage.getItem(CURRENT_TAB_KEY(user.id));
-      if (saved) return saved as TabView;
+      if (saved && !saved.startsWith('Baggage:') && saved !== 'More:ExcessBaggageAirlines') return saved as TabView;
     } catch { /* ignore -- fall through to role default */ }
     return getDefaultTab(user.role);
   }, [user.id, user.role, user.assigned_airline]);
@@ -348,16 +338,6 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
       setPendingSummary(summary);
     } catch {}
   }, []);
-  // Drives one nav tab per active row -- fetched once here and passed down
-  // to SideNav/BottomNav/More/the tab dispatch below, so every one of them
-  // stays in sync with whatever's configured in ExcessBaggageAirlines.tsx
-  // without each fetching (and possibly disagreeing) independently.
-  const [excessBaggageAirlines, setExcessBaggageAirlines] = useState<ExcessBaggageAirline[]>(() => {
-    try {
-      const cached = localStorage.getItem('ehi_excess_baggage_airlines');
-      return cached ? JSON.parse(cached) : [];
-    } catch { return []; }
-  });
 
   // Gate syncLagosRates() to admin roles and at most once per 24h per browser
   // so regular logins don't run 5-table pricing queries + sequential upserts.
@@ -376,25 +356,6 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
     }, 5000);
     return () => window.clearTimeout(timer);
   }, [user.role]);
-
-  // Restores the excess-baggage-airline rate fetch that commit c00b62d
-  // ("mirror and sync all price... configurations") accidentally deleted
-  // in favor of syncLagosRates() -- which mirrors hub/special-goods/flat/
-  // size rates but never touches excess_baggage_airlines. Without this,
-  // setExcessBaggageAirlines was called nowhere in the app: every device
-  // was permanently stuck on whatever it had cached in localStorage at
-  // the time of that regression (or an empty array on a fresh install),
-  // so an admin editing a rate in ExcessBaggageAirlines.tsx never actually
-  // changed what any ticketing form charged.
-  useEffect(() => {
-    supabase.from('excess_baggage_airlines').select('*').eq('active', true).order('created_at', { ascending: true })
-      .then(({ data, error }) => {
-        if (data && !error) {
-          setExcessBaggageAirlines(data);
-          localStorage.setItem('ehi_excess_baggage_airlines', JSON.stringify(data));
-        }
-      });
-  }, []);
 
   const { theme, toggle } = useTheme();
   const { showToast } = useToast();
@@ -1342,17 +1303,11 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
 
   const refillUserTagPools = useCallback(() => {
     const hubCode = getHubCode(user.hub_code || user.hub);
-    const allowedTabs = getAllowedTabs(user, excessBaggageAirlines);
+    const allowedTabs = getAllowedTabs(user);
     if (allowedTabs.includes('Cargo')) refillPoolIfLow(`${hubCode}-CG`);
     if (allowedTabs.includes('Marketing')) refillPoolIfLow(`${hubCode}-MK`);
     if (allowedTabs.includes('Packages')) refillPoolIfLow(`${hubCode}-PKG`);
-    allowedTabs.forEach(tab => {
-      if (!tab.startsWith('Baggage:')) return;
-      const airlineName = tab.slice('Baggage:'.length);
-      const airline = excessBaggageAirlines.find(a => a.name === airlineName);
-      if (airline) refillPoolIfLow(`${hubCode}-${airline.tag_code}`);
-    });
-  }, [user.hub, user.hub_code, user.role, user.assigned_airline, user.view_overrides, excessBaggageAirlines]);
+  }, [user.hub, user.hub_code, user.role, user.assigned_airline, user.view_overrides]);
 
   const handleForceSync = useCallback(async (opts?: { silent?: boolean }) => {
     const isSilent = opts?.silent === true;
@@ -1454,7 +1409,7 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
 
     const handleEhiNav = (e: Event) => {
       const requested = (e as CustomEvent).detail as TabView;
-      const allowed = getAllowedTabs(user, excessBaggageAirlines);
+      const allowed = getAllowedTabs(user);
 
       if (allowed.includes(requested) || requested === 'More') {
         setCurrentTab(requested);
@@ -1472,7 +1427,7 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
       window.removeEventListener('offline', handleOffline);
       window.removeEventListener('ehi-nav', handleEhiNav);
     };
-  }, [handleForceSync, refillUserTagPools, refreshPendingSummary, user, excessBaggageAirlines, setCurrentTab]);
+  }, [handleForceSync, refillUserTagPools, refreshPendingSummary, user, setCurrentTab]);
 
   useEffect(() => {
     if (isOffline) return;
@@ -3065,7 +3020,6 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
 
   const handleShowCargoHistory = useCallback(() => setStreamLedger({ streams: ['cargo'] }), []);
   const handleShowMarketingHistory = useCallback(() => setStreamLedger({ streams: ['marketing'] }), []);
-  const handleShowBaggageHistory = useCallback(() => setStreamLedger({ streams: ['baggage'] }), []);
   const handleShowPackageHistory = useCallback(() => setStreamLedger({ streams: ['package'] }), []);
   // Only cargo/package entries ever carry a terminal tag -- filtering by
   // terminal='GAT' alone (typeFilter left at 'All' downstream) already
@@ -3169,7 +3123,6 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
         onLogout={onLogout}
         theme={theme}
         onToggleTheme={toggle}
-        excessBaggageAirlines={excessBaggageAirlines}
       />
 
       <div
@@ -3275,31 +3228,6 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
                   activeShift={activeShiftsByDept['marketing'] || null}
                 />
               )}
-              {currentTab.startsWith('Baggage:') && (
-                (() => {
-                  const airlineName = currentTab.slice('Baggage:'.length);
-                  const airline = excessBaggageAirlines.find(a => a.name === airlineName);
-                  if (!airline) {
-                    return (
-                      <div className="flex items-center justify-center h-full">
-                        <Loader2 className="animate-spin text-[var(--color-muted)]" size={24} />
-                      </div>
-                    );
-                  }
-                  return (
-                    <ExcessBaggageForm
-                      airline={airline}
-                      onAddTx={handleAddTx}
-                      user={user}
-                      onShowHistory={handleShowBaggageHistory}
-                      transactions={transactions}
-                      customerWallets={customerWallets}
-                      setCustomerWallets={setCustomerWallets}
-                      activeShift={activeShiftsByDept['baggage'] || null}
-                    />
-                  );
-                })()
-              )}
               {currentTab === 'Packages' && (
                 <PackageForm
                   user={user}
@@ -3356,7 +3284,6 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
                    dateRange={globalDateRange}
                    onDateRangeChange={handleGlobalDateRangeChange}
                    onEOD={handleEOD}
-                   excessBaggageAirlines={excessBaggageAirlines}
                    activeShift={activeShiftsByDept['all'] || null}
                    todayShifts={allDeptShifts}
                    onStartShift={handleStartShiftAll}
@@ -3379,7 +3306,6 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
           user={user}
           currentTab={currentTab}
           onChangeTab={setCurrentTab}
-          excessBaggageAirlines={excessBaggageAirlines}
         />
       </div>
 
@@ -3422,7 +3348,6 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
               onLogout={onLogout}
               theme={theme}
               onToggleTheme={toggle}
-              excessBaggageAirlines={excessBaggageAirlines}
               docked
             />
           {/* min-h-0 is load-bearing: a flex row's default min-height:auto

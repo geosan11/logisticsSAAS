@@ -52,7 +52,7 @@ describe('Grok Settings Progressive Disclosure & Permissions', () => {
 
   test('Every setting item belongs to one of the 6 groups and has disclosure level', () => {
     const validGroupIds = new Set(SETTING_GROUPS.map((g) => g.id));
-    assert.strictEqual(SETTING_ITEMS.length, 38, 'Must have exactly 38 non-operational setting items');
+    assert.strictEqual(SETTING_ITEMS.length, 37, 'Must have exactly 37 non-operational setting items');
     for (const item of SETTING_ITEMS) {
       assert.ok(validGroupIds.has(item.groupId), `Item ${item.id} has invalid groupId ${item.groupId}`);
       assert.ok(item.level === 'primary' || item.level === 'advanced', `Item ${item.id} must be primary or advanced`);

@@ -64,14 +64,11 @@ export const BottomNav = ({
   if (user.view_overrides != null) {
     const overrideTabs = user.view_overrides
       .filter((id) => (id !== 'GAT' || userHubCode === 'LOS') && allowedSet.has(id as TabView))
-      .map((id) => {
-        const isBaggage = id.startsWith('Baggage:');
-        return {
-          id: id as TabView,
-          title: isBaggage ? id.slice('Baggage:'.length) : (VIEW_TITLE[id] || id),
-          icon: isBaggage ? Plane : (VIEW_ICON[id] || Settings),
-        };
-      });
+      .map((id) => ({
+        id: id as TabView,
+        title: VIEW_TITLE[id] || id,
+        icon: VIEW_ICON[id] || Settings,
+      }));
 
     const finalTabs = overrideTabs.length > 5
       ? [...overrideTabs.slice(0, 4), { id: 'More' as TabView, title: 'Settings', icon: Settings }]
@@ -91,20 +88,11 @@ export const BottomNav = ({
   const scan: NavTab = { id: 'Scan', title: 'Scanner', icon: QrCode };
   const more: NavTab = { id: 'More', title: 'Settings', icon: Settings };
 
-  const baggageTabId = allowedTabs.find((id) => id.startsWith('Baggage:'));
-  const baggageTab: NavTab | undefined = baggageTabId
-    ? {
-        id: baggageTabId,
-        title: baggageTabId.slice('Baggage:'.length),
-        icon: Plane,
-      }
-    : undefined;
-
   let candidates: NavTab[] = [];
   if (user.role === 'driver') {
     candidates = [trips, incoming, outbound, scan, more];
   } else if (user.role === 'baggage_agent') {
-    candidates = [home, ...(baggageTab ? [baggageTab] : []), incoming, outbound, more];
+    candidates = [home, incoming, outbound, more];
   } else if (mode === 'air') {
     candidates = [home, cargo, radar, incoming, more];
   } else if (mode === 'road') {

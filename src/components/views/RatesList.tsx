@@ -8,14 +8,13 @@ import { useMinimumCharges } from '../../lib/minimumCharges';
 import { useFlatTierRates } from '../../lib/flatTierRates';
 import { useSizeTierRates } from '../../lib/sizeTierRates';
 
-export type RatesConfigTarget = 'pricing' | 'hubRates' | 'excessBaggage' | 'contentTypes' | 'specialGoods' | 'minimumCharges' | 'airlineCommissions' | 'flatTier' | 'sizeTier';
+export type RatesConfigTarget = 'pricing' | 'hubRates' | 'contentTypes' | 'specialGoods' | 'minimumCharges' | 'airlineCommissions' | 'flatTier' | 'sizeTier';
 
 interface StandardRate { route_name: string; rate_per_kg: number; }
 interface HubRouteRate { hub_id: string; route_name: string; rate_per_kg: number; }
 interface HubAirlineRouteRate { hub_id: string; airline: string; route_name: string; rate_per_kg: number; }
 interface CorporateRouteRate { corporate_client_id: string; route_name: string; rate_per_kg: number; minimum_amount?: number; }
 interface MarketingRate { route_name: string; bb_rate: number; mb_rate: number; sb_rate: number; }
-interface ExcessBaggageRow { name: string; free_allowance_kg: number; rate_per_kg: number; active: boolean; }
 
 // Pure display -- this screen never writes to any table. Every section
 // links back to its real configuration screen via onOpenConfig for anyone
@@ -34,7 +33,6 @@ export const RatesList = ({ onBack, onOpenConfig }: { onBack: () => void; onOpen
   const [corporateClients, setCorporateClients] = useState<{ id: string; company_name: string }[]>([]);
   const [corporateRates, setCorporateRates] = useState<CorporateRouteRate[]>([]);
   const [marketingRates, setMarketingRates] = useState<MarketingRate[]>([]);
-  const [excessBaggage, setExcessBaggage] = useState<ExcessBaggageRow[]>([]);
   const [airlineCommissions, setAirlineCommissions] = useState<Record<string, number>>({});
 
   const specialGoodsRates = useSpecialGoodsRates();
@@ -46,7 +44,7 @@ export const RatesList = ({ onBack, onOpenConfig }: { onBack: () => void; onOpen
     const fetchAll = async () => {
       const [
         standardRes, hubsRes, hubRouteRes, hubAirlineRouteRes,
-        corpClientsRes, corpRatesRes, marketingRes, excessRes, commissionsRes,
+        corpClientsRes, corpRatesRes, marketingRes, commissionsRes,
       ] = await Promise.all([
         supabase.from('standard_cargo_rates').select('route_name, rate_per_kg').order('route_name'),
         supabase.from('hubs').select('id, name').order('name'),
@@ -55,7 +53,6 @@ export const RatesList = ({ onBack, onOpenConfig }: { onBack: () => void; onOpen
         supabase.from('corporate_clients').select('id, company_name').order('company_name'),
         supabase.from('corporate_route_rates').select('corporate_client_id, route_name, rate_per_kg, minimum_amount'),
         supabase.from('marketing_route_rates').select('route_name, bb_rate, mb_rate, sb_rate').order('route_name'),
-        supabase.from('excess_baggage_airlines').select('name, free_allowance_kg, rate_per_kg, active').order('name'),
         supabase.from('pricing_config').select('config_value').eq('config_key', 'airline_commissions').single(),
       ]);
       setStandardRates(standardRes.data || []);
@@ -65,7 +62,6 @@ export const RatesList = ({ onBack, onOpenConfig }: { onBack: () => void; onOpen
       setCorporateClients(corpClientsRes.data || []);
       setCorporateRates(corpRatesRes.data || []);
       setMarketingRates(marketingRes.data || []);
-      setExcessBaggage(excessRes.data || []);
       setAirlineCommissions((commissionsRes.data?.config_value as Record<string, number>) || {});
       setLoading(false);
     };
@@ -186,7 +182,6 @@ export const RatesList = ({ onBack, onOpenConfig }: { onBack: () => void; onOpen
   const filteredHubAirline = hubAirlineRouteRates.filter(r => matches(hubName(r.hub_id), r.airline, r.route_name));
   const filteredCorporate = corporateRates.filter(r => matches(clientName(r.corporate_client_id), r.route_name));
   const filteredMarketing = marketingRates.filter(r => matches(r.route_name));
-  const filteredExcess = excessBaggage.filter(r => matches(r.name));
   const filteredCommissions = Object.entries(airlineCommissions).filter(([airline]) => matches(airline));
   const filteredSpecialGoods = specialGoodsByGroup.filter(g => matches(g.content_type_name, g.airline));
   const filteredMinCharges = minChargesByGroup.filter(g => matches(g.airline, g.route_name));
@@ -243,10 +238,6 @@ export const RatesList = ({ onBack, onOpenConfig }: { onBack: () => void; onOpen
 
             <Section id="marketing" title="Marketing Bag Rates" count={filteredMarketing.length} editTarget="pricing">
               {filteredMarketing.map(r => <Row key={r.route_name} label={r.route_name} value={`BB ₦${fmt(r.bb_rate)} · MB ₦${fmt(r.mb_rate)} · SB ₦${fmt(r.sb_rate)}`} />)}
-            </Section>
-
-            <Section id="excess" title="Excess Baggage Airlines" count={filteredExcess.length} editTarget="excessBaggage">
-              {filteredExcess.map(r => <Row key={r.name} label={`${r.name}${r.active ? '' : ' (inactive)'}`} value={`${r.free_allowance_kg}kg free · ₦${fmt(r.rate_per_kg)}/kg`} />)}
             </Section>
 
             <Section id="commissions" title="Airline Commissions" count={filteredCommissions.length} editTarget="airlineCommissions">

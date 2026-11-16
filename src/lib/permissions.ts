@@ -113,11 +113,12 @@ const VIEW_MAP = new Map<TabView, ViewDef>(STATIC_VIEWS.map((v) => [v.id, v]));
 
 export function getRoleDefaultTabs(
   user: Pick<User, 'role' | 'assigned_airline'>,
-  airlines: ExcessBaggageAirline[],
+  airlines: ExcessBaggageAirline[] = [],
   mode?: LogisticsMode
 ): TabView[] {
   return STATIC_VIEWS
     .filter((v) => {
+      if (v.id.startsWith('Baggage:') || v.id === 'More:ExcessBaggageAirlines') return false;
       if (!v.roles.includes(user.role)) return false;
       if (mode && v.modes && !v.modes.includes(mode)) return false;
       return true;
@@ -127,7 +128,7 @@ export function getRoleDefaultTabs(
 
 export function getAllowedTabs(
   user: Pick<User, 'role' | 'assigned_airline' | 'view_overrides'>,
-  airlines: ExcessBaggageAirline[],
+  airlines: ExcessBaggageAirline[] = [],
   mode?: LogisticsMode
 ): TabView[] {
   let tabs: TabView[];
@@ -136,6 +137,9 @@ export function getAllowedTabs(
   } else {
     tabs = getRoleDefaultTabs(user, airlines, mode);
   }
+
+  // Excess baggage counters and config are stripped from UI
+  tabs = tabs.filter((t) => !t.startsWith('Baggage:') && t !== 'More:ExcessBaggageAirlines');
 
   // If a mode filter is applied, ensure overridden views also conform to mode
   if (mode) {
@@ -152,8 +156,9 @@ export function getAllowedTabs(
 export function canAccessTab(
   user: Pick<User, 'role' | 'assigned_airline' | 'view_overrides'>,
   tab: string,
-  airlines: ExcessBaggageAirline[],
+  airlines: ExcessBaggageAirline[] = [],
   mode?: LogisticsMode
 ): boolean {
+  if (tab.startsWith('Baggage:') || tab === 'More:ExcessBaggageAirlines') return false;
   return getAllowedTabs(user, airlines, mode).includes(tab as TabView);
 }

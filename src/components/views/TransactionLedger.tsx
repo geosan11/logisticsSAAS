@@ -1750,7 +1750,7 @@ export const TransactionLedger = ({
   const handleReprintReceipt = async (width: '58mm' | '80mm') => {
     if (!viewingDetail || !viewingDetail.raw) return;
     const tx = viewingDetail.raw;
-    if (tx.type !== 'cargo' && tx.type !== 'baggage' && tx.type !== 'marketing' && tx.type !== 'package') return;
+    if (tx.type !== 'cargo' && tx.type !== 'marketing' && tx.type !== 'package') return;
 
     try {
       // printViaBluetooth connects to the printer FIRST, before this
@@ -1778,27 +1778,6 @@ export const TransactionLedger = ({
             paymentMode: formatPaymentModeDisplay(tx.mode, tx.wallet_deduction_amount, tx.amount),
             bankName: tx.bank,
             pickupPin: tx.pickupPin,
-            trackingUrl: `https://app.ehimultisystems.com/track/${tx.id}`,
-            retrievedAmount: (tx as any).raw?.retrieved_amount || 0,
-          }, width);
-        } else if (tx.type === 'baggage') {
-          const { compileBaggageReceiptStream } = await import('../../lib/escposBaggagePrinting');
-          return await compileBaggageReceiptStream({
-            airlineName: tx.airline || 'ValueJet',
-            entryRef: tx.id,
-            date: txDisplayDateTime(tx.created_at, tx.time),
-            originState: tx.hub || user.hub,
-            agentName: tx.enteredByName || user.name,
-            passengerName: tx.name,
-            flight: tx.flight || "Unknown",
-            destination: tx.destination || "Unknown",
-            totalPieces: tx.pieces || 1,
-            totalWeightKg: tx.totalKg || tx.kg || 0,
-            freeAllowanceKg: (tx.totalKg || 0) - (tx.excessKg || 0),
-            excessChargeKg: tx.excessKg || 0,
-            ratePerKg: (tx.excessKg || 0) > 0 ? Math.round(tx.amount / tx.excessKg!) : 0,
-            amount: tx.amount,
-            paymentMode: formatPaymentModeDisplay(tx.mode, tx.wallet_deduction_amount, tx.amount),
             trackingUrl: `https://app.ehimultisystems.com/track/${tx.id}`,
             retrievedAmount: (tx as any).raw?.retrieved_amount || 0,
           }, width);
@@ -1944,7 +1923,7 @@ export const TransactionLedger = ({
   const handleReprintReceiptPDF = async () => {
     if (!viewingDetail || !viewingDetail.raw) return;
     let tx = viewingDetail.raw;
-    if (tx.type !== 'cargo' && tx.type !== 'baggage' && tx.type !== 'package') return;
+    if (tx.type !== 'cargo' && tx.type !== 'package') return;
 
     // Belt-and-suspenders on top of the live-resync effect above: a
     // realtime event can still be in flight at the exact click moment.
@@ -2007,28 +1986,6 @@ export const TransactionLedger = ({
           pieces: tx.pieces || 1,
           kg: tx.kg || 0,
           contents: (tx as any).contents,
-          amount: tx.amount,
-          paymentMode: formatPaymentModeDisplay(tx.mode, tx.wallet_deduction_amount, tx.amount),
-          paymentNarration: tx.paymentNarration,
-          bankName: tx.bank,
-          retrievedAmount: (tx as any).raw?.retrieved_amount || 0,
-        });
-      } else {
-        const { printBaggageReceipt } = await import('./ExcessBaggageReceipt');
-        await printBaggageReceipt({
-          airlineName: tx.airline || 'ValueJet',
-          entryRef: tx.id,
-          date: txDisplayDateTime(tx.created_at, tx.time),
-          hubName: tx.hub || user.hub,
-          agentName: tx.enteredByName || user.name,
-          passengerName: tx.name,
-          flightNumber: tx.flight || 'Unknown',
-          destination: tx.destination || 'Unknown',
-          totalPieces: tx.pieces || 1,
-          totalBaggage: tx.totalKg || tx.kg || 0,
-          freeAllowance: (tx.totalKg || 0) - (tx.excessKg || 0),
-          excessKg: tx.excessKg || 0,
-          ratePerKg: (tx.excessKg || 0) > 0 ? Math.round(tx.amount / tx.excessKg!) : 0,
           amount: tx.amount,
           paymentMode: formatPaymentModeDisplay(tx.mode, tx.wallet_deduction_amount, tx.amount),
           paymentNarration: tx.paymentNarration,
@@ -5842,18 +5799,22 @@ export const TransactionLedger = ({
                     <div className="space-y-1.5 pt-2 border-t border-[var(--color-border)]">
                       <div className="text-[10px] font-mono text-[var(--color-muted)] uppercase tracking-wider">Printing &amp; Documents</div>
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                        <button
-                          onClick={() => handleReprintReceipt('80mm')}
-                          className="py-1.5 px-2 flex items-center justify-center gap-1 bg-[var(--color-accent-amber)] hover:opacity-90 text-[var(--color-on-accent)] rounded-lg transition-colors border-none text-[10px] font-bold shadow-[var(--shadow-button)]"
-                        >
-                          <Printer size={11} /> Receipt (80)
-                        </button>
-                        <button
-                          onClick={() => handleReprintReceipt('58mm')}
-                          className="py-1.5 px-2 flex items-center justify-center gap-1 bg-[var(--color-accent-amber)] hover:opacity-90 text-[var(--color-on-accent)] rounded-lg transition-colors border-none text-[10px] font-bold shadow-[var(--shadow-button)]"
-                        >
-                          <Printer size={11} /> Receipt (58)
-                        </button>
+                        {(viewingDetail.raw.type === 'cargo' || viewingDetail.raw.type === 'marketing' || viewingDetail.raw.type === 'package') && (
+                          <>
+                            <button
+                              onClick={() => handleReprintReceipt('80mm')}
+                              className="py-1.5 px-2 flex items-center justify-center gap-1 bg-[var(--color-accent-amber)] hover:opacity-90 text-[var(--color-on-accent)] rounded-lg transition-colors border-none text-[10px] font-bold shadow-[var(--shadow-button)]"
+                            >
+                              <Printer size={11} /> Receipt (80)
+                            </button>
+                            <button
+                              onClick={() => handleReprintReceipt('58mm')}
+                              className="py-1.5 px-2 flex items-center justify-center gap-1 bg-[var(--color-accent-amber)] hover:opacity-90 text-[var(--color-on-accent)] rounded-lg transition-colors border-none text-[10px] font-bold shadow-[var(--shadow-button)]"
+                            >
+                              <Printer size={11} /> Receipt (58)
+                            </button>
+                          </>
+                        )}
 
                         {(viewingDetail.raw.type === 'cargo' || viewingDetail.raw.type === 'marketing' || viewingDetail.raw.type === 'package') && (
                           <>
@@ -5873,7 +5834,7 @@ export const TransactionLedger = ({
                           </>
                         )}
 
-                        {(viewingDetail.raw.type === 'cargo' || viewingDetail.raw.type === 'baggage' || viewingDetail.raw.type === 'package') && (
+                        {(viewingDetail.raw.type === 'cargo' || viewingDetail.raw.type === 'package') && (
                           <button
                             onClick={() => handleReprintReceiptPDF()}
                             className="py-1.5 px-2.5 flex items-center justify-center gap-1 bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-2)] text-[var(--color-foreground)] rounded-full transition-all duration-200 whitespace-nowrap border border-[rgba(217,119,6,0.45)] text-[10px] font-semibold shadow-[0_0_0_1px_rgba(217,119,6,0.2),0_3px_10px_rgba(0,0,0,0.18),0_0_28px_rgba(217,119,6,0.55)] hover:shadow-[0_0_0_1px_rgba(217,119,6,0.35),0_5px_16px_rgba(0,0,0,0.22),0_0_40px_rgba(217,119,6,0.8)] hover:-translate-y-0.5 col-span-2 sm:col-span-1"

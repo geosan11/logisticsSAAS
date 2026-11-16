@@ -85,4 +85,41 @@ describe('Mode-Aware Permissions & Stripped Views', () => {
     assert.strictEqual(canAccessTab(baseAdmin, 'More:TransactionLedger', [], 'air'), true);
     assert.strictEqual(canAccessTab(baseAdmin, 'More:TransactionLedger', [], 'road'), true);
   });
+
+  test('Existing baggage_agent user lands on Dashboard (Tower) and never receives Baggage tabs', () => {
+    const baggageUser: User = {
+      id: 'user-baggage',
+      email: 'baggage@ehi.test',
+      name: 'Baggage Agent',
+      role: 'baggage_agent',
+      hubType: 'Cargo Station',
+      hub: 'Lagos Air Cargo Station',
+      assigned_airline: 'ValueJet',
+    };
+
+    const tabs = getAllowedTabs(baggageUser, []);
+    assert.ok(tabs.includes('Tower'), 'Existing baggage_agent must have access to Dashboard (Tower)');
+    assert.ok(!tabs.some(t => t.startsWith('Baggage:')), 'baggage_agent must not receive any Baggage: tabs');
+    assert.ok(!tabs.includes('More:ExcessBaggageAirlines'), 'baggage_agent must not receive More:ExcessBaggageAirlines');
+    assert.strictEqual(canAccessTab(baggageUser, 'Tower', []), true, 'Can access Tower');
+    assert.strictEqual(canAccessTab(baggageUser, 'Baggage:ValueJet', []), false, 'Cannot access Baggage:ValueJet');
+  });
+
+  test('Legacy view_overrides with Baggage tabs are stripped cleanly', () => {
+    const userWithLegacyOverrides: User = {
+      id: 'user-legacy',
+      email: 'legacy@ehi.test',
+      name: 'Legacy User',
+      role: 'admin',
+      hubType: 'Head Office',
+      hub: 'EHI Head Office Lagos',
+      view_overrides: ['Tower', 'Baggage:ValueJet', 'More:ExcessBaggageAirlines', 'Scan'] as any,
+    };
+
+    const tabs = getAllowedTabs(userWithLegacyOverrides, []);
+    assert.ok(tabs.includes('Tower'));
+    assert.ok(tabs.includes('Scan'));
+    assert.ok(!tabs.some(t => t.startsWith('Baggage:')), 'Baggage tabs in view_overrides must be stripped');
+    assert.ok(!tabs.includes('More:ExcessBaggageAirlines'), 'More:ExcessBaggageAirlines in view_overrides must be stripped');
+  });
 });

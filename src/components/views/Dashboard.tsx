@@ -485,7 +485,7 @@ export const Dashboard = ({
                 No activity yet today
               </div>
               <div className="text-[12px] text-[var(--color-muted)] font-sans mt-1 mb-4">
-                Start by logging a cargo, excess baggage or marketing entry
+                Start by logging a cargo, package or marketing entry
               </div>
               <div className="flex gap-2 flex-wrap justify-center">
                 {(user.role === 'super_admin' || user.role === 'admin' || user.role === 'cargo_agent') && (
@@ -494,14 +494,6 @@ export const Dashboard = ({
                     className="px-3 py-1.5 bg-[rgba(251,191,36,0.1)] border border-[rgba(251,191,36,0.3)] text-[var(--color-accent-amber)] text-[11px] font-bold rounded-lg"
                   >
                     + Cargo Entry
-                  </button>
-                )}
-                {(user.role === 'super_admin' || user.role === 'admin' || user.role === 'baggage_agent') && user.assigned_airline && (
-                  <button
-                    onClick={() => window.dispatchEvent(new CustomEvent('ehi-nav', { detail: `Baggage:${user.assigned_airline}` }))}
-                    className="px-3 py-1.5 bg-[rgba(59,130,246,0.1)] border border-[rgba(59,130,246,0.3)] text-[var(--color-accent-cobalt)] text-[11px] font-bold rounded-lg"
-                  >
-                    + {user.assigned_airline} POS
                   </button>
                 )}
                 {(user.role === 'super_admin' || user.role === 'admin' || user.role === 'marketing_agent') && (
