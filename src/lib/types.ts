@@ -194,10 +194,8 @@ export interface Transaction {
   bank?: string;
   hub_id?: string;
   hub?: string;
-  // Which physical Lagos counter logged this (Cargo/Package only) -- GAT is
-  // a second desk on the same LOS hub, not a separate hub. Undefined/absent
-  // for every other hub and for baggage/marketing entries.
-  terminal?: 'MMA2' | 'GAT';
+  // Optional legacy terminal identifier on historical database records
+  terminal?: string | null;
   enteredByName?: string;
   editedBy?: string;
   editedAt?: string;
@@ -348,7 +346,7 @@ export interface Expense {
 // them TabView ids lets the same view_overrides permission system used for
 // top-level tabs also cover them, instead of those screens being gated by
 // hardcoded role checks nobody but a code change could ever customize.
-export type TabView = 'Tower' | 'Cargo' | `Baggage:${string}` | `More:${string}` | 'Marketing' | 'Packages' | 'Scan' | 'Incoming' | 'IncomingToHub' | 'OutboundArrivals' | 'More' | 'MyTrips' | 'IT Debug' | 'Credit & Debit' | 'AirlineLogos' | 'DataImport' | 'AirlineLedger' | 'WeightManifest' | 'AirlinePerformance' | 'GAT' | 'FlightRadar' | 'Dispatch' | 'Fleet';
+export type TabView = 'Tower' | 'Cargo' | `Baggage:${string}` | `More:${string}` | 'Marketing' | 'Packages' | 'Scan' | 'Incoming' | 'IncomingToHub' | 'OutboundArrivals' | 'More' | 'MyTrips' | 'IT Debug' | 'Credit & Debit' | 'AirlineLogos' | 'DataImport' | 'AirlineLedger' | 'WeightManifest' | 'AirlinePerformance' | 'FlightRadar' | 'Dispatch' | 'Fleet';
 
 export interface AppState {
   user: User | null;
@@ -570,12 +568,25 @@ export interface WalletTransaction {
 }
 
 // One shift lifecycle per hub PER DEPARTMENT -- Cargo, Package, Marketing,
-// Baggage, and GAT each Start/End Day independently, all still shared by
+// and Baggage each Start/End Day independently, all still shared by
 // every user working that department at that hub (hub_shifts has no
 // per-user scoping). 'all' is the pre-existing hub-wide shift used by the
 // unfiltered Master Ledger (More -> Ledger), kept as its own independent
-// lifecycle rather than merged with the five department ones.
-export type ShiftDepartment = 'cargo' | 'package' | 'marketing' | 'baggage' | 'gat' | 'all';
+// lifecycle rather than merged with the department ones.
+export type ShiftDepartment = 'cargo' | 'package' | 'marketing' | 'baggage' | 'all';
+
+export const SHIFT_DEPARTMENTS: readonly ShiftDepartment[] = [
+  'cargo',
+  'package',
+  'marketing',
+  'baggage',
+  'all',
+] as const;
+
+export function matchesDepartmentShift(department: ShiftDepartment, txType: string): boolean {
+  if (department === 'all') return true;
+  return txType === department;
+}
 
 export interface HubShift {
   id: string;

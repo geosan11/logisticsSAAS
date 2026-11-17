@@ -91,7 +91,6 @@ export const PackageForm = ({
     : propUser;
 
   const userHubCode = getHubCode(user.hub_code || user.hub);
-  const terminal: 'MMA2' = 'MMA2';
 
   const { showToast } = useToast();
   const [markingPaidId, setMarkingPaidId] = useState<string | null>(null);
@@ -294,7 +293,6 @@ export const PackageForm = ({
         hub_id: user.hub_id,
         enteredByName: user.name,
         debtPaid: mode === "Debt" ? false : undefined,
-        terminal,
         linked_as_office_work: linkedAsOfficeWork || undefined,
         corporate_client_id: linkedAsOfficeWork && detectedOfficeClient ? detectedOfficeClient.id : undefined,
         applied_rate_per_kg: linkedAsOfficeWork && officeWorkRate ? officeWorkRate.rate_per_kg : undefined,

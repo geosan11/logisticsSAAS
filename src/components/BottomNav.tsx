@@ -58,7 +58,7 @@ export const BottomNav = ({
 
   if (user.view_overrides != null) {
     const overrideTabs = user.view_overrides
-      .filter((id) => id !== 'GAT' && allowedSet.has(id as TabView))
+      .filter((id) => allowedSet.has(id as TabView))
       .map((id) => ({
         id: id as TabView,
         title: VIEW_TITLE[id] || id,

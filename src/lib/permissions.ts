@@ -133,7 +133,7 @@ export function getAllowedTabs(
 ): TabView[] {
   let tabs: TabView[];
   if (user.view_overrides != null) {
-    tabs = user.view_overrides as TabView[];
+    tabs = (user.view_overrides as TabView[]).filter((t) => VIEW_MAP.has(t));
   } else {
     tabs = getRoleDefaultTabs(user, airlines, mode);
   }

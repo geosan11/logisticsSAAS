@@ -1067,7 +1067,7 @@ export const TransactionLedger = ({
   // tens of thousands of rows in one render and blowing well past what the
   // row/card virtualizers below were sized for, which is what actually hit
   // the ErrorBoundary ("the ledger hit a snag") the moment All Time was
-  // clicked. A brand-new entry (created from Cargo/Marketing/Package/GAT --
+  // clicked. A brand-new entry (created from Cargo/Marketing/Package --
   // never the Ledger itself) simply appears on the next natural All Time
   // refetch instead of instantly; every edit path that matters here always
   // targets an already-loaded (and therefore already-keyed) row.

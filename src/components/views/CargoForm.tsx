@@ -187,7 +187,6 @@ export const CargoForm = ({
       }
     : propUser;
   const userHubCode = getHubCode(user.hub_code || user.hub);
-  const terminal: 'MMA2' = 'MMA2';
 
   // Navigation tabs between Regular & Corporate Billing
   const [activePortal, setActivePortal] = useState<"retail" | "corporate">(
@@ -1418,7 +1417,6 @@ export const CargoForm = ({
       route: selectedIntake.route,
       contentType: selectedIntake.contentType || selectedIntake.content_type || 'General Goods',
       enteredByName: user.name,
-      terminal,
       // See the retail tx's identical comment above -- same gap, same fix.
       hub: user.hub,
       hub_id: user.hub_id,
@@ -1663,7 +1661,6 @@ export const CargoForm = ({
       // which sets 'Corporate' instead.
       clientType: linkedAsOfficeWork ? "Corporate" : "Individual",
       enteredByName: user.name,
-      terminal,
       // Was missing entirely -- EHIApp.tsx's handleAddTx falls back to
       // `hubId = tx.hub_id || user.hub_id` using ITS OWN top-level,
       // never-admin-overridden user prop when tx.hub_id is absent. Without

@@ -15,7 +15,7 @@ export type LedgerEntryType = 'cargo' | 'baggage' | 'marketing' | 'package';
 export interface LedgerSearchParams {
   query?: string;
   types?: LedgerEntryType[] | null;   // null/undefined = all 4 types
-  terminal?: 'MMA2' | 'GAT' | null;
+  terminal?: string | null;
   mode?: string | null;
   officeWorkOnly?: boolean;
   debtClass?: 'Office' | 'Individual' | null;

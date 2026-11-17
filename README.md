@@ -18,7 +18,7 @@ EHI Multisystems puts every counter, hub and role on one ledger. The business re
 
 ## Key features
 
-- **Counter workspaces** for cargo, excess baggage, GAT terminal, marketing and package desks, with airline- and route-specific rates, minimum charges, flat/size/special-goods tiers and per-hub rate overrides.
+- **Counter workspaces** for cargo, excess baggage, marketing and package desks, with airline- and route-specific rates, minimum charges, flat/size/special-goods tiers and per-hub rate overrides.
 - **AWB and tag numbering** from an atomic server-side counter, with blocks pre-reserved per device so tags can still be issued offline without collisions.
 - **Shipment custody chain**: QR scanning, arrivals, dispatch, incoming-to-hub, wrong-destination alerts and proof of delivery (signature, photo, GPS).
 - **Customer wallets and debt**: top-ups, deductions, refunds, partial retrievals, corporate (B2B) billing and debt collection, with maker-checker approval for cash payouts and refunds.

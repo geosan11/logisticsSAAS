@@ -1,7 +1,7 @@
 import { useState, useEffect, lazy, Suspense, useRef, useCallback, memo, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { User, TabView, Transaction, Expense, CustomerWallet, HubShift, ShiftDepartment } from '../lib/types';
+import { User, TabView, Transaction, Expense, CustomerWallet, HubShift, ShiftDepartment, matchesDepartmentShift } from '../lib/types';
 import { processSyncQueue, writeWithOfflineSupport, cleanupOldQueue, getUnsyncedLocalTransactions, getAllLocalMirrorTransactions, requeueQuarantined } from '../lib/sync';
 import { getPendingSyncSummary, reportDeviceSyncHeartbeat, startDeviceHeartbeat, isSessionReallyExpired, type PendingSyncSummary } from '../lib/deviceSync';
 import { PendingSyncBanner } from './PendingSyncBanner';
@@ -11,6 +11,7 @@ import { refillPoolIfLow } from '../lib/tagPool';
 import { getHubCode, getShiftBoundary, rowsEqualById } from '../lib/helpers';
 import { computeDebtDisplayModeFromRow, computeDebtDisplayModeFromRealtimeMerge } from '../lib/debtStatus';
 import { getCached, setCached } from '../lib/localCache';
+import { buildCargoPayload, buildPackagePayload } from '../lib/payloadBuilders';
 
 const CUSTOMER_WALLETS_CACHE_KEY = 'ehi_customer_wallets_v1';
 const TODAY_SHIFTS_CACHE_KEY = 'ehi_today_shifts_v1';
@@ -374,7 +375,7 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
   // "Day ended" markers; previously plain useState([]).
   const [todayShifts, setTodayShifts] = useState<HubShift[]>(() => getCached<HubShift[]>(TODAY_SHIFTS_CACHE_KEY, []));
   // Derived, not separate state -- each department (Cargo, Package,
-  // Marketing, Baggage, GAT, plus 'all' for the unfiltered Master Ledger)
+  // Marketing, Baggage, plus 'all' for the unfiltered Master Ledger)
   // can have its own open shift simultaneously, so "the active shift" is a
   // map, not a single value. Recomputes automatically whenever todayShifts
   // changes (fetch, Start/End Day, or the realtime hub_shifts channel
@@ -1059,12 +1060,9 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
   // Maps a shift department to the Transaction.type(s) its sales_summary
   // should be computed from at End Day. 'all' (the Master Ledger's
   // hub-wide shift) keeps summing every type, unchanged from before this
-  // department split. 'gat' isn't a Transaction.type at all -- it's cargo
-  // and package rows tagged terminal='GAT' (see TerminalSwitch.tsx).
+  // department split.
   const shiftDeptMatchesTx = useCallback((department: ShiftDepartment, t: Transaction): boolean => {
-    if (department === 'all') return true;
-    if (department === 'gat') return (t.type === 'cargo' || t.type === 'package') && (t as any).terminal === 'GAT';
-    return t.type === department;
+    return matchesDepartmentShift(department, t.type);
   }, []);
 
   const handleStartShift = useCallback(async (department: ShiftDepartment) => {
@@ -2480,69 +2478,7 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
         created_at: new Date().toISOString()
       };
     } else if (tx.type === 'cargo') {
-      // A debt-clearance shadow entry's `detail` is a human-readable "DEBT
-      // CLEARANCE · Orig: ... · Paid: ... · Bal: ..." summary, not the
-      // structured "airline · pcs · kg · route · content" format real cargo
-      // intake writes -- splitting it positionally wrote fragments of that
-      // summary into route/content_type (route became the literal
-      // "Bal: ₦50,000" once an Age segment pushed indices over).
-      // Skip the parse entirely here; every field below already falls back
-      // to a clean default when its explicit value is absent.
-      // No AWB/tag segment in this string anymore (it always duplicated
-      // entry_ref/awb_tag_number, which are already tracked as their own
-      // fields) -- awb_tag_number below has nothing left to positionally
-      // fall back to.
-      const parts = tx.is_debt_clearance ? [] : tx.detail.split(' · ');
-      const pcsStr = parts[1] || '';
-      const kgStr = parts[2] || '';
-      const route = parts[3] || '';
-      const content = parts[4] || '';
-
-      payload = {
-        id: tx.id,
-        entry_ref: tx.id,
-        consignee_name: tx.name,
-        route: (tx as any).route || route,
-        total_pcs: (tx as any).pieces != null ? (tx as any).pieces : (parseInt(pcsStr) || 1),
-        total_kg: (tx as any).kg != null ? Math.round((tx as any).kg) : (Math.round(parseFloat(kgStr) || 0)),
-        size_inches: tx.sizeInches ?? null,
-        content_type: (tx as any).contentType ?? content,
-        awb_tag_number: (tx as any).awb_tag_number || '',
-        amount: tx.amount,
-        receipt_mode: tx.mode === 'Debt Paid' ? 'Debt' : tx.mode,
-        bank: tx.bank,
-        hub_id: hubId,
-        terminal: (tx as any).terminal ?? 'MMA2',
-        airline: (tx as any).airline || parts[0] || 'Unknown',
-        flight_number: (tx as any).flight || null,
-        commission_rate: (tx as any).commissionRate ?? null,
-        remark: (tx as any).remarks || null,
-        pickup_pin: (tx as any).pickupPin || null,
-        consignee_phone: tx.consigneePhone || null,
-        client_type: tx.clientType || null,
-        // Which hub_shifts row (this hub+department) was open at intake --
-        // read back by clear_cargo_debt (20260947_same_shift_debt_
-        // reclassification.sql) to detect an Individual debt fully cleared
-        // before that same shift ever closed, in which case it reclassifies
-        // as a normal sale instead of staying 'Debt' forever.
-        created_shift_id: tx.created_shift_id || null,
-        corporate_client_id: (tx as any).corporate_client_id || null,
-        applied_rate_per_kg: tx.applied_rate_per_kg ?? null,
-        linked_as_office_work: (tx as any).linked_as_office_work ?? false,
-        // See the marketing branch's comment above -- same gap, same fix,
-        // for the department this bug was actually noticed in.
-        wallet_id: tx.wallet_id ?? null,
-        wallet_deduction_amount: tx.wallet_deduction_amount ?? null,
-        entered_by: user.id && user.id.includes('-') && user.id.length > 30 ? user.id : undefined,
-        // Set on the client by DebtorsTab.tsx/TransactionLedger.tsx's
-        // debt-clearance shadow entries but never actually written here --
-        // the "COLLECTION" badge and the link back to the cleared debt only
-        // survived until the next refetch, after which the row looked like
-        // an ordinary new cargo intake for the same consignee/airline/route.
-        is_debt_clearance: tx.is_debt_clearance ?? false,
-        related_tx_id: tx.related_tx_id ?? null,
-        created_at: new Date().toISOString()
-      };
+      payload = buildCargoPayload(tx, hubId, user);
     } else if (tx.type === 'baggage') {
       const excessKg  = Math.round(tx.excessKg || (tx as any).excessKg || 0);
       const totalKg   = Math.round(tx.totalKg  || (tx as any).totalKg  || excessKg);
@@ -2589,49 +2525,7 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
         created_at: new Date().toISOString()
       };
     } else if (tx.type === 'package') {
-      payload = {
-        id: tx.id,
-        entry_ref: tx.id,
-        customer_name: tx.name,
-        destination: tx.destination || '',
-        content_type: (tx as any).contentType || 'Package',
-        total_pcs: tx.pieces || 1,
-        total_kg: tx.kg || 0,
-        contents: (tx as any).contents || null,
-        vehicle_plate: tx.vehiclePlate || null,
-        driver_name: tx.driverName || null,
-        status: tx.status || 'Intake',
-        amount: tx.amount,
-        payment_mode: tx.mode === 'Debt Paid' ? 'Debt' : tx.mode,
-        bank: tx.bank,
-        payment_narration: tx.paymentNarration,
-        debt_paid: (tx as any).debtPaid ?? false,
-        debt_paid_at: (tx as any).debtPaidAt || null,
-        amount_paid: tx.amountPaid,
-        payment_history: tx.paymentHistory,
-        // See the marketing branch's comment above -- same gap, same fix.
-        client_type: tx.clientType || null,
-        // See the cargo branch's comment above -- same gap, same fix.
-        created_shift_id: tx.created_shift_id || null,
-        corporate_client_id: (tx as any).corporate_client_id || null,
-        applied_rate_per_kg: tx.applied_rate_per_kg ?? null,
-        linked_as_office_work: (tx as any).linked_as_office_work ?? false,
-        // See the marketing branch's comment above -- same gap, same fix.
-        wallet_id: tx.wallet_id ?? null,
-        wallet_deduction_amount: tx.wallet_deduction_amount ?? null,
-        hub_id: hubId,
-        hub: user.hub,
-        terminal: (tx as any).terminal ?? 'MMA2',
-        entered_by: user.id && user.id.includes('-') && user.id.length > 30 ? user.id : undefined,
-        // See the marketing branch's comment above -- same gap, same fix.
-        customer_phone: tx.consigneePhone || null,
-        // See the marketing branch's comment above -- same gap, same fix.
-        is_debt_clearance: tx.is_debt_clearance ?? false,
-        related_tx_id: tx.related_tx_id ?? null,
-        // See the marketing branch's comment above -- same gap, same fix.
-        remark: (tx as any).remarks || null,
-        created_at: tx.created_at || new Date().toISOString()
-      };
+      payload = buildPackagePayload(tx, hubId, user);
     } else {
       payload = { ...tx, created_at: new Date().toISOString(), hub_id: hubId };
     }
@@ -3046,7 +2940,7 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
   }, [streamLedger]);
 
   const STREAM_LEDGER_DEPT_LABEL: Record<Exclude<ShiftDepartment, 'all'>, string> = {
-    cargo: 'Cargo', package: 'Package', marketing: 'Marketing', baggage: 'Baggage', gat: 'All',
+    cargo: 'Cargo', package: 'Package', marketing: 'Marketing', baggage: 'Baggage',
   };
 
   // TransactionLedger is wrapped in memo() -- these three were previously
