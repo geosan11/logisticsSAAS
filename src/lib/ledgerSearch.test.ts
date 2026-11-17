@@ -35,7 +35,7 @@ describe('Ledger Search & RPC Pagination', () => {
       const params: LedgerSearchParams = {
         query: '  EHI-LOS-00123  ',
         types: ['cargo', 'package'],
-        terminal: 'MMA2',
+        terminal: 'T1',
         mode: 'Cash',
         officeWorkOnly: true,
         debtClass: 'Office',
@@ -52,7 +52,7 @@ describe('Ledger Search & RPC Pagination', () => {
       assert.strictEqual(lastRpcName, 'ledger_search_page');
       assert.strictEqual(lastRpcParams.p_query, 'EHI-LOS-00123', 'query should be trimmed');
       assert.deepStrictEqual(lastRpcParams.p_types, ['cargo', 'package']);
-      assert.strictEqual(lastRpcParams.p_terminal, 'MMA2');
+      assert.strictEqual(lastRpcParams.p_terminal, 'T1');
       assert.strictEqual(lastRpcParams.p_mode, 'Cash');
       assert.strictEqual(lastRpcParams.p_office_work_only, true);
       assert.strictEqual(lastRpcParams.p_debt_class, 'Office');
