@@ -208,13 +208,9 @@ export const Dashboard = ({
     // Accountant/auditor need to see all three streams to review financial activity —
     // same visibility as admin, not the single-stream visibility of a field agent.
     const showCargo     = isAdmin || isAccountant || user.role === "cargo_agent";
-    const showVJ        = isAdmin || isAccountant || user.role === "baggage_agent";
-    const showMktg      = isAdmin || isAccountant || user.role === "marketing_agent";
-    // Package Desk is operated by cargo_agent/marketing_agent (src/lib/
-    // permissions.ts's 'Packages' view -- baggage_agent is deliberately not
-    // in that list), plus the same admin/accountant financial-review access
-    // as the other three streams.
-    const showPackage   = isAdmin || isAccountant || user.role === "cargo_agent" || user.role === "marketing_agent";
+    const showVJ        = (isAdmin || isAccountant) && vjTx.length > 0;
+    const showMktg      = (isAdmin || isAccountant) && mktgTx.length > 0;
+    const showPackage   = isAdmin || isAccountant || user.role === "cargo_agent";
     const showRevSummary = isAdmin || isAccountant;
 
     const allVisibleTx = useMemo(() =>
@@ -368,7 +364,7 @@ export const Dashboard = ({
             )}
             {showMktg && (
               <ScoreCard
-                label="Marketing" icon={TrendingUp}
+                label="Marketing (legacy)" icon={TrendingUp}
                 color="var(--color-success)"
                 bg="rgba(16,185,129,0.07)" borderColor="rgba(16,185,129,0.22)"
                 total={mktgTotal}
@@ -377,7 +373,7 @@ export const Dashboard = ({
             )}
             {showVJ && (
               <ScoreCard
-                label="Excess Baggage" icon={Plane}
+                label="Excess Baggage (legacy)" icon={Plane}
                 color="var(--color-accent-cobalt)"
                 bg="rgba(59,130,246,0.07)" borderColor="rgba(59,130,246,0.22)"
                 total={vjTotal}
@@ -485,7 +481,7 @@ export const Dashboard = ({
                 No activity yet today
               </div>
               <div className="text-[12px] text-[var(--color-muted)] font-sans mt-1 mb-4">
-                Start by logging a cargo, package or marketing entry
+                Start by logging a cargo or package entry
               </div>
               <div className="flex gap-2 flex-wrap justify-center">
                 {(user.role === 'super_admin' || user.role === 'admin' || user.role === 'cargo_agent') && (
@@ -494,14 +490,6 @@ export const Dashboard = ({
                     className="px-3 py-1.5 bg-[rgba(251,191,36,0.1)] border border-[rgba(251,191,36,0.3)] text-[var(--color-accent-amber)] text-[11px] font-bold rounded-lg"
                   >
                     + Cargo Entry
-                  </button>
-                )}
-                {(user.role === 'super_admin' || user.role === 'admin' || user.role === 'marketing_agent') && (
-                  <button
-                    onClick={() => window.dispatchEvent(new CustomEvent('ehi-nav', { detail: 'Marketing' }))}
-                    className="px-3 py-1.5 bg-[rgba(16,185,129,0.1)] border border-[rgba(16,185,129,0.3)] text-[var(--color-success)] text-[11px] font-bold rounded-lg"
-                  >
-                    + Marketing
                   </button>
                 )}
               </div>

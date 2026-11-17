@@ -18,7 +18,6 @@ import {
   TabView,
   Transaction,
   Expense,
-  ExcessBaggageAirline,
   HubShift,
   CustomerWallet,
 } from '../../lib/types';
@@ -120,7 +119,6 @@ export interface MoreProps {
   onChangeTab: (t: TabView) => void;
   dateRange?: { start: string; end: string };
   onDateRangeChange?: (range: { start: string; end: string }) => void;
-  excessBaggageAirlines?: ExcessBaggageAirline[];
   activeShift?: HubShift | null;
   todayShifts?: HubShift[];
   onStartShift?: () => void;
@@ -146,7 +144,6 @@ export const More = ({
   onChangeTab,
   dateRange,
   onDateRangeChange,
-  excessBaggageAirlines,
   activeShift,
   todayShifts,
   onStartShift,
@@ -257,8 +254,8 @@ export const More = ({
 
   // Accessible settings filtered by user role permissions
   const accessibleItems = useMemo(
-    () => getAccessibleSettings(SETTING_ITEMS, user, excessBaggageAirlines),
-    [user, excessBaggageAirlines]
+    () => getAccessibleSettings(SETTING_ITEMS, user, mode),
+    [user, mode]
   );
 
   // Accessible groups with item count tallies

@@ -1469,8 +1469,6 @@ ALTER TABLE cargo_entries ADD CONSTRAINT cargo_entries_receipt_mode_check CHECK 
                     className="w-full h-10 px-2 text-[12px] font-mono rounded-lg bg-[var(--color-surface-1)] border border-[var(--color-border)] text-[var(--color-foreground)]"
                   >
                     <option value="cargo">Cargo</option>
-                    <option value="baggage">Baggage</option>
-                    <option value="marketing">Marketing</option>
                     <option value="package">Package</option>
                   </select>
                 </div>

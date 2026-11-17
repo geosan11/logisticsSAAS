@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, DollarSign, Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { PageHeader } from '../ui';
 import { User } from '../../lib/types';
 import { supabase } from '../../lib/supabase';
@@ -34,136 +34,9 @@ export const PricingConfiguration = ({ user, onBack }: { user: User; onBack: () 
   const routes = useHubRoutes();
   const [rateRoute, setRateRoute] = useState(routes[0]);
   useValidatedRouteSelection(routes, rateRoute, setRateRoute);
-  // Marketing's route concept is an Origin-Destination PAIR
-  // ("LOS/Lagos - ABV/Abuja", matching marketing_route_rates.route_name and
-  // what MarketingWorkspace.tsx's officeWorkRate lookup actually compares
-  // against), not a single hub -- a corporate rate saved via the single-hub
-  // `rateRoute` select below could never match a marketing entry's route,
-  // so a negotiated marketing tariff had no way to actually be configured.
-  const [rateDept, setRateDept] = useState<'cargo' | 'marketing'>('cargo');
-  const [rateRouteOrigin, setRateRouteOrigin] = useState('');
-  const [rateRouteDest, setRateRouteDest] = useState('');
   const [ratePrice, setRatePrice] = useState('');
   const [rateMinCharge, setRateMinCharge] = useState('');
   const { showToast } = useToast();
-
-  // BB/MB/SB pricing matrix used to be localStorage-only -- a value set on
-  // one device was invisible everywhere else. It now loads from Supabase
-  // (localStorage is kept only as an offline-read cache, never the source
-  // of truth) and every edit writes straight back to the server so other
-  // devices see it on their next fetch.
-  // (Excess-baggage airline pricing, formerly ValueJet-only "VJ settings"
-  // here, now lives in its own screen: ExcessBaggageAirlines.tsx.)
-  const [pricing, setPricing] = useState(() => {
-    const saved = localStorage.getItem('ehi_setting_pricing');
-    return saved ? JSON.parse(saved) : [
-      { id: '1', route: 'LOS/Lagos - ABV/Abuja', bb: 18000, mb: 12000, sb: 7500 },
-      { id: '2', route: 'LOS/Lagos - PHC/Port Harcourt', bb: 22000, mb: 15000, sb: 9500 },
-      { id: '3', route: 'ABV/Abuja - LOS/Lagos', bb: 18000, mb: 12000, sb: 7500 },
-      { id: '4', route: 'PHC/Port Harcourt - LOS/Lagos', bb: 22000, mb: 15000, sb: 9500 },
-      { id: '5', route: 'LOS/Lagos - ENU/Enugu', bb: 19500, mb: 13000, sb: 8000 }
-    ];
-  });
-
-  useEffect(() => {
-    const fetchRoutePricing = async () => {
-      const { data, error } = await supabase.from('marketing_route_rates').select('id,route_name,bb_rate,mb_rate,sb_rate').order('route_name');
-      if (data && !error && data.length > 0) {
-        const mapped = data.map((r: any) => ({ id: r.id, route: r.route_name, bb: Number(r.bb_rate), mb: Number(r.mb_rate), sb: Number(r.sb_rate) }));
-        setPricing(mapped);
-        localStorage.setItem('ehi_setting_pricing', JSON.stringify(mapped));
-      }
-    };
-    fetchRoutePricing();
-  }, []);
-
-  // marketing_route_rates.route_name is an "Origin - Destination" pair
-  // (e.g. "LOS/Lagos - ABV/Abuja"), not a single hub -- before this, there
-  // was no admin UI to create a new pair at all short of a direct DB
-  // insert, so a newly added hub's Marketing pricing (and its very
-  // appearance in MarketingWorkspace.tsx's route picker, which only lists
-  // pairs that already have a rate row) had no path to get configured.
-  const pricedRouteNames = new Set(pricing.map((p: any) => p.route));
-  const nonOtherRoutes = routes.filter(r => r !== 'Other');
-  const [newRouteOrigin, setNewRouteOrigin] = useState('');
-  const [newRouteDest, setNewRouteDest] = useState('');
-  const [newRouteBb, setNewRouteBb] = useState('');
-  const [newRouteMb, setNewRouteMb] = useState('');
-  const [newRouteSb, setNewRouteSb] = useState('');
-  const [addingRoute, setAddingRoute] = useState(false);
-
-  useEffect(() => {
-    if (nonOtherRoutes.length === 0) return;
-    if (!newRouteOrigin) setNewRouteOrigin(nonOtherRoutes[0]);
-    if (!newRouteDest) setNewRouteDest(nonOtherRoutes[1] || nonOtherRoutes[0]);
-    if (!rateRouteOrigin) setRateRouteOrigin(nonOtherRoutes[0]);
-    if (!rateRouteDest) setRateRouteDest(nonOtherRoutes[1] || nonOtherRoutes[0]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nonOtherRoutes.join('|')]);
-
-  const rateRoutePairName = rateRouteOrigin && rateRouteDest ? `${rateRouteOrigin} - ${rateRouteDest}` : '';
-
-  const newRoutePairName = newRouteOrigin && newRouteDest ? `${newRouteOrigin} - ${newRouteDest}` : '';
-  const newRoutePairExists = newRoutePairName !== '' && pricedRouteNames.has(newRoutePairName);
-
-  const handleAddRoutePricing = async () => {
-    if (!newRoutePairName || newRouteOrigin === newRouteDest || addingRoute) return;
-    setAddingRoute(true);
-    const bb = Number(newRouteBb) || 0;
-    const mb = Number(newRouteMb) || 0;
-    const sb = Number(newRouteSb) || 0;
-    const { data, error } = await supabase.from('marketing_route_rates').upsert({
-      route_name: newRoutePairName,
-      bb_rate: bb,
-      mb_rate: mb,
-      sb_rate: sb,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'route_name' }).select().single();
-    setAddingRoute(false);
-    if (error) {
-      showToast({ message: `Failed to save pricing for ${newRoutePairName}: ${error.message}`, type: 'error' });
-      return;
-    }
-    const saved = { id: data.id, route: data.route_name, bb: Number(data.bb_rate), mb: Number(data.mb_rate), sb: Number(data.sb_rate) };
-    const next = newRoutePairExists
-      ? pricing.map((p: any) => p.route === newRoutePairName ? saved : p)
-      : [...pricing, saved];
-    setPricing(next);
-    localStorage.setItem('ehi_setting_pricing', JSON.stringify(next));
-    setNewRouteBb('');
-    setNewRouteMb('');
-    setNewRouteSb('');
-    showToast({ message: `${newRoutePairName} pricing saved.`, type: 'success' });
-  };
-
-  const handlePriceUpdate = async (id: string, field: 'bb'|'mb'|'sb', value: string) => {
-    const numVal = Number(value);
-    if (isNaN(numVal)) return;
-    const prev = pricing;
-    const next = pricing.map((p: any) => p.id === id ? { ...p, [field]: numVal } : p);
-    setPricing(next);
-    localStorage.setItem('ehi_setting_pricing', JSON.stringify(next));
-
-    const row = next.find((p: any) => p.id === id);
-    if (!row) return;
-    const { error } = await supabase.from('marketing_route_rates').upsert({
-      route_name: row.route,
-      bb_rate: row.bb,
-      mb_rate: row.mb,
-      sb_rate: row.sb,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'route_name' });
-    if (error) {
-      // Roll back the optimistic update (and its localStorage cache) --
-      // otherwise this screen and the cache both keep showing a rate that
-      // was never actually saved, diverging from what every other device
-      // still sees as the real server value.
-      setPricing(prev);
-      localStorage.setItem('ehi_setting_pricing', JSON.stringify(prev));
-      showToast({ message: `Failed to save ${row.route} rate: ${error.message}`, type: 'error' });
-    }
-  };
-
 
   // Fetch standard rates from Supabase
   useEffect(() => {
@@ -313,11 +186,7 @@ export const PricingConfiguration = ({ user, onBack }: { user: User; onBack: () 
       showToast({ message: 'Minimum charge must be zero or positive.', type: 'warning' });
       return;
     }
-    const effectiveRoute = rateDept === 'marketing' ? rateRoutePairName : rateRoute;
-    if (rateDept === 'marketing' && (!rateRoutePairName || rateRouteOrigin === rateRouteDest)) {
-      showToast({ message: 'Pick two different hubs for the marketing origin/destination pair.', type: 'warning' });
-      return;
-    }
+    const effectiveRoute = rateRoute;
 
     // Upsert on the (corporate_client_id, route_name) unique constraint
     // instead of branching on whether *this device's* stale local corpRates
@@ -368,128 +237,6 @@ export const PricingConfiguration = ({ user, onBack }: { user: User; onBack: () 
         onBack={onBack}
         sticky={false}
       />
-
-      <div className="ehi-card p-4 space-y-4 mb-6">
-        <div className="flex justify-between items-center">
-          <div className="text-[9px] font-mono text-[var(--color-foreground)] tracking-widest uppercase flex items-center space-x-1.5">
-            <DollarSign size={12} className="text-[var(--color-accent-amber)]" />
-            <span>ROUTE PRICING MATRIX (STREAM 1)</span>
-          </div>
-          <span className="text-[8px] font-mono text-[var(--color-muted)] bg-[var(--color-surface-2)] px-1.5 py-0.5 rounded uppercase">BB/MB/SB ONLY</span>
-        </div>
-
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {pricing.map((r: any) => (
-            <div key={r.id} className="p-3 bg-[var(--color-surface-2)] rounded border border-[var(--color-border)] space-y-2">
-              <span className="text-[11px] font-bold text-[var(--color-foreground)] uppercase tracking-wide block">{r.route}</span>
-              {/* defaultValue+onBlur (uncontrolled), not value+onChange -- the
-                  previous version wrote the parsed number straight back as
-                  the controlled value on every keystroke (plus a live
-                  Supabase write per keystroke), so typing a decimal point
-                  immediately vanished and the next digit landed on the
-                  whole-number part instead, e.g. "450.5" silently becoming
-                  "4505". Same fix as ExcessBaggageAirlines.tsx. */}
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <label htmlFor={`bb-${r.id}`} className="text-[8px] font-mono text-[var(--color-muted)] block mb-1">BB BAG (₦)</label>
-                  <input
-                    id={`bb-${r.id}`}
-                    type="number"
-                    defaultValue={r.bb}
-                    key={`bb-${r.id}-${r.bb}`}
-                    onBlur={(e) => e.target.value && handlePriceUpdate(r.id, 'bb', e.target.value)}
-                    className="w-full bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded px-2 py-1 text-[11px] font-mono text-[var(--color-foreground)] text-center focus:outline-none focus:border-[var(--color-accent-amber)]"
-                  />
-                </div>
-                <div>
-                  <label htmlFor={`mb-${r.id}`} className="text-[8px] font-mono text-[var(--color-muted)] block mb-1">MB BAG (₦)</label>
-                  <input
-                    id={`mb-${r.id}`}
-                    type="number"
-                    defaultValue={r.mb}
-                    key={`mb-${r.id}-${r.mb}`}
-                    onBlur={(e) => e.target.value && handlePriceUpdate(r.id, 'mb', e.target.value)}
-                    className="w-full bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded px-2 py-1 text-[11px] font-mono text-[var(--color-foreground)] text-center focus:outline-none focus:border-[var(--color-accent-amber)]"
-                  />
-                </div>
-                <div>
-                  <label htmlFor={`sb-${r.id}`} className="text-[8px] font-mono text-[var(--color-muted)] block mb-1">SB BAG (₦)</label>
-                  <input
-                    id={`sb-${r.id}`}
-                    type="number"
-                    defaultValue={r.sb}
-                    key={`sb-${r.id}-${r.sb}`}
-                    onBlur={(e) => e.target.value && handlePriceUpdate(r.id, 'sb', e.target.value)}
-                    className="w-full bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded px-2 py-1 text-[11px] font-mono text-[var(--color-foreground)] text-center focus:outline-none focus:border-[var(--color-accent-amber)]"
-                  />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {nonOtherRoutes.length > 1 && (
-          <div className="pt-3 mt-1 border-t border-[var(--color-border)] space-y-2">
-            <div className="text-[9px] font-mono text-[var(--color-muted)] uppercase tracking-wider flex items-center gap-1.5">
-              <Plus size={10} />
-              <span>Add / Update Route Pricing</span>
-            </div>
-            <div className="grid md:grid-cols-2 gap-2">
-              <select
-                value={newRouteOrigin}
-                onChange={(e) => setNewRouteOrigin(e.target.value)}
-                className="w-full h-9 px-2 text-[12px] font-mono rounded bg-[var(--color-surface-2)] border border-[var(--color-border)] text-[var(--color-foreground)] focus:outline-none focus:border-[var(--color-accent-amber)]"
-              >
-                {nonOtherRoutes.map(r => <option key={r} value={r}>{r}</option>)}
-              </select>
-              <select
-                value={newRouteDest}
-                onChange={(e) => setNewRouteDest(e.target.value)}
-                className="w-full h-9 px-2 text-[12px] font-mono rounded bg-[var(--color-surface-2)] border border-[var(--color-border)] text-[var(--color-foreground)] focus:outline-none focus:border-[var(--color-accent-amber)]"
-              >
-                {nonOtherRoutes.map(r => <option key={r} value={r}>{r}</option>)}
-              </select>
-            </div>
-            {newRouteOrigin === newRouteDest ? (
-              <div className="text-[10px] text-[var(--color-accent-amber)]">Origin and destination must be different hubs.</div>
-            ) : newRoutePairExists ? (
-              <div className="text-[10px] text-[var(--color-muted)]">Already configured — saving below will update the existing rate.</div>
-            ) : (
-              <div className="text-[10px] text-[var(--color-accent-amber)]">Not yet configured — this route won't be selectable in Marketing until saved.</div>
-            )}
-            <div className="grid grid-cols-3 gap-2">
-              <input
-                type="number"
-                placeholder="BB ₦"
-                value={newRouteBb}
-                onChange={(e) => setNewRouteBb(e.target.value)}
-                className="w-full bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded px-2 py-1 text-[11px] font-mono text-[var(--color-foreground)] text-center focus:outline-none focus:border-[var(--color-accent-amber)]"
-              />
-              <input
-                type="number"
-                placeholder="MB ₦"
-                value={newRouteMb}
-                onChange={(e) => setNewRouteMb(e.target.value)}
-                className="w-full bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded px-2 py-1 text-[11px] font-mono text-[var(--color-foreground)] text-center focus:outline-none focus:border-[var(--color-accent-amber)]"
-              />
-              <input
-                type="number"
-                placeholder="SB ₦"
-                value={newRouteSb}
-                onChange={(e) => setNewRouteSb(e.target.value)}
-                className="w-full bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded px-2 py-1 text-[11px] font-mono text-[var(--color-foreground)] text-center focus:outline-none focus:border-[var(--color-accent-amber)]"
-              />
-            </div>
-            <button
-              onClick={handleAddRoutePricing}
-              disabled={!newRoutePairName || newRouteOrigin === newRouteDest || addingRoute}
-              className="w-full h-9 bg-[var(--color-accent-amber)] text-[var(--color-on-accent)] rounded text-[11px] font-bold font-mono disabled:opacity-50 cursor-pointer"
-            >
-              {addingRoute ? 'SAVING…' : 'SAVE ROUTE PRICING'}
-            </button>
-          </div>
-        )}
-      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Standard Rates Panel */}
@@ -582,59 +329,16 @@ export const PricingConfiguration = ({ user, onBack }: { user: User; onBack: () 
                   <div className="bg-[var(--color-surface-2)] p-4 rounded-lg border border-[var(--color-border)] space-y-4">
                     <div className="flex flex-col space-y-3">
                       <div>
-                        <label htmlFor="corp-dept" className="text-[11px] font-medium text-[var(--color-muted)] block mb-1.5">Department</label>
+                        <label htmlFor="corp-route" className="text-[11px] font-medium text-[var(--color-muted)] block mb-1.5">Route</label>
                         <select
-                          id="corp-dept"
-                          value={rateDept}
-                          onChange={(e) => setRateDept(e.target.value as 'cargo' | 'marketing')}
+                          id="corp-route"
+                          value={rateRoute}
+                          onChange={(e) => setRateRoute(e.target.value)}
                           className="w-full bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-md px-3 py-2 text-[13px] text-[var(--color-foreground)] focus:outline-none focus:border-[var(--color-accent-amber)] transition-colors"
                         >
-                          <option value="cargo">Cargo / Package / Excess Baggage</option>
-                          <option value="marketing">Marketing</option>
+                          {routes.map(r => <option key={r} value={r}>{r}</option>)}
                         </select>
                       </div>
-                      {rateDept === 'cargo' ? (
-                        <div>
-                          <label htmlFor="corp-route" className="text-[11px] font-medium text-[var(--color-muted)] block mb-1.5">Route</label>
-                          <select
-                            id="corp-route"
-                            value={rateRoute}
-                            onChange={(e) => setRateRoute(e.target.value)}
-                            className="w-full bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-md px-3 py-2 text-[13px] text-[var(--color-foreground)] focus:outline-none focus:border-[var(--color-accent-amber)] transition-colors"
-                          >
-                            {routes.map(r => <option key={r} value={r}>{r}</option>)}
-                          </select>
-                        </div>
-                      ) : (
-                        <div>
-                          {/* Marketing's route is an Origin-Destination pair,
-                              not a single hub -- matches
-                              marketing_route_rates.route_name and
-                              MarketingWorkspace.tsx's own route picker, so a
-                              rate saved here can actually be found by its
-                              officeWorkRate lookup. */}
-                          <label className="text-[11px] font-medium text-[var(--color-muted)] block mb-1.5">Origin → Destination</label>
-                          <div className="grid grid-cols-2 gap-2">
-                            <select
-                              value={rateRouteOrigin}
-                              onChange={(e) => setRateRouteOrigin(e.target.value)}
-                              className="w-full bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-md px-3 py-2 text-[13px] text-[var(--color-foreground)] focus:outline-none focus:border-[var(--color-accent-amber)] transition-colors"
-                            >
-                              {nonOtherRoutes.map(r => <option key={r} value={r}>{r}</option>)}
-                            </select>
-                            <select
-                              value={rateRouteDest}
-                              onChange={(e) => setRateRouteDest(e.target.value)}
-                              className="w-full bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-md px-3 py-2 text-[13px] text-[var(--color-foreground)] focus:outline-none focus:border-[var(--color-accent-amber)] transition-colors"
-                            >
-                              {nonOtherRoutes.map(r => <option key={r} value={r}>{r}</option>)}
-                            </select>
-                          </div>
-                          {rateRouteOrigin === rateRouteDest && (
-                            <div className="text-[10px] text-[var(--color-accent-amber)] mt-1">Origin and destination must be different hubs.</div>
-                          )}
-                        </div>
-                      )}
                       <div>
                         <label htmlFor="corp-tariff" className="text-[11px] font-medium text-[var(--color-muted)] block mb-1.5">Tariff (₦/KG)</label>
                         <input
@@ -659,7 +363,7 @@ export const PricingConfiguration = ({ user, onBack }: { user: User; onBack: () 
                       </div>
                       <button
                         onClick={handleSetCorpRate}
-                        disabled={!ratePrice || isNaN(parseFloat(ratePrice)) || parseFloat(ratePrice) <= 0 || (rateDept === 'marketing' && (!rateRoutePairName || rateRouteOrigin === rateRouteDest))}
+                        disabled={!ratePrice || isNaN(parseFloat(ratePrice)) || parseFloat(ratePrice) <= 0}
                         className="w-full bg-[var(--color-accent-amber)] hover:bg-amber-600 text-[var(--color-on-accent)] py-2 rounded-md text-[12px] font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-1"
                       >
                         Set Rate

@@ -89,40 +89,6 @@ export function buildCargoWhatsApp(data: {
   return text;
 }
 
-export function buildMarketingWhatsApp(data: {
-  ref: string;
-  customer: string;
-  route: string;
-  bags: string;
-  amount: number;
-  mode: string;
-  bank?: string;
-  paymentNarration?: string;
-}): string {
-  const payment = data.bank ? `${data.mode} (${data.bank})` : data.mode;
-  let text = 
-    `📦 *Haulwey*\n` +
-    `━━━━━━━━━━━━━━━━━━━━\n` +
-    `*FIELD MARKETING RECEIPT*\n` +
-    `Ref: \`${data.ref}\`\n\n` +
-    `👤 *Customer:* ${data.customer}\n` +
-    `🗺️ *Route:* ${data.route}\n` +
-    `🛍️ *Bags:* ${data.bags}\n\n` +
-    `💰 *Amount: NGN ${Number(data.amount).toLocaleString('en-NG')}*\n` +
-    `💳 *Payment:* ${payment}\n`;
-
-  if (data.mode === 'Transfer' && data.paymentNarration) {
-    text += `📝 *Narration:* ${data.paymentNarration}\n`;
-  }
-
-  text +=
-    `━━━━━━━━━━━━━━━━━━━━\n` +
-    `Thank you for your business.\n` +
-    `_Powered by Haulwey_`;
-
-  return text;
-}
-
 export function buildPackageWhatsApp(data: {
   ref: string;
   customer: string;

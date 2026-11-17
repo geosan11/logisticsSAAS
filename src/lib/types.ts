@@ -338,15 +338,13 @@ export interface Expense {
   rejectedAt?: string;
 }
 
-// `Baggage:${tag_code}` tabs are generated dynamically, one per active row
-// in excess_baggage_airlines (e.g. 'Baggage:VJ') -- no fixed list here.
 // `More:${sub_screen}` are synthetic ids for the sub-screens nested inside
 // the More menu (Bank Reconciliation, Pricing Configuration, Staff
 // Management, etc.) that have no top-level route of their own -- giving
 // them TabView ids lets the same view_overrides permission system used for
 // top-level tabs also cover them, instead of those screens being gated by
 // hardcoded role checks nobody but a code change could ever customize.
-export type TabView = 'Tower' | 'Cargo' | `Baggage:${string}` | `More:${string}` | 'Marketing' | 'Packages' | 'Scan' | 'Incoming' | 'IncomingToHub' | 'OutboundArrivals' | 'More' | 'MyTrips' | 'IT Debug' | 'Credit & Debit' | 'AirlineLogos' | 'DataImport' | 'AirlineLedger' | 'WeightManifest' | 'AirlinePerformance' | 'FlightRadar' | 'Dispatch' | 'Fleet';
+export type TabView = 'Tower' | 'Cargo' | `More:${string}` | 'Packages' | 'Scan' | 'Incoming' | 'IncomingToHub' | 'OutboundArrivals' | 'More' | 'MyTrips' | 'IT Debug' | 'Credit & Debit' | 'AirlineLogos' | 'DataImport' | 'AirlineLedger' | 'WeightManifest' | 'AirlinePerformance' | 'FlightRadar' | 'Dispatch' | 'Fleet';
 
 export interface AppState {
   user: User | null;

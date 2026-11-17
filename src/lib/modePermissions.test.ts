@@ -39,7 +39,7 @@ describe('Mode-Aware Permissions & Stripped Views', () => {
     assert.ok(!airTabs.includes('More:Fleet'), 'Air mode must exclude More:Fleet');
 
     // Must strip legacy marketing and baggage
-    assert.ok(!airTabs.includes('Marketing'), 'Marketing must be stripped');
+    assert.ok(!airTabs.includes('Marketing' as any), 'Marketing must be stripped');
     assert.ok(!airTabs.some(t => t.startsWith('Baggage:')), 'Baggage counters must be stripped');
     assert.ok(!airTabs.includes('More:ExcessBaggageAirlines'), 'Excess Baggage Airlines must be stripped');
   });

@@ -40,7 +40,7 @@ export const STATIC_VIEWS: ViewDef[] = [
   { id: 'More:SpecialGoodsRates', label: 'Special Goods Rates', roles: ['super_admin', 'admin', 'accountant'], category: 'Administration', modes: ['air', 'intermodal'] },
   
   // Road mode views
-  { id: 'Packages', label: 'Road Waybill & Parcels', roles: ['super_admin', 'admin', 'cargo_agent', 'marketing_agent', 'office_work'], modes: ['road', 'intermodal'] },
+  { id: 'Packages', label: 'Road Waybill & Parcels', roles: ['super_admin', 'admin', 'cargo_agent', 'office_work'], modes: ['road', 'intermodal'] },
   { id: 'Dispatch', label: 'Dispatch Fleet', roles: ['super_admin', 'admin'], modes: ['road', 'intermodal'] },
   { id: 'Fleet', label: 'Fleet & Fuel', roles: ['super_admin', 'admin'], modes: ['road', 'intermodal'] },
   { id: 'MyTrips', label: 'My Trips', roles: ['driver'], modes: ['road', 'intermodal'] },
@@ -97,14 +97,17 @@ export function groupViewDefs(views: ViewDef[]): { category: string; views: View
   return CATEGORY_ORDER.filter((c) => byCategory.has(c)).map((c) => ({ category: c, views: byCategory.get(c)! }));
 }
 
+// Desk intake tabs (Cargo, Packages, and legacy Marketing/Baggage)
+export const DESK_TABS = new Set<string>(['Cargo', 'Packages', 'Marketing']);
+
 // Retained for backward compatibility if old airline baggage views are configured
-export function getBaggageViews(role: UserRole, assignedAirline: string | undefined, airlines: ExcessBaggageAirline[]): ViewDef[] {
+export function getBaggageViews(_role?: UserRole, _assignedAirline?: string, _airlines?: ExcessBaggageAirline[]): ViewDef[] {
   // Excess baggage counters are stripped from primary SaaS UI.
   // Returns empty to keep navigation clean.
   return [];
 }
 
-export function getAllViewDefs(airlines: ExcessBaggageAirline[]): ViewDef[] {
+export function getAllViewDefs(_airlines?: ExcessBaggageAirline[]): ViewDef[] {
   return [...STATIC_VIEWS];
 }
 
@@ -113,14 +116,16 @@ const VIEW_MAP = new Map<TabView, ViewDef>(STATIC_VIEWS.map((v) => [v.id, v]));
 
 export function getRoleDefaultTabs(
   user: Pick<User, 'role' | 'assigned_airline'>,
-  airlines: ExcessBaggageAirline[] = [],
-  mode?: LogisticsMode
+  modeOrAirlines?: LogisticsMode | ExcessBaggageAirline[],
+  maybeMode?: LogisticsMode
 ): TabView[] {
+  const mode: LogisticsMode | undefined = typeof modeOrAirlines === 'string' ? modeOrAirlines : maybeMode;
   return STATIC_VIEWS
     .filter((v) => {
-      if (v.id.startsWith('Baggage:') || v.id === 'More:ExcessBaggageAirlines') return false;
+      if (v.id.startsWith('Baggage:') || v.id === 'More:ExcessBaggageAirlines' || (v.id as string) === 'Marketing') return false;
       if (!v.roles.includes(user.role)) return false;
       if (mode && v.modes && !v.modes.includes(mode)) return false;
+      if (user.role === 'marketing_agent' && DESK_TABS.has(v.id as string)) return false;
       return true;
     })
     .map((v) => v.id);
@@ -128,18 +133,24 @@ export function getRoleDefaultTabs(
 
 export function getAllowedTabs(
   user: Pick<User, 'role' | 'assigned_airline' | 'view_overrides'>,
-  airlines: ExcessBaggageAirline[] = [],
-  mode?: LogisticsMode
+  modeOrAirlines?: LogisticsMode | ExcessBaggageAirline[],
+  maybeMode?: LogisticsMode
 ): TabView[] {
+  const mode: LogisticsMode | undefined = typeof modeOrAirlines === 'string' ? modeOrAirlines : maybeMode;
   let tabs: TabView[];
   if (user.view_overrides != null) {
     tabs = (user.view_overrides as TabView[]).filter((t) => VIEW_MAP.has(t));
   } else {
-    tabs = getRoleDefaultTabs(user, airlines, mode);
+    tabs = getRoleDefaultTabs(user, mode);
   }
 
-  // Excess baggage counters and config are stripped from UI
-  tabs = tabs.filter((t) => !t.startsWith('Baggage:') && t !== 'More:ExcessBaggageAirlines');
+  // Excess baggage counters, excess baggage config, and Marketing desk are stripped from UI
+  tabs = tabs.filter((t) => !t.startsWith('Baggage:') && t !== 'More:ExcessBaggageAirlines' && (t as string) !== 'Marketing');
+
+  // Existing users with marketing_agent role receive no desk tabs (normal empty/no-access state)
+  if (user.role === 'marketing_agent') {
+    tabs = tabs.filter((t) => !DESK_TABS.has(t as string));
+  }
 
   // If a mode filter is applied, ensure overridden views also conform to mode
   if (mode) {
@@ -156,9 +167,10 @@ export function getAllowedTabs(
 export function canAccessTab(
   user: Pick<User, 'role' | 'assigned_airline' | 'view_overrides'>,
   tab: string,
-  airlines: ExcessBaggageAirline[] = [],
-  mode?: LogisticsMode
+  modeOrAirlines?: LogisticsMode | ExcessBaggageAirline[],
+  maybeMode?: LogisticsMode
 ): boolean {
-  if (tab.startsWith('Baggage:') || tab === 'More:ExcessBaggageAirlines') return false;
-  return getAllowedTabs(user, airlines, mode).includes(tab as TabView);
+  if (tab.startsWith('Baggage:') || tab === 'More:ExcessBaggageAirlines' || tab === 'Marketing') return false;
+  const mode: LogisticsMode | undefined = typeof modeOrAirlines === 'string' ? modeOrAirlines : maybeMode;
+  return getAllowedTabs(user, mode).includes(tab as TabView);
 }

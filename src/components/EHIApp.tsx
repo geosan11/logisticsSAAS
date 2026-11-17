@@ -60,7 +60,6 @@ const CargoFormRaw = lazy(() => import('./views/CargoForm').then(m => ({ default
 const AnalyticsRaw = lazy(() => import('./views/Analytics').then(m => ({ default: m.Analytics })));
 const MoreRaw = lazy(() => import('./views/More').then(m => ({ default: m.More })));
 const TransactionLedgerRaw = lazy(() => import('./views/TransactionLedger').then(m => ({ default: m.TransactionLedger })));
-const MarketingWorkspaceRaw = lazy(() => import('./views/MarketingWorkspace').then(m => ({ default: m.MarketingWorkspace })));
 const PackageFormRaw = lazy(() => import('./views/PackageForm').then(m => ({ default: m.PackageForm })));
 const ScannerRaw = lazy(() => import('./views/Scanner').then(m => ({ default: m.Scanner })));
 const IncomingToHubRaw = lazy(() => import('./views/IncomingToHub').then(m => ({ default: m.IncomingToHub })));
@@ -88,7 +87,6 @@ const CargoForm = memo(CargoFormRaw);
 const Analytics = memo(AnalyticsRaw);
 const More = memo(MoreRaw);
 const TransactionLedger = memo(TransactionLedgerRaw);
-const MarketingWorkspace = memo(MarketingWorkspaceRaw);
 const PackageForm = memo(PackageFormRaw);
 const Scanner = memo(ScannerRaw);
 const IncomingToHub = memo(IncomingToHubRaw);
@@ -122,7 +120,6 @@ const CURRENT_TAB_KEY = (userId: string) => `ehi_current_tab_${userId}`;
 const TAB_PATHS: Partial<Record<TabView, string>> = {
   'Tower':              '/tower',
   'Cargo':              '/cargo',
-  'Marketing':          '/marketing',
   'Packages':           '/packages',
   'Scan':               '/scan',
   'Incoming':           '/incoming',
@@ -186,7 +183,7 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
   const resolveRootTab = useCallback((): TabView => {
     try {
       const saved = localStorage.getItem(CURRENT_TAB_KEY(user.id));
-      if (saved && !saved.startsWith('Baggage:') && saved !== 'More:ExcessBaggageAirlines') return saved as TabView;
+      if (saved && !saved.startsWith('Baggage:') && saved !== 'More:ExcessBaggageAirlines' && saved !== 'Marketing') return saved as TabView;
     } catch { /* ignore -- fall through to role default */ }
     return getDefaultTab(user.role);
   }, [user.id, user.role, user.assigned_airline]);
@@ -216,7 +213,7 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
   // mode (Air / Road / Intermodal) while viewing a tab restricted to the other mode.
   useEffect(() => {
     if (currentTab === 'Tower' || currentTab === 'More') return;
-    if (!canAccessTab(user, currentTab, [], logisticsMode)) {
+    if (!canAccessTab(user, currentTab, logisticsMode)) {
       setCurrentTab('Tower');
     }
   }, [logisticsMode, currentTab, user, setCurrentTab]);
@@ -1297,7 +1294,6 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
     const hubCode = getHubCode(user.hub_code || user.hub);
     const allowedTabs = getAllowedTabs(user);
     if (allowedTabs.includes('Cargo')) refillPoolIfLow(`${hubCode}-CG`);
-    if (allowedTabs.includes('Marketing')) refillPoolIfLow(`${hubCode}-MK`);
     if (allowedTabs.includes('Packages')) refillPoolIfLow(`${hubCode}-PKG`);
   }, [user.hub, user.hub_code, user.role, user.assigned_airline, user.view_overrides]);
 
@@ -2907,7 +2903,6 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
   }, [pendingSyncCount, showToast, refreshPendingSummary]);
 
   const handleShowCargoHistory = useCallback(() => setStreamLedger({ streams: ['cargo'] }), []);
-  const handleShowMarketingHistory = useCallback(() => setStreamLedger({ streams: ['marketing'] }), []);
   const handleShowPackageHistory = useCallback(() => setStreamLedger({ streams: ['package'] }), []);
   const handleCloseLedger = useCallback(() => setStreamLedger(null), []);
   const handleEOD = useCallback(async (summary: { 
@@ -2940,7 +2935,7 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
   }, [streamLedger]);
 
   const STREAM_LEDGER_DEPT_LABEL: Record<Exclude<ShiftDepartment, 'all'>, string> = {
-    cargo: 'Cargo', package: 'Package', marketing: 'Marketing', baggage: 'Baggage',
+    cargo: 'Cargo', package: 'Package', marketing: 'Marketing (legacy)', baggage: 'Baggage (legacy)',
   };
 
   // TransactionLedger is wrapped in memo() -- these three were previously
@@ -3087,19 +3082,6 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
                   customerWallets={customerWallets}
                   setCustomerWallets={setCustomerWallets}
                   activeShift={activeShiftsByDept['cargo'] || null}
-                />
-              )}
-              {currentTab === 'Marketing' && (
-                <MarketingWorkspace
-                  user={user}
-                  transactions={transactions}
-                  expenses={expenses}
-                  onAddTx={handleAddTx}
-                  onAddExpense={handleAddExpense}
-                  onShowHistory={handleShowMarketingHistory}
-                  customerWallets={customerWallets}
-                  setCustomerWallets={setCustomerWallets}
-                  activeShift={activeShiftsByDept['marketing'] || null}
                 />
               )}
               {currentTab === 'Packages' && (

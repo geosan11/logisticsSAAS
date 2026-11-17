@@ -14,7 +14,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { User, TabView, ExcessBaggageAirline } from "../lib/types";
+import { User, TabView } from "../lib/types";
 import { Theme } from "../lib/useTheme";
 import { getAllowedTabs } from "../lib/permissions";
 import { useLogisticsMode } from "../lib/modeContext";
@@ -23,8 +23,6 @@ import { getHubCode } from "../lib/helpers";
 const getRoleDisplay = (role: string) => {
   switch (role) {
     case 'cargo_agent': return 'Cargo Agent';
-    case 'baggage_agent': return 'Baggage POS';
-    case 'marketing_agent': return 'Marketing';
     case 'super_admin': return 'Super Admin';
     case 'admin': return 'Admin';
     case 'accountant': return 'Accountant';
@@ -84,7 +82,6 @@ export const SideNav = ({
   onLogout,
   theme: _theme,
   onToggleTheme: _onToggleTheme,
-  excessBaggageAirlines = [],
   docked = false,
 }: {
   user: User;
@@ -93,7 +90,6 @@ export const SideNav = ({
   onLogout: () => void;
   theme?: Theme;
   onToggleTheme?: () => void;
-  excessBaggageAirlines?: ExcessBaggageAirline[];
   // Full-screen overlays (the Master Ledger's stream view) portal to
   // document.body with their own fixed inset-0 z-50 layer. `docked` renders
   // a second, in-flow instance inside that overlay.
@@ -134,7 +130,7 @@ export const SideNav = ({
   }, [effectiveExpanded, docked]);
 
   const { mode, isAir, isRoad } = useLogisticsMode();
-  const allowedTabs = getAllowedTabs(user, excessBaggageAirlines, mode);
+  const allowedTabs = getAllowedTabs(user, mode);
   const allowedSet = new Set(allowedTabs);
 
   const toEntries = (ids: TabView[]) =>

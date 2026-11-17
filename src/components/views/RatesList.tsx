@@ -14,7 +14,6 @@ interface StandardRate { route_name: string; rate_per_kg: number; }
 interface HubRouteRate { hub_id: string; route_name: string; rate_per_kg: number; }
 interface HubAirlineRouteRate { hub_id: string; airline: string; route_name: string; rate_per_kg: number; }
 interface CorporateRouteRate { corporate_client_id: string; route_name: string; rate_per_kg: number; minimum_amount?: number; }
-interface MarketingRate { route_name: string; bb_rate: number; mb_rate: number; sb_rate: number; }
 
 // Pure display -- this screen never writes to any table. Every section
 // links back to its real configuration screen via onOpenConfig for anyone
@@ -32,7 +31,6 @@ export const RatesList = ({ onBack, onOpenConfig }: { onBack: () => void; onOpen
   const [hubAirlineRouteRates, setHubAirlineRouteRates] = useState<HubAirlineRouteRate[]>([]);
   const [corporateClients, setCorporateClients] = useState<{ id: string; company_name: string }[]>([]);
   const [corporateRates, setCorporateRates] = useState<CorporateRouteRate[]>([]);
-  const [marketingRates, setMarketingRates] = useState<MarketingRate[]>([]);
   const [airlineCommissions, setAirlineCommissions] = useState<Record<string, number>>({});
 
   const specialGoodsRates = useSpecialGoodsRates();
@@ -44,7 +42,7 @@ export const RatesList = ({ onBack, onOpenConfig }: { onBack: () => void; onOpen
     const fetchAll = async () => {
       const [
         standardRes, hubsRes, hubRouteRes, hubAirlineRouteRes,
-        corpClientsRes, corpRatesRes, marketingRes, commissionsRes,
+        corpClientsRes, corpRatesRes, commissionsRes,
       ] = await Promise.all([
         supabase.from('standard_cargo_rates').select('route_name, rate_per_kg').order('route_name'),
         supabase.from('hubs').select('id, name').order('name'),
@@ -52,7 +50,6 @@ export const RatesList = ({ onBack, onOpenConfig }: { onBack: () => void; onOpen
         supabase.from('hub_airline_route_rates').select('hub_id, airline, route_name, rate_per_kg'),
         supabase.from('corporate_clients').select('id, company_name').order('company_name'),
         supabase.from('corporate_route_rates').select('corporate_client_id, route_name, rate_per_kg, minimum_amount'),
-        supabase.from('marketing_route_rates').select('route_name, bb_rate, mb_rate, sb_rate').order('route_name'),
         supabase.from('pricing_config').select('config_value').eq('config_key', 'airline_commissions').single(),
       ]);
       setStandardRates(standardRes.data || []);
@@ -61,7 +58,6 @@ export const RatesList = ({ onBack, onOpenConfig }: { onBack: () => void; onOpen
       setHubAirlineRouteRates(hubAirlineRouteRes.data || []);
       setCorporateClients(corpClientsRes.data || []);
       setCorporateRates(corpRatesRes.data || []);
-      setMarketingRates(marketingRes.data || []);
       setAirlineCommissions((commissionsRes.data?.config_value as Record<string, number>) || {});
       setLoading(false);
     };
@@ -181,7 +177,6 @@ export const RatesList = ({ onBack, onOpenConfig }: { onBack: () => void; onOpen
   const filteredHubRoute = hubRouteRates.filter(r => matches(hubName(r.hub_id), r.route_name));
   const filteredHubAirline = hubAirlineRouteRates.filter(r => matches(hubName(r.hub_id), r.airline, r.route_name));
   const filteredCorporate = corporateRates.filter(r => matches(clientName(r.corporate_client_id), r.route_name));
-  const filteredMarketing = marketingRates.filter(r => matches(r.route_name));
   const filteredCommissions = Object.entries(airlineCommissions).filter(([airline]) => matches(airline));
   const filteredSpecialGoods = specialGoodsByGroup.filter(g => matches(g.content_type_name, g.airline));
   const filteredMinCharges = minChargesByGroup.filter(g => matches(g.airline, g.route_name));
@@ -234,10 +229,6 @@ export const RatesList = ({ onBack, onOpenConfig }: { onBack: () => void; onOpen
                   value={`₦${fmt(r.rate_per_kg)}/kg${r.minimum_amount && r.minimum_amount > 0 ? ` (Min: ₦${r.minimum_amount.toLocaleString()})` : ''}`} 
                 />
               ))}
-            </Section>
-
-            <Section id="marketing" title="Marketing Bag Rates" count={filteredMarketing.length} editTarget="pricing">
-              {filteredMarketing.map(r => <Row key={r.route_name} label={r.route_name} value={`BB ₦${fmt(r.bb_rate)} · MB ₦${fmt(r.mb_rate)} · SB ₦${fmt(r.sb_rate)}`} />)}
             </Section>
 
             <Section id="commissions" title="Airline Commissions" count={filteredCommissions.length} editTarget="airlineCommissions">

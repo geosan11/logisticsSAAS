@@ -9,8 +9,7 @@ interface ForecastDay {
   date: string;
   day: string;
   predictedCargo: number;
-  predictedMarketing: number;
-  predictedBaggage: number;
+  predictedPackages: number;
   confidence: 'High' | 'Medium' | 'Low';
 }
 
@@ -93,8 +92,7 @@ export const Forecasting = ({
         date: dateStr,
         day: dayName,
         predictedCargo: isWeekend ? 200000 : 450000,
-        predictedMarketing: isWeekend ? 80000 : 180000,
-        predictedBaggage: isWeekend ? 60000 : 130000,
+        predictedPackages: isWeekend ? 100000 : 220000,
         confidence: i < 3 ? 'High' : i < 5 ? 'Medium' : 'Low',
       };
     });
@@ -138,7 +136,7 @@ export const Forecasting = ({
         setPeakDay('Wednesday (EOD Surge)');
       } else {
         // Fallback default AI response
-        setStaffingRecommendation('Demand peaks heavily on Wednesday. Recommended action: Allocate three extra drivers to standard heavy-duty van trips and shift excess-baggage checklists starting 07:00 AM.');
+        setStaffingRecommendation('Demand peaks heavily on Wednesday. Recommended action: Allocate three extra drivers to standard heavy-duty van trips and increase package handling shifts starting 07:00 AM.');
         setRiskNote('High operational bottleneck risk detected on Abuja route paths due to pre-holiday supply shipments.');
         setPeakDay('Wednesday');
       }
@@ -232,8 +230,7 @@ export const Forecasting = ({
                   <Tooltip contentStyle={{ backgroundColor: 'var(--color-chart-tooltip-bg)', borderColor: 'var(--color-chart-tooltip-border)' }} />
                   <Legend iconSize={8} />
                   <Bar dataKey="predictedCargo" name="Cargo (₦)" fill="var(--color-chart-1)" stackId="stack" />
-                  <Bar dataKey="predictedMarketing" name="Mktg (₦)" fill="var(--color-chart-3)" stackId="stack" />
-                  <Bar dataKey="predictedBaggage" name="Excess Baggage (₦)" fill="var(--color-chart-2)" stackId="stack" />
+                  <Bar dataKey="predictedPackages" name="Packages (₦)" fill="var(--color-chart-2)" stackId="stack" />
                 </BarChart>
               </ResponsiveContainer>
             </div>

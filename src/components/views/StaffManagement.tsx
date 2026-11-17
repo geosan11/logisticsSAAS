@@ -34,8 +34,7 @@ interface Hub { id: string; name: string; code: string; state: string; }
 
 const ROLES = [
   { value: 'cargo_agent',      label: 'Cargo Agent',      desc: 'Log cargo entries, view own hub' },
-  { value: 'marketing_agent',  label: 'Marketing Agent',  desc: 'Field marketing entries' },
-  { value: 'office_work',      label: 'Office Work',      desc: 'Only cargo and marketing view' },
+  { value: 'office_work',      label: 'Office Work',      desc: 'Cargo and packages operational view' },
   { value: 'driver',           label: 'Driver',           desc: 'Trip tracking and delivery logs' },
   { value: 'accountant',       label: 'Accountant',       desc: 'Financial reports, all hubs read access' },
   { value: 'auditor',          label: 'Auditor',          desc: 'Read-only audit trail access' },
@@ -525,6 +524,9 @@ export const StaffManagement = ({ user, onBack }: { user: User; onBack: () => vo
                   ))}
                   {editingStaff.role === 'baggage_agent' && (
                     <option value="baggage_agent" disabled>Baggage POS (Deprecated — Unassignable)</option>
+                  )}
+                  {editingStaff.role === 'marketing_agent' && (
+                    <option value="marketing_agent" disabled>Marketing Agent (Deprecated — Unassignable)</option>
                   )}
                 </select>
               </div>

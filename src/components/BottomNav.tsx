@@ -1,4 +1,4 @@
-import { User, TabView, ExcessBaggageAirline } from '../lib/types';
+import { User, TabView } from '../lib/types';
 import {
   Home,
   Package,
@@ -45,15 +45,13 @@ export const BottomNav = ({
   user,
   currentTab,
   onChangeTab,
-  excessBaggageAirlines = [],
 }: {
   user: User;
   currentTab: TabView;
   onChangeTab: (t: TabView) => void;
-  excessBaggageAirlines?: ExcessBaggageAirline[];
 }) => {
   const { mode } = useLogisticsMode();
-  const allowedTabs = getAllowedTabs(user, excessBaggageAirlines, mode);
+  const allowedTabs = getAllowedTabs(user, mode);
   const allowedSet = new Set(allowedTabs);
 
   if (user.view_overrides != null) {
@@ -86,7 +84,7 @@ export const BottomNav = ({
   let candidates: NavTab[] = [];
   if (user.role === 'driver') {
     candidates = [trips, incoming, outbound, scan, more];
-  } else if (user.role === 'baggage_agent') {
+  } else if (user.role === 'baggage_agent' || user.role === 'marketing_agent') {
     candidates = [home, incoming, outbound, more];
   } else if (mode === 'air') {
     candidates = [home, cargo, radar, incoming, more];

@@ -5,7 +5,7 @@ import { X, Upload, Download, CheckCircle2, XCircle, AlertTriangle } from 'lucid
 import { Button, Spinner } from '../ui';
 import { createStaffAccountsBulk, BulkStaffRow, BulkStaffResult } from '../../lib/auth';
 
-const VALID_ROLES = ['admin', 'cargo_agent', 'marketing_agent', 'driver', 'accountant', 'auditor'];
+const VALID_ROLES = ['admin', 'cargo_agent', 'driver', 'accountant', 'auditor'];
 const CHUNK_SIZE = 25; // server caps at 50/request; smaller chunks give a smoother progress bar and faster individual round trips
 
 interface ParsedRow extends BulkStaffRow {

@@ -1733,7 +1733,7 @@ export const TransactionLedger = ({
   const handleReprintReceipt = async (width: '58mm' | '80mm') => {
     if (!viewingDetail || !viewingDetail.raw) return;
     const tx = viewingDetail.raw;
-    if (tx.type !== 'cargo' && tx.type !== 'marketing' && tx.type !== 'package') return;
+    if (tx.type !== 'cargo' && tx.type !== 'package') return;
 
     try {
       // printViaBluetooth connects to the printer FIRST, before this
@@ -1777,48 +1777,6 @@ export const TransactionLedger = ({
             pieces: tx.pieces || 1,
             kg: tx.kg || 0,
             contents: (tx as any).contents,
-            amount: tx.amount,
-            paymentMode: formatPaymentModeDisplay(tx.mode, tx.wallet_deduction_amount, tx.amount),
-            paymentNarration: tx.paymentNarration,
-            bankName: tx.bank,
-            trackingUrl: `https://app.haulwey.com/track/${tx.id}`,
-            retrievedAmount: (tx as any).raw?.retrieved_amount || 0,
-          }, width);
-        } else {
-          // tx.type === 'marketing' -- guaranteed by the early return above
-          const { compileMarketingReceiptStream } = await import('../../lib/escposMarketingPrinting');
-          const parts = tx.detail?.split(' · ') || [];
-          let route = parts[0] || 'Unknown';
-          let big = 0, med = 0, small = 0;
-          if (parts[1]) {
-            // MarketingWorkspace stores bag counts as e.g. "2BB 1MB 3SB"
-            // (see handleAddEntry) -- any subset present, space-separated,
-            // no comma. Match each code independently rather than one
-            // fixed "X Big, Y Med, Z Sml" pattern, which never matched the
-            // actual stored format and made every reprinted marketing
-            // receipt show an empty Bag Breakdown regardless of what was
-            // actually sold.
-            const bigMatch = parts[1].match(/(\d+)BB/);
-            const medMatch = parts[1].match(/(\d+)MB/);
-            const smallMatch = parts[1].match(/(\d+)SB/);
-            big = bigMatch ? parseInt(bigMatch[1]) : 0;
-            med = medMatch ? parseInt(medMatch[1]) : 0;
-            small = smallMatch ? parseInt(smallMatch[1]) : 0;
-          }
-          return await compileMarketingReceiptStream({
-            entryRef: tx.id,
-            date: txDisplayDateTime(tx.created_at, tx.time),
-            agentName: tx.enteredByName || user.name,
-            customerName: tx.name,
-            // marketing_entries now has customer_phone (see the
-            // 20260904 migration) -- this used to read tx.remarks, which
-            // was never the phone number and was always empty for a
-            // reprint anyway.
-            phone: tx.consigneePhone || '',
-            route: route,
-            bigBags: big,
-            medBags: med,
-            smallBags: small,
             amount: tx.amount,
             paymentMode: formatPaymentModeDisplay(tx.mode, tx.wallet_deduction_amount, tx.amount),
             paymentNarration: tx.paymentNarration,
@@ -2031,58 +1989,6 @@ export const TransactionLedger = ({
         return;
       }
 
-      // Marketing entries print one bag-aware tag per bag (BB/MB/SB
-      // badges), matching what MarketingWorkspace's own "TAGS" buttons
-      // produce right after creating the entry. This used to route
-      // through the generic CargoTagPDF instead -- collapsing every bag
-      // into a single undifferentiated "PIECE 1 of N" tag with no bag-type
-      // info -- so a tag reprinted from the ledger looked like a
-      // completely different document than the one printed at creation
-      // time.
-      if (tx.type === 'marketing') {
-        const { printMarketingTagPDF } = await import('./MarketingTagPDF');
-        const parts = tx.detail?.split(' · ') || [];
-        const route = parts[0] || tx.route || 'Unknown';
-        // Same stored format as handleReprintReceipt above -- e.g. "2BB
-        // 1MB 3SB", not "2 Big, 1 Med, 3 Sml".
-        const bigMatch = parts[1]?.match(/(\d+)BB/);
-        const medMatch = parts[1]?.match(/(\d+)MB/);
-        const smallMatch = parts[1]?.match(/(\d+)SB/);
-        const big = bigMatch ? parseInt(bigMatch[1]) : 0;
-        const med = medMatch ? parseInt(medMatch[1]) : 0;
-        const small = smallMatch ? parseInt(smallMatch[1]) : 0;
-
-        const data = {
-          id: tx.awb_tag_number || tx.entryRef || tx.id,
-          name: tx.name,
-          route,
-          airline: tx.airline,
-          hubName: user?.hub || 'Air Cargo Hub',
-          date: txDisplayDateTime(tx.created_at, tx.time),
-          bigBags: big,
-          medBags: med,
-          smallBags: small,
-        };
-
-        await printMarketingTagPDF(data, preOpenedWindow);
-
-        try {
-          await supabase.from('tag_print_log').insert({
-            cargo_ref: tx.id,
-            awb_tag_number: data.id,
-            printed_by: user.id,
-            printed_by_name: user.name,
-            hub_id: user.hub_id,
-            hub_name: user.hub || 'Unknown',
-            print_method: 'pdf',
-            pieces_printed: big + med + small || 1,
-          });
-        } catch (err) {
-          console.error('Failed to log tag print', err);
-        }
-        return;
-      }
-
       const { printCargoTagPDF } = await import('./CargoTagPDF');
       const route = tx.route || (tx.detail ? tx.detail.split(' · ')[3] : 'Unknown') || 'Unknown';
       const data = {
@@ -2122,8 +2028,8 @@ export const TransactionLedger = ({
 
   const handleReprintTagPDF = async () => {
     if (!viewingDetail || !viewingDetail.raw) return;
-    if (viewingDetail.raw.type !== 'cargo' && viewingDetail.raw.type !== 'marketing' && viewingDetail.raw.type !== 'package') {
-      showToast({ message: 'PDF Tag only available for cargo, marketing, and package entries', type: 'info' });
+    if (viewingDetail.raw.type !== 'cargo' && viewingDetail.raw.type !== 'package') {
+      showToast({ message: 'PDF Tag only available for cargo and package entries', type: 'info' });
       return;
     }
     const preOpenedWindow = isStandalonePWA() ? null : window.open('', '_blank');
@@ -2156,50 +2062,6 @@ export const TransactionLedger = ({
             hub_name: user.hub || 'Unknown',
             print_method: 'pdf',
             pieces_printed: tx.pieces || 1,
-          });
-        } catch (err) {
-          console.error('Failed to log tag print', err);
-        }
-        return;
-      }
-
-      // Same bag-aware format as handleReprintTag above -- see its comment
-      // for why marketing entries can't use the generic CargoTagPDF.
-      if (tx.type === 'marketing') {
-        const { printMarketingTagPDF } = await import('./MarketingTagPDF');
-        const parts = tx.detail?.split(' · ') || [];
-        const route = parts[0] || tx.route || 'Unknown';
-        const bigMatch = parts[1]?.match(/(\d+)BB/);
-        const medMatch = parts[1]?.match(/(\d+)MB/);
-        const smallMatch = parts[1]?.match(/(\d+)SB/);
-        const big = bigMatch ? parseInt(bigMatch[1]) : 0;
-        const med = medMatch ? parseInt(medMatch[1]) : 0;
-        const small = smallMatch ? parseInt(smallMatch[1]) : 0;
-
-        const data = {
-          id: tx.awb_tag_number || tx.entryRef || tx.id,
-          name: tx.name,
-          route,
-          airline: tx.airline,
-          hubName: user?.hub || 'Air Cargo Hub',
-          date: txDisplayDateTime(tx.created_at, tx.time),
-          bigBags: big,
-          medBags: med,
-          smallBags: small,
-        };
-
-        await printMarketingTagPDF(data, preOpenedWindow);
-
-        try {
-          await supabase.from('tag_print_log').insert({
-            cargo_ref: tx.id,
-            awb_tag_number: data.id,
-            printed_by: user.id,
-            printed_by_name: user.name,
-            hub_id: user.hub_id,
-            hub_name: user.hub || 'Unknown',
-            print_method: 'pdf',
-            pieces_printed: big + med + small || 1,
           });
         } catch (err) {
           console.error('Failed to log tag print', err);
@@ -4345,8 +4207,6 @@ export const TransactionLedger = ({
                   {([
                     { label: 'All',        value: 'All',        activeClass: 'bg-[var(--color-surface-2)] border-[var(--color-accent-amber)] text-[var(--color-accent-amber)]' },
                     { label: 'Cargo',      value: 'Cargo',      activeClass: 'bg-[rgba(59,130,246,0.15)] border-[var(--color-accent-cobalt)] text-[var(--color-accent-cobalt)]' },
-                    { label: 'Baggage',    value: 'Baggage',    activeClass: 'bg-[rgba(251,191,36,0.15)] border-[var(--color-accent-amber)] text-[var(--color-accent-amber)]' },
-                    { label: 'Marketing',  value: 'Marketing',  activeClass: 'bg-[rgba(16,185,129,0.15)] border-[var(--color-success)] text-[var(--color-success)]' },
                     { label: 'Package',    value: 'Package',    activeClass: 'bg-[rgba(168,85,247,0.15)] border-[var(--color-purple-border)] text-[var(--color-purple-fg)]' },
                     { label: 'Expense',    value: 'Expense',    activeClass: 'bg-[rgba(239,68,68,0.15)] border-[var(--color-error)] text-[var(--color-error)]' },
                     { label: 'Office Work',value: 'Office Work',activeClass: 'bg-[var(--color-surface-2)] border-[var(--color-accent-amber)] text-[var(--color-accent-amber)]' },
@@ -5387,7 +5247,9 @@ export const TransactionLedger = ({
                 </div>
                 <div>
                   <h3 className="font-mono text-[var(--color-accent-amber)] text-[14px] font-bold">{viewingDetail.id}</h3>
-                  <span className="text-[10px] text-[var(--color-muted)] uppercase tracking-wider">{viewingDetail.type}</span>
+                  <span className="text-[10px] text-[var(--color-muted)] uppercase tracking-wider">
+                    {viewingDetail.type === 'marketing' ? 'Marketing (legacy)' : viewingDetail.type === 'baggage' ? 'Baggage (legacy)' : viewingDetail.type}
+                  </span>
                 </div>
               </div>
               <button 
@@ -5754,7 +5616,7 @@ export const TransactionLedger = ({
                     <div className="space-y-1.5 pt-2 border-t border-[var(--color-border)]">
                       <div className="text-[10px] font-mono text-[var(--color-muted)] uppercase tracking-wider">Printing &amp; Documents</div>
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                        {(viewingDetail.raw.type === 'cargo' || viewingDetail.raw.type === 'marketing' || viewingDetail.raw.type === 'package') && (
+                        {(viewingDetail.raw.type === 'cargo' || viewingDetail.raw.type === 'package') && (
                           <>
                             <button
                               onClick={() => handleReprintReceipt('80mm')}
@@ -5771,7 +5633,7 @@ export const TransactionLedger = ({
                           </>
                         )}
 
-                        {(viewingDetail.raw.type === 'cargo' || viewingDetail.raw.type === 'marketing' || viewingDetail.raw.type === 'package') && (
+                        {(viewingDetail.raw.type === 'cargo' || viewingDetail.raw.type === 'package') && (
                           <>
                             <button
                               onClick={() => handleReprintTag('80mm')}

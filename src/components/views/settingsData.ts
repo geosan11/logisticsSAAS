@@ -28,7 +28,7 @@ import {
   Brain,
   Terminal,
 } from 'lucide-react';
-import { User, ExcessBaggageAirline, TabView } from '../../lib/types';
+import { User, TabView } from '../../lib/types';
 import { canAccessTab } from '../../lib/permissions';
 import { LogisticsMode } from '../../lib/modeContext';
 
@@ -561,10 +561,11 @@ export const PROMOTED_OPERATIONAL_ITEMS: string[] = [
 export function getAccessibleSettings(
   items: SettingItem[],
   user: Pick<User, 'role' | 'assigned_airline' | 'view_overrides'>,
-  airlines: ExcessBaggageAirline[] = [],
-  mode?: LogisticsMode
+  modeOrAirlines?: LogisticsMode | any[],
+  maybeMode?: LogisticsMode
 ): SettingItem[] {
-  return items.filter((item) => canAccessTab(user, item.permission, airlines, mode));
+  const mode: LogisticsMode | undefined = typeof modeOrAirlines === 'string' ? modeOrAirlines : maybeMode;
+  return items.filter((item) => canAccessTab(user, item.permission, mode));
 }
 
 /**
