@@ -262,8 +262,8 @@ export const Analytics = ({
 
     const depts = {
       cargo: { label: 'Air Cargo', revenue: 0, count: 0, kg: 0 },
-      baggage: { label: 'Excess Baggage', revenue: 0, count: 0, kg: 0 },
-      marketing: { label: 'Field Marketing', revenue: 0, count: 0, kg: 0 },
+      baggage: { label: 'Excess Baggage (legacy)', revenue: 0, count: 0, kg: 0 },
+      marketing: { label: 'Marketing (legacy)', revenue: 0, count: 0, kg: 0 },
       package: { label: 'Package Desk', revenue: 0, count: 0, kg: 0 },
     };
 
@@ -825,10 +825,17 @@ export const Analytics = ({
             <div className="space-y-2.5">
               {([
                 { key: 'cargo', icon: Package },
+                { key: 'package', icon: Sparkles },
                 { key: 'baggage', icon: Plane },
                 { key: 'marketing', icon: TrendingUp },
-                { key: 'package', icon: Sparkles },
-              ] as const).map(({ key, icon: Icon }) => {
+              ] as const)
+                .filter(({ key }) => {
+                  if (key === 'baggage' || key === 'marketing') {
+                    return summary.depts[key].count > 0;
+                  }
+                  return true;
+                })
+                .map(({ key, icon: Icon }) => {
                 const d = summary.depts[key];
                 const pct = summary.collectedTotal > 0 ? Math.round((d.revenue / summary.collectedTotal) * 100) : 0;
                 return (

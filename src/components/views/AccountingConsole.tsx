@@ -472,8 +472,8 @@ export const AccountingConsole = ({ user, transactions, expenses, onBack, onAddE
                   periodLabel: period === 'Custom' ? `Custom: ${customStart} to ${customEnd}` : period,
                   streams: [
                     { name: 'Cargo Station', amount: cargoTotal, count: cargoTx.length },
-                    { name: 'Excess Baggage', amount: vjTotal, count: vjTx.length },
-                    { name: 'Field Marketing', amount: mktgTotal, count: mktgTx.length },
+                    ...(vjTx.length > 0 ? [{ name: 'Excess Baggage (legacy)', amount: vjTotal, count: vjTx.length }] : []),
+                    ...(mktgTx.length > 0 ? [{ name: 'Marketing (legacy)', amount: mktgTotal, count: mktgTx.length }] : []),
                     { name: 'Package Desk', amount: pkgTotal, count: pkgTx.length },
                   ],
                   grandRevenue,
@@ -503,25 +503,29 @@ export const AccountingConsole = ({ user, transactions, expenses, onBack, onAddE
                 <div className="text-[12px] font-sans text-[var(--color-light-muted)] ml-2 mb-3">{cargoTx.length} Entries</div>
              </div>
 
-             <div className="min-w-[200px] flex-1 bg-[var(--color-surface-card)] rounded-xl border border-[var(--color-border)] p-4 relative overflow-hidden snap-start">
-                <div className="absolute left-0 top-0 bottom-0 w-[4px] bg-[var(--color-accent-cobalt)]" />
-                <div className="flex items-center space-x-2 mb-2 ml-2">
-                  <Plane size={16} className="text-[var(--color-accent-cobalt)]" />
-                  <span className="text-[13px] font-sans font-medium text-[var(--color-muted)]">Excess Baggage</span>
-                </div>
-                <div className="text-[20px] font-bold font-mono text-[var(--color-accent-cobalt)] ml-2 mb-1">{fmt(vjTotal)}</div>
-                <div className="text-[12px] font-sans text-[var(--color-light-muted)] ml-2 mb-3">{vjTx.length} Passengers</div>
-             </div>
+             {vjTx.length > 0 && (
+               <div className="min-w-[200px] flex-1 bg-[var(--color-surface-card)] rounded-xl border border-[var(--color-border)] p-4 relative overflow-hidden snap-start">
+                  <div className="absolute left-0 top-0 bottom-0 w-[4px] bg-[var(--color-accent-cobalt)]" />
+                  <div className="flex items-center space-x-2 mb-2 ml-2">
+                    <Plane size={16} className="text-[var(--color-accent-cobalt)]" />
+                    <span className="text-[13px] font-sans font-medium text-[var(--color-muted)]">Excess Baggage (legacy)</span>
+                  </div>
+                  <div className="text-[20px] font-bold font-mono text-[var(--color-accent-cobalt)] ml-2 mb-1">{fmt(vjTotal)}</div>
+                  <div className="text-[12px] font-sans text-[var(--color-light-muted)] ml-2 mb-3">{vjTx.length} Passengers</div>
+               </div>
+             )}
 
-             <div className="min-w-[200px] flex-1 bg-[var(--color-surface-card)] rounded-xl border border-[var(--color-border)] p-4 relative overflow-hidden snap-start">
-                <div className="absolute left-0 top-0 bottom-0 w-[4px] bg-[var(--color-success)]" />
-                <div className="flex items-center space-x-2 mb-2 ml-2">
-                  <TrendingUp size={16} className="text-[var(--color-success)]" />
-                  <span className="text-[13px] font-sans font-medium text-[var(--color-muted)]">Field Marketing</span>
-                </div>
-                <div className="text-[20px] font-bold font-mono text-[var(--color-success)] ml-2 mb-1">{fmt(mktgTotal)}</div>
-                <div className="text-[12px] font-sans text-[var(--color-light-muted)] ml-2 mb-3">{mktgTx.length} Customers</div>
-             </div>
+             {mktgTx.length > 0 && (
+               <div className="min-w-[200px] flex-1 bg-[var(--color-surface-card)] rounded-xl border border-[var(--color-border)] p-4 relative overflow-hidden snap-start">
+                  <div className="absolute left-0 top-0 bottom-0 w-[4px] bg-[var(--color-success)]" />
+                  <div className="flex items-center space-x-2 mb-2 ml-2">
+                    <TrendingUp size={16} className="text-[var(--color-success)]" />
+                    <span className="text-[13px] font-sans font-medium text-[var(--color-muted)]">Marketing (legacy)</span>
+                  </div>
+                  <div className="text-[20px] font-bold font-mono text-[var(--color-success)] ml-2 mb-1">{fmt(mktgTotal)}</div>
+                  <div className="text-[12px] font-sans text-[var(--color-light-muted)] ml-2 mb-3">{mktgTx.length} Customers</div>
+               </div>
+             )}
 
              <div className="min-w-[200px] flex-1 bg-[var(--color-surface-card)] rounded-xl border border-[var(--color-border)] p-4 relative overflow-hidden snap-start">
                 <div className="absolute left-0 top-0 bottom-0 w-[4px] bg-purple-500" />

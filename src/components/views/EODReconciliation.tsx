@@ -483,14 +483,24 @@ export const EODReconciliation = ({ user, transactions, expenses, onBack, onEOD 
           <span className="text-[11px] font-mono text-[var(--color-muted)]">Cargo Station</span>
           <span className="text-[14px] font-bold font-mono text-[var(--color-accent-amber)]">{fmt(expectedTotals.cargoTotal)}</span>
         </div>
-        <div className="p-3 border-b border-[var(--color-border)] flex justify-between items-center bg-[rgba(16,185,129,0.05)]">
-          <span className="text-[11px] font-mono text-[var(--color-muted)]">Field Marketing</span>
-          <span className="text-[14px] font-bold font-mono text-[var(--color-success)]">{fmt(expectedTotals.mktgTotal)}</span>
-        </div>
-        <div className="p-3 border-b border-[var(--color-border)] flex justify-between items-center bg-[rgba(59,130,246,0.05)]">
-          <span className="text-[11px] font-mono text-[var(--color-muted)]">Excess Baggage</span>
-          <span className="text-[14px] font-bold font-mono text-[var(--color-accent-cobalt)]">{fmt(expectedTotals.vjTotal)}</span>
-        </div>
+        {expectedTotals.mktgCount > 0 && (
+          <div className="p-3 border-b border-[var(--color-border)] flex justify-between items-center bg-[rgba(16,185,129,0.05)]">
+            <span className="text-[11px] font-mono text-[var(--color-muted)]">Marketing (legacy)</span>
+            <span className="text-[14px] font-bold font-mono text-[var(--color-success)]">{fmt(expectedTotals.mktgTotal)}</span>
+          </div>
+        )}
+        {expectedTotals.vjCount > 0 && (
+          <div className="p-3 border-b border-[var(--color-border)] flex justify-between items-center bg-[rgba(59,130,246,0.05)]">
+            <span className="text-[11px] font-mono text-[var(--color-muted)]">Excess Baggage (legacy)</span>
+            <span className="text-[14px] font-bold font-mono text-[var(--color-accent-cobalt)]">{fmt(expectedTotals.vjTotal)}</span>
+          </div>
+        )}
+        {expectedTotals.packageCount > 0 && (
+          <div className="p-3 border-b border-[var(--color-border)] flex justify-between items-center bg-[rgba(168,85,247,0.05)]">
+            <span className="text-[11px] font-mono text-[var(--color-muted)]">Package Desk</span>
+            <span className="text-[14px] font-bold font-mono text-purple-400">{fmt(expectedTotals.packageTotal)}</span>
+          </div>
+        )}
         <div className="p-3 border-b border-[var(--color-border)] flex justify-between items-center">
           <span className="text-[11px] font-bold font-mono text-[var(--color-foreground)]">Gross New Sales</span>
           <span className="text-[14px] font-bold font-mono text-[var(--color-foreground)]">{fmt(expectedTotals.grossNewSalesTotal)}</span>

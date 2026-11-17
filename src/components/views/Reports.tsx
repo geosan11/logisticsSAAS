@@ -16,6 +16,7 @@ const REPORT_TYPES = [
   { id: 'debtors',       label: 'Debtor Aging',                     desc: 'Outstanding balances 0-30/31-60/61-90/90+' },
   { id: 'staff',         label: 'Staff Productivity',               desc: 'Entries and revenue per agent, all departments combined' },
   { id: 'sales_cargo',      label: 'Cargo Sales Analysis',      desc: 'Owed, collected, and top route per agent -- Cargo only' },
+  { id: 'sales_marketing',  label: 'Marketing Sales Analysis (Legacy)', desc: 'Owed, collected, and top route per agent -- Marketing historical auditing' },
   { id: 'sales_baggage',    label: 'Baggage Sales Analysis (Legacy)', desc: 'Owed, collected, and top destination per agent -- Baggage historical auditing' },
   { id: 'sales_package',    label: 'Package Sales Analysis',    desc: 'Owed, collected, and top destination per agent -- Package only' },
   { id: 'hubs',          label: 'Hub Comparison',                   desc: 'Per-hub revenue (admin only)' },
@@ -298,6 +299,7 @@ export const Reports = ({ user, transactions, onBack }: { user: User; transactio
     const cargo     = nonClearanceTx.filter(t => t.type === 'cargo');
     const marketing = nonClearanceTx.filter(t => t.type === 'marketing');
     const vj        = nonClearanceTx.filter(t => t.type === 'baggage');
+    const pkg       = nonClearanceTx.filter(t => t.type === 'package');
     // Payment-history-derived collections (see periodCollectionEvents
     // above) are this file's own fetchedTx not carrying `is_debt_clearance`/
     // payment_history at all (its select() lists explicit columns, neither
@@ -305,12 +307,14 @@ export const Reports = ({ user, transactions, onBack }: { user: User; transactio
     // own Cash/Transfer/POS-mode row in filteredTx here, so it must be
     // added on top rather than relied on to already be present.
     const collectionByMode = sumPaymentHistoryByMode(periodCollectionEvents);
+    const streams = [
+      { name: 'Air Cargo',          count: cargo.length,     amount: cargo.reduce((s,t) => s+t.amount, 0) },
+      ...(marketing.length > 0 ? [{ name: 'Marketing (legacy)',    count: marketing.length, amount: marketing.reduce((s,t) => s+t.amount, 0) }] : []),
+      ...(vj.length > 0 ? [{ name: 'Excess Baggage (legacy)',     count: vj.length,        amount: vj.reduce((s,t) => s+t.amount, 0) }] : []),
+      { name: 'Package Desk',       count: pkg.length,       amount: pkg.reduce((s,t) => s+t.amount, 0) },
+    ];
     return {
-      streams: [
-        { name: 'Air Cargo',          count: cargo.length,     amount: cargo.reduce((s,t) => s+t.amount, 0) },
-        { name: 'Field Marketing',    count: marketing.length, amount: marketing.reduce((s,t) => s+t.amount, 0) },
-        { name: 'Excess Baggage',     count: vj.length,        amount: vj.reduce((s,t) => s+t.amount, 0) },
-      ],
+      streams,
       modes: [
         { name: 'Cash',     amount: filteredTx.filter(t => t.mode === 'Cash').reduce((s,t) => s+t.amount, 0) + collectionByMode.cash },
         { name: 'Transfer', amount: filteredTx.filter(t => t.mode === 'Transfer').reduce((s,t) => s+t.amount, 0) + collectionByMode.transfer },
@@ -595,8 +599,8 @@ export const Reports = ({ user, transactions, onBack }: { user: User; transactio
     } else if (selectedReport.startsWith('sales_')) {
       const deptData: Record<string, { label: string; routeLabel: string; data: DepartmentSalesAnalysis }> = {
         sales_cargo:     { label: 'CARGO SALES ANALYSIS',     routeLabel: 'Route',       data: cargoSalesAnalysis },
-        sales_marketing: { label: 'MARKETING SALES ANALYSIS', routeLabel: 'Route',       data: marketingSalesAnalysis },
-        sales_baggage:   { label: 'BAGGAGE SALES ANALYSIS',   routeLabel: 'Destination', data: baggageSalesAnalysis },
+        sales_marketing: { label: 'MARKETING SALES ANALYSIS (LEGACY)', routeLabel: 'Route',       data: marketingSalesAnalysis },
+        sales_baggage:   { label: 'EXCESS BAGGAGE SALES ANALYSIS (LEGACY)',   routeLabel: 'Destination', data: baggageSalesAnalysis },
         sales_package:   { label: 'PACKAGE SALES ANALYSIS',   routeLabel: 'Destination', data: packageSalesAnalysis },
       };
       const d = deptData[selectedReport];
@@ -680,6 +684,11 @@ export const Reports = ({ user, transactions, onBack }: { user: User; transactio
         <div className="grid gap-3 md:grid-cols-2">
           {REPORT_TYPES
             .filter(r => r.id !== 'hubs' || user.role === 'super_admin' || user.role === 'admin')
+            .filter(r => {
+              if (r.id === 'sales_baggage') return baggageSalesAnalysis.collective.entries > 0;
+              if (r.id === 'sales_marketing') return marketingSalesAnalysis.collective.entries > 0;
+              return true;
+            })
             .map(r => (
             <button
               key={r.id}
@@ -789,8 +798,8 @@ export const Reports = ({ user, transactions, onBack }: { user: User; transactio
                 {selectedReport === 'debtors'   && <DebtorReportView data={debtorReport} />}
                 {selectedReport === 'staff'     && <StaffReportView data={staffReport} collective={staffCollective} />}
                 {selectedReport === 'sales_cargo'     && <DepartmentSalesAnalysisView data={cargoSalesAnalysis} deptLabel="Cargo" routeLabel="Route" />}
-                {selectedReport === 'sales_marketing' && <DepartmentSalesAnalysisView data={marketingSalesAnalysis} deptLabel="Marketing" routeLabel="Route" />}
-                {selectedReport === 'sales_baggage'   && <DepartmentSalesAnalysisView data={baggageSalesAnalysis} deptLabel="Baggage" routeLabel="Destination" />}
+                {selectedReport === 'sales_marketing' && <DepartmentSalesAnalysisView data={marketingSalesAnalysis} deptLabel="Marketing (legacy)" routeLabel="Route" />}
+                {selectedReport === 'sales_baggage'   && <DepartmentSalesAnalysisView data={baggageSalesAnalysis} deptLabel="Excess Baggage (legacy)" routeLabel="Destination" />}
                 {selectedReport === 'sales_package'   && <DepartmentSalesAnalysisView data={packageSalesAnalysis} deptLabel="Package" routeLabel="Destination" />}
                 {selectedReport === 'hubs'      && (
                   <div className="space-y-4">
@@ -1056,13 +1065,13 @@ const StaffReportView = ({ data, collective }: { data: any[]; collective: { entr
             )}
             {s.mktg > 0 && (
               <div className="flex justify-between">
-                <span className="text-[10px] text-[var(--color-muted)]">Marketing</span>
+                <span className="text-[10px] text-[var(--color-muted)]">Marketing (legacy)</span>
                 <span className="text-[11px] font-mono text-[var(--color-foreground)]">₦{fmt(s.mktg)}</span>
               </div>
             )}
             {s.vj > 0 && (
               <div className="flex justify-between">
-                <span className="text-[10px] text-[var(--color-muted)]">Baggage</span>
+                <span className="text-[10px] text-[var(--color-muted)]">Excess Baggage (legacy)</span>
                 <span className="text-[11px] font-mono text-[var(--color-foreground)]">₦{fmt(s.vj)}</span>
               </div>
             )}
