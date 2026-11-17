@@ -614,19 +614,25 @@ export async function logScanEvent(
 
   // Fire scan-status notification (no await — background)
   if (consigneePhone || senderPhone) {
-    fetch('/api/notify/scan-status', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        event: mode,
-        cargoRef: ref,
-        consigneeName,
-        consigneePhone: consigneePhone || undefined,
-        senderPhone: senderPhone || undefined,
-        hubName: currentHub,
-        pin: mode === 'ARRIVE' ? pin : undefined,
-      }),
-    }).catch(() => { /* fire and forget */ });
+    supabase.auth.getSession().then(({ data: sess }) => {
+      const token = sess.session?.access_token || '';
+      fetch('/api/notify/scan-status', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          event: mode,
+          cargoRef: ref,
+          consigneeName,
+          consigneePhone: consigneePhone || undefined,
+          senderPhone: senderPhone || undefined,
+          hubName: currentHub,
+          pin: mode === 'ARRIVE' ? pin : undefined,
+        }),
+      }).catch(() => { /* fire and forget */ });
+    }).catch(() => {});
   }
 
   return { ok: true };

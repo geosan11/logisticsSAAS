@@ -7,7 +7,6 @@ import { fmt, tnow, isStandalonePWA, getHubCode, getShiftBoundary, txDisplayDate
 import { processRetrieval, unretrieveEntry, approveRetrieval, RetrievalEntryType } from "../../lib/wallet";
 import { clearDebt, reopenDebt, DebtEntryType, DEBT_TABLE_NAME } from "../../lib/debt";
 import { computeDebtDisplayModeFromRow } from "../../lib/debtStatus";
-import { downloadBatchDebtReceipt } from "./BatchDebtReceipt";
 import { deleteTransaction } from "../../lib/deleteTransaction";
 import { confirmPayment, PaymentEntryType } from "../../lib/paymentConfirmation";
 import { useHubRoutes, useHubNames } from "../../lib/hubRoutes";
@@ -2797,6 +2796,7 @@ export const TransactionLedger = ({
       };
     });
     try {
+      const { downloadBatchDebtReceipt } = await import("./BatchDebtReceipt");
       await downloadBatchDebtReceipt({
         batchRef: `BATCH-${Date.now()}`,
         date: txDisplayDateTime(new Date().toISOString(), ''),

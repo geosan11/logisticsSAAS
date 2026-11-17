@@ -393,6 +393,9 @@ export async function reportDeviceSyncHeartbeat(options?: HeartbeatOptions): Pro
       lastHeartbeatSentAt = Date.now();
       await sendHeartbeatNow(latest);
     }, remainingDelay);
+    if (heartbeatTrailingTimer && typeof (heartbeatTrailingTimer as any).unref === 'function') {
+      (heartbeatTrailingTimer as any).unref();
+    }
   }
 }
 
