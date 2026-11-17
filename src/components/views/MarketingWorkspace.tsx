@@ -13,7 +13,7 @@ import { useIsOnline } from "../../lib/useIsOnline";
 import { matchOfficeClient, useCorporateClients, useCorporateRouteRates, useOfficeWorkAutoPrice } from "../../lib/officeWork";
 import { matchWallet } from "../../lib/customerIdentity";
 import { WalletRemainderSelector } from "../WalletRemainderSelector";
-import { getNextTag } from "../../lib/tagPool";
+import { getNextTag, getTenantTagPrefix } from "../../lib/tagPool";
 import { DepartmentSalesAnalysisModal } from "../DepartmentSalesAnalysis";
 import { Plus, CheckCircle, ClipboardList, MessageSquare, Printer, Minus, TrendingDown, BarChart2, Bluetooth, Copy, AlertTriangle } from "lucide-react";
 import { Spinner } from "../ui";
@@ -131,7 +131,7 @@ export const MarketingWorkspace = ({
   const fetchNextTag = async () => {
     setAwbError(false);
     const hubCode = getHubCode(user.hub_code || user.hub);
-    const tag = await getNextTag(`${hubCode}-MK`, `EHI-${hubCode}-MK`);
+    const tag = await getNextTag(`${hubCode}-MK`, `${getTenantTagPrefix()}-${hubCode}-MK`);
     if (tag) {
       setAwb(tag);
     } else {
@@ -810,7 +810,7 @@ export const MarketingWorkspace = ({
                           paymentNarration: successTx.paymentNarration,
                           bankName: bank || undefined,
                           airline: successTx.airline,
-                          trackingUrl: `https://app.ehimultisystems.com/track/${successTx.id}`,
+                          trackingUrl: `https://app.haulwey.com/track/${successTx.id}`,
                         };
                         return await m.compileMarketingReceiptStream(printData, '80mm');
                       });
@@ -845,7 +845,7 @@ export const MarketingWorkspace = ({
                           paymentNarration: successTx.paymentNarration,
                           bankName: bank || undefined,
                           airline: successTx.airline,
-                          trackingUrl: `https://app.ehimultisystems.com/track/${successTx.id}`,
+                          trackingUrl: `https://app.haulwey.com/track/${successTx.id}`,
                         };
                         return await m.compileMarketingReceiptStream(printData, '58mm');
                       });
@@ -911,7 +911,7 @@ export const MarketingWorkspace = ({
                         name: successTx!.name,
                         route,
                         airline,
-                        hubName: user?.hub || "EHI Cargo Station",
+                        hubName: user?.hub || "Haulwey Station",
                         date: `${new Date().toLocaleDateString("en-GB")} ${tnow()}`,
                         bigBags: bb,
                         medBags: mb,

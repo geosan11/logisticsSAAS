@@ -17,6 +17,82 @@ import { appLogger } from './logger';
 const DEFAULT_THRESHOLD = 5;
 const DEFAULT_REFILL_SIZE = 20;
 
+let memoryPrefixOverride: string | null = null;
+
+/**
+ * Returns the tenant-configured tag/AWB prefix for NEW numbers,
+ * falling back to "HW" (Haulwey) if not explicitly set.
+ */
+export function getTenantTagPrefix(): string {
+  if (memoryPrefixOverride !== null) {
+    return memoryPrefixOverride || 'HW';
+  }
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const stored = localStorage.getItem('ehi_tag_prefix');
+      if (stored && stored.trim()) {
+        return stored.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+      }
+    }
+  } catch {}
+  return 'HW';
+}
+
+/**
+ * Persists the tenant's chosen prefix for new numbers.
+ */
+export function setTenantTagPrefix(prefix: string | null): void {
+  if (!prefix || !prefix.trim()) {
+    memoryPrefixOverride = null;
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem('ehi_tag_prefix');
+      }
+    } catch {}
+    return;
+  }
+  const sanitized = prefix.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  memoryPrefixOverride = sanitized;
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('ehi_tag_prefix', sanitized);
+    }
+  } catch {}
+}
+
+export interface ParsedTag {
+  prefix: string;
+  hubCode: string;
+  stream: string;
+  sequence: number;
+  raw: string;
+  isLegacyEhi: boolean;
+}
+
+/**
+ * Parses and validates any tag / AWB number (both new HW-/custom and legacy EHI-).
+ */
+export function parseTagNumber(tag: string): ParsedTag | null {
+  if (!tag || typeof tag !== 'string') return null;
+  const trimmed = tag.trim().toUpperCase();
+  // Matches HW-LOS-CG-001042, EHI-LOS-PKG-000512, EHI-LOS-001042, HW-KAN-123456, etc.
+  const match = trimmed.match(/^([A-Z0-9]{2,6})-([A-Z]{2,4})(?:-([A-Z]{2,3}))?-(\d{4,6})$/);
+  if (!match) return null;
+  const [, prefix, hubCode, streamOrNull, seqStr] = match;
+  return {
+    prefix,
+    hubCode,
+    stream: streamOrNull || '',
+    sequence: parseInt(seqStr, 10),
+    raw: trimmed,
+    isLegacyEhi: prefix === 'EHI',
+  };
+}
+
+export function isValidTagNumber(tag: string): boolean {
+  return parseTagNumber(tag) !== null;
+}
+
 function isOnline(): boolean {
   try {
     return typeof navigator !== 'undefined' && typeof navigator.onLine === 'boolean' ? navigator.onLine : true;
@@ -109,16 +185,18 @@ export function refillPoolIfLow(
   }).catch(() => { /* non-critical */ });
 }
 
-// Returns a fully-formatted tag string (e.g. "EHI-LOS-CG-001042").
+// Returns a fully-formatted tag string (e.g. "HW-LOS-CG-001042").
 // If the local Dexie pool is empty AND online RPC fails (or device is offline),
 // it generates a guaranteed unique 6-digit sequence fallback tag so staff
 // are never blocked from issuing waybills.
-export async function getNextTag(poolKey: string, displayPrefix: string): Promise<string> {
+export async function getNextTag(poolKey: string, displayPrefix?: string): Promise<string> {
+  const effectivePrefix = displayPrefix || `${getTenantTagPrefix()}-${poolKey}`;
+
   const pooled = await popFromPool(poolKey);
   if (pooled != null) {
     // Opportunistically top up in the background now that we've consumed one.
     refillPoolIfLow(poolKey);
-    return `${displayPrefix}-${String(pooled).padStart(6, '0')}`;
+    return `${effectivePrefix}-${String(pooled).padStart(6, '0')}`;
   }
 
   if (isOnline()) {
@@ -127,7 +205,7 @@ export async function getNextTag(poolKey: string, displayPrefix: string): Promis
       const { data: seq, error } = await supabase.rpc('next_awb_number', { p_hub_code: poolKey });
       if (!error && seq != null) {
         refillPoolIfLow(poolKey);
-        return `${displayPrefix}-${String(seq).padStart(6, '0')}`;
+        return `${effectivePrefix}-${String(seq).padStart(6, '0')}`;
       } else {
         appLogger.log('ERROR', 'SYNC', `next_awb_number fallback failed for ${poolKey}: ${error?.message || 'no data returned'}`);
       }
@@ -151,6 +229,6 @@ export async function getNextTag(poolKey: string, displayPrefix: string): Promis
   const seed = getDeviceFallbackSeed();
   const counter = nextFallbackCounter();
   const fallbackNum = ((seed + counter * 97) % 900000) + 100000;
-  return `${displayPrefix}-${String(fallbackNum).padStart(6, '0')}`;
+  return `${effectivePrefix}-${String(fallbackNum).padStart(6, '0')}`;
 }
 

@@ -393,7 +393,7 @@ const BatchDebtReceiptPDF = ({ data }: { data: BatchDebtReceiptData }) => {
       </View>
 
       <View style={[styles.divider, { marginTop: 6 }]} />
-      <Text style={styles.footerText}>app.ehimultisystems.com</Text>
+      <Text style={styles.footerText}>app.haulwey.com</Text>
       <Text style={styles.footerText}>{data.batchRef} • {data.date}</Text>
     </Page>
   );

@@ -12,7 +12,7 @@ async function sendTermii(phone: string, message: string, channel: 'whatsapp' | 
   }
   const res = await axios.post(
     'https://api.ng.termii.com/api/sms/send',
-    { to: phone, from: 'EHI Logistics', sms: message, type: 'unicode', channel, api_key: apiKey },
+    { to: phone, from: 'Haulwey', sms: message, type: 'unicode', channel, api_key: apiKey },
     { headers: { 'Content-Type': 'application/json' }, timeout: 8000 }
   );
   return { ok: true, termii: res.data };
@@ -51,7 +51,7 @@ router.post('/pickup-pin', async (req, res) => {
   const { senderPhone, consigneePhone, pin, entryRef, route } = req.body;
   if (!pin || !entryRef) return res.status(400).json({ error: 'pin and entryRef required' });
 
-  const message = `✈️ EHI Multisystems Nigeria\n\nYour cargo *${entryRef}* to *${route || 'destination'}* has been booked.\n\n🔐 PICKUP PIN: *${pin}*\n\nShare this PIN with the consignee. They must present it at the destination hub to collect the cargo.`;
+  const message = `✈️ Haulwey\n\nYour cargo *${entryRef}* to *${route || 'destination'}* has been booked.\n\n🔐 PICKUP PIN: *${pin}*\n\nShare this PIN with the consignee. They must present it at the destination hub to collect the cargo.`;
 
   // Fire and forget — run in background
   Promise.all([
@@ -73,22 +73,22 @@ router.post('/scan-status', async (req, res) => {
 
   if (event === 'ARRIVE') {
     consigneeMsg =
-      `✅ EHI Multisystems Nigeria\n\n` +
+      `✅ Haulwey\n\n` +
       `Your cargo *${cargoRef}* has arrived at *${hubName}*.\n\n` +
       (pin ? `🔐 PICKUP PIN: *${pin}*\n\nPlease visit the hub with this PIN to collect your cargo.` : `Please visit the hub to collect your cargo.`);
     senderMsg =
-      `✅ EHI Multisystems Nigeria\n\n` +
+      `✅ Haulwey\n\n` +
       `Cargo *${cargoRef}* addressed to *${consigneeName}* has arrived at *${hubName}*.`;
   } else if (event === 'DELIVER') {
     consigneeMsg =
-      `🎉 EHI Multisystems Nigeria\n\n` +
-      `Cargo *${cargoRef}* has been successfully delivered to *${consigneeName}*.\n\nThank you for choosing EHI Multisystems.`;
+      `🎉 Haulwey\n\n` +
+      `Cargo *${cargoRef}* has been successfully delivered to *${consigneeName}*.\n\nThank you for choosing Haulwey.`;
     senderMsg =
-      `🎉 EHI Multisystems Nigeria\n\n` +
+      `🎉 Haulwey\n\n` +
       `Your cargo *${cargoRef}* has been delivered to *${consigneeName}* at *${hubName}*.`;
   } else if (event === 'DEPART') {
     senderMsg =
-      `✈️ EHI Multisystems Nigeria\n\n` +
+      `✈️ Haulwey\n\n` +
       `Cargo *${cargoRef}* has departed from *${hubName}* and is now in transit.`;
   }
 
@@ -110,7 +110,7 @@ router.post('/eod-summary', async (req, res) => {
   const fmt = (n: number) => `NGN ${Number(n || 0).toLocaleString('en-NG')}`;
 
   const message =
-    `📊 *EHI Multisystems — EOD Report*\n` +
+    `📊 *Haulwey — EOD Report*\n` +
     `━━━━━━━━━━━━━━━━━━━━\n` +
     `Hub: *${hubName}*\n` +
     `Date: *${date}*\n` +
@@ -125,7 +125,7 @@ router.post('/eod-summary', async (req, res) => {
     `💳 POS:      ${fmt(posTotal)}\n` +
     `📋 Debt:     ${fmt(debtTotal)}\n` +
     `━━━━━━━━━━━━━━━━━━━━\n` +
-    `_EHI Multisystems Nigeria Ltd_`;
+    `_Haulwey — Geosan NexGen Innovations_`;
 
   try {
     const result = await sendWithFallback(managerPhone, message);

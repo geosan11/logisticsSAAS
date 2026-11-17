@@ -68,7 +68,10 @@ export const Settings = ({
   // screens (PricingConfiguration, HubCargoRates).
   const [companyName, setCompanyName] = useState(
     () => localStorage.getItem('ehi_company_name') ||
-         'EHI Multisystems Nigeria Limited'
+         'Haulwey'
+  );
+  const [tagPrefix, setTagPrefix] = useState(
+    () => localStorage.getItem('ehi_tag_prefix') || 'HW'
   );
   const [companyPhone, setCompanyPhone] = useState(
     () => localStorage.getItem('ehi_company_phone') || ''
@@ -90,8 +93,10 @@ export const Settings = ({
     supabase.from('pricing_config').select('config_value').eq('config_key', 'company_settings').single()
       .then(({ data, error }) => {
         if (!data?.config_value || error) return;
-        const c = data.config_value as { name?: string; phone?: string; address?: string; brandColor?: string; logoUrl?: string; activeModes?: string[] };
+        const c = data.config_value as { name?: string; phone?: string; address?: string; brandColor?: string; logoUrl?: string; activeModes?: string[]; tag_prefix?: string; tagPrefix?: string };
         if (c.name) setCompanyName(c.name);
+        const loadedPrefix = c.tag_prefix || c.tagPrefix;
+        if (loadedPrefix) setTagPrefix(loadedPrefix);
         if (c.phone != null) setCompanyPhone(c.phone);
         if (c.address != null) setCompanyAddress(c.address);
         if (c.brandColor) setBrandColor(c.brandColor);
@@ -102,6 +107,7 @@ export const Settings = ({
         }
         try {
           localStorage.setItem('ehi_company_name', c.name || '');
+          if (loadedPrefix) localStorage.setItem('ehi_tag_prefix', loadedPrefix);
           localStorage.setItem('ehi_company_phone', c.phone || '');
           localStorage.setItem('ehi_company_address', c.address || '');
           if (c.brandColor) localStorage.setItem('ehi_brand_color', c.brandColor);
@@ -149,6 +155,7 @@ export const Settings = ({
     const address = companyAddress.trim();
     const color = brandColor.trim() || '#3b82f6';
     const logo = brandLogoUrl.trim();
+    const prefix = (tagPrefix.trim().toUpperCase() || 'HW').replace(/[^A-Z0-9]/g, '');
 
     const activeModes: string[] = [];
     if (allowAirMode) activeModes.push('air');
@@ -159,8 +166,8 @@ export const Settings = ({
     setSavingCompany(true);
     const { error } = await supabase.from('pricing_config').upsert({
       config_key: 'company_settings',
-      config_value: { name, phone, address, brandColor: color, logoUrl: logo, activeModes },
-      description: 'Tenant company identity, branding colors, and mode configuration',
+      config_value: { name, phone, address, brandColor: color, logoUrl: logo, activeModes, tag_prefix: prefix },
+      description: 'Tenant company identity, branding colors, mode configuration, and tag prefix',
     }, { onConflict: 'config_key' });
 
     if (user.tenant_id) {
@@ -179,6 +186,7 @@ export const Settings = ({
       return;
     }
     localStorage.setItem('ehi_company_name', name);
+    localStorage.setItem('ehi_tag_prefix', prefix);
     localStorage.setItem('ehi_company_phone', phone);
     localStorage.setItem('ehi_company_address', address);
     localStorage.setItem('ehi_brand_color', color);
@@ -591,7 +599,7 @@ export const Settings = ({
                     type="email"
                     value={adminEmail}
                     onChange={e => setAdminEmail(e.target.value)}
-                    placeholder="admin@ehimultisystems.com"
+                    placeholder="admin@haulwey.com"
                     className="w-full h-10 px-3 text-[12px] font-mono rounded bg-[var(--color-surface-2)] border border-[var(--color-border)] text-[var(--color-foreground)] focus:outline-none focus:border-[var(--color-accent-amber)]"
                   />
                 </div>
@@ -644,6 +652,23 @@ export const Settings = ({
                     onChange={e => setCompanyName(e.target.value)}
                     className="w-full h-10 px-3 text-[12px] font-mono rounded bg-[var(--color-surface-2)] border border-[var(--color-border)] text-[var(--color-foreground)] focus:outline-none focus:border-[var(--color-accent-amber)]"
                   />
+                </div>
+                <div>
+                  <label htmlFor="settings-tag-prefix" className="block text-[9px] font-mono text-[var(--color-muted)] uppercase tracking-wider mb-1">
+                    Tag &amp; Waybill Number Prefix (Fallback: HW)
+                  </label>
+                  <input
+                    id="settings-tag-prefix"
+                    type="text"
+                    maxLength={6}
+                    value={tagPrefix}
+                    onChange={e => setTagPrefix(e.target.value.toUpperCase())}
+                    placeholder="HW"
+                    className="w-full h-10 px-3 text-[12px] font-mono rounded bg-[var(--color-surface-2)] border border-[var(--color-border)] text-[var(--color-foreground)] focus:outline-none focus:border-[var(--color-accent-amber)] uppercase"
+                  />
+                  <p className="text-[10px] font-mono text-[var(--color-muted)] mt-1">
+                    Applies to newly issued cargo AWBs and package tags. Existing EHI- records remain scannable and valid.
+                  </p>
                 </div>
                 <div>
                   <label htmlFor="settings-company-phone" className="block text-[9px] font-mono text-[var(--color-muted)] uppercase tracking-wider mb-1">

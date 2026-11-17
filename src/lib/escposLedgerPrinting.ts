@@ -57,7 +57,7 @@ export async function compileLedger80mmStream(
 
   // Header Title
   chunks.push(new Uint8Array(BOLD_ON));
-  chunks.push(encoder.encode("EHI MULTISYSTEMS LOGISTICS\n"));
+  chunks.push(encoder.encode("HAULWEY LOGISTICS\n"));
   chunks.push(encoder.encode("80MM LEDGER SUMMARY\n"));
   chunks.push(new Uint8Array(BOLD_OFF));
 

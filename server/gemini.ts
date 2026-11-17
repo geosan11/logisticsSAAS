@@ -35,7 +35,7 @@ router.post('/insights', async (req, res) => {
     }
 
     const prompt = `
-You are a logistics business analyst for EHI Multisystems Nigeria Limited.
+You are a logistics business analyst for Haulwey, a product of Geosan NexGen Innovations.
 Analyze this data and provide 3 concise business insights (2 sentences each):
 
 Today's Data:
@@ -105,7 +105,7 @@ router.post('/report-narrative', async (req, res) => {
     }
 
     const prompt = `
-You are a logistics finance and operations auditor for EHI Multisystems Nigeria Limited.
+You are a logistics finance and operations auditor for Haulwey, a product of Geosan NexGen Innovations.
 Generate a professional, detailed 3-paragraph executive summary based on this report metadata:
 
 Report Scope: ${reportType}

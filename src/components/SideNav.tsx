@@ -213,12 +213,12 @@ export const SideNav = ({
           >
             <img
               src={ehiLogo}
-              alt="EHI"
+              alt="Haulwey"
               style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: 6 }}
               onError={(e) => {
                 (e.target as HTMLImageElement).style.display = 'none';
                 const fallback = document.createElement('span');
-                fallback.textContent = 'EHI';
+                fallback.textContent = 'HW';
                 fallback.style.cssText = "font-family:'JetBrains Mono',monospace;font-weight:800;font-size:12px;color:var(--color-foreground);";
                 (e.target as HTMLImageElement).parentElement?.appendChild(fallback);
               }}
@@ -238,14 +238,14 @@ export const SideNav = ({
             <div
               style={{
                 fontFamily: "var(--font-sans)",
-                fontSize: 12,
-                fontWeight: 700,
+                fontSize: 14,
+                fontWeight: 800,
                 color: "var(--color-foreground)",
-                letterSpacing: "-0.01em",
+                letterSpacing: "-0.02em",
                 lineHeight: 1.1,
               }}
             >
-              MULTISYSTEMS
+              Haulwey
             </div>
             <div
               style={{

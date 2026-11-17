@@ -183,7 +183,7 @@ const PublicTrackingPage = () => {
       <div className="text-center mb-8">
         <img
           src={ehiLogoImg}
-          alt="EHI Multisystems"
+          alt="Haulwey"
           style={{ height: 96, margin: '0 auto 16px', display: 'block' }}
         />
         <h1 style={{ fontSize: 20, fontWeight: 500, color: 'var(--color-foreground)', margin: 0 }}>
@@ -209,7 +209,7 @@ const PublicTrackingPage = () => {
                 searchTracking(ref.trim().toUpperCase());
               }
             }}
-            placeholder="EHI-LOS-CGO-000482"
+            placeholder="HW-LOS-CGO-000482"
             style={{
               flex: 1, height: 44, padding: '0 12px',
               fontSize: 13, fontFamily: 'monospace',
@@ -391,7 +391,7 @@ const PublicTrackingPage = () => {
                 padding: '12px 20px',
                 fontSize: 10, color: 'var(--color-light-muted)', textAlign: 'center',
               }}>
-                EHI Multisystems Logistics Platform
+                Powered by Haulwey
               </div>
             </div>
           ) : (
@@ -405,7 +405,7 @@ const PublicTrackingPage = () => {
               </div>
               <div style={{ fontSize: 12, color: 'var(--color-muted)', marginTop: 4 }}>
                 Check the reference number and try again.
-                Contact EHI if you believe this is an error.
+                Contact support if you believe this is an error.
               </div>
             </div>
           )}
@@ -414,7 +414,7 @@ const PublicTrackingPage = () => {
 
       {/* Footer */}
       <div style={{ marginTop: 32, fontSize: 11, color: 'var(--color-muted)', textAlign: 'center' }}>
-        EHI Multisystems Nigeria Limited · Ikeja, Lagos
+        Haulwey · A product of Geosan NexGen Innovations
       </div>
     </div>
   );

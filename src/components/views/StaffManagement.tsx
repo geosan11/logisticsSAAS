@@ -416,7 +416,7 @@ export const StaffManagement = ({ user, onBack }: { user: User; onBack: () => vo
               </div>
               <div>
                 <label htmlFor="staff-create-email" className="ehi-label">Email Address *</label>
-                <input id="staff-create-email" type="email" value={form.email} onChange={e => setForm(f => ({...f, email: e.target.value.toLowerCase().trim()}))} placeholder="chukwudi@ehimultisystems.com" className="ehi-input" />
+                <input id="staff-create-email" type="email" value={form.email} onChange={e => setForm(f => ({...f, email: e.target.value.toLowerCase().trim()}))} placeholder="chukwudi@haulwey.com" className="ehi-input" />
               </div>
               <div>
                 <label htmlFor="staff-create-password" className="ehi-label">Temporary Password *</label>

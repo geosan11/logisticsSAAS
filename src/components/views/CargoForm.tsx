@@ -19,7 +19,7 @@ import { useMinimumCharges, resolveMinimumCharge } from "../../lib/minimumCharge
 import { useBanks } from "../../lib/banks";
 import { useEnterToNextField } from "../../lib/useEnterToNextField";
 import { isTagAlreadyDelivered } from "../../lib/scanLogic";
-import { getNextTag } from "../../lib/tagPool";
+import { getNextTag, getTenantTagPrefix } from "../../lib/tagPool";
 import { CustomerWalletPicker } from "../CustomerWalletPicker";
 import { DepartmentSalesAnalysisModal } from "../DepartmentSalesAnalysis";
 import { PrintRangeModal } from "../PrintRangeModal";
@@ -270,7 +270,7 @@ export const CargoForm = ({
   const fetchAwbPreview = async () => {
     const hubCode = getHubCode(user.hub_code || user.hub);
     const poolKey = `${hubCode}-CG`;
-    const tag = await getNextTag(poolKey, `EHI-${hubCode}-CG`);
+    const tag = await getNextTag(poolKey, `${getTenantTagPrefix()}-${hubCode}-CG`);
     setAwb(tag || '');
   };
   // Re-fetch when the admin's hub context changes -- fetchAwbPreview's
@@ -1139,7 +1139,7 @@ export const CargoForm = ({
   const fetchIntakeAwbPreview = async () => {
     const hubCode = getHubCode(user.hub_code || user.hub);
     const poolKey = `${hubCode}-CG`;
-    const tag = await getNextTag(poolKey, `EHI-${hubCode}-CG`);
+    const tag = await getNextTag(poolKey, `${getTenantTagPrefix()}-${hubCode}-CG`);
     setIntakeAwb(tag || '');
   };
   useEffect(() => { fetchIntakeAwbPreview(); }, [user.hub_code, user.hub]);
@@ -1357,7 +1357,7 @@ export const CargoForm = ({
     }
 
     const gateHubCode = getHubCode(user.hub_code || user.hub);
-    const gateResolvedId = await getNextTag(`${gateHubCode}-CG`, `EHI-${gateHubCode}-CG`);
+    const gateResolvedId = await getNextTag(`${gateHubCode}-CG`, `${getTenantTagPrefix()}-${gateHubCode}-CG`);
     if (!gateResolvedId) {
       showToast({ message: "No tag number available offline. Connect to the internet briefly to reserve more, then try again.", type: "error" });
       setIsWeighingSubmitting(false);
@@ -1591,7 +1591,7 @@ export const CargoForm = ({
     // above for why).
     const commissionRate = airlineCommissions[normalizeAirlineName(actualAirline)] ?? airlineCommissions[actualAirline] ?? 0;
 
-    // AWB is EHI-{HUBCODE}-{6-digit per-hub sequence}, e.g. EHI-LOS-001042.
+    // AWB is {PREFIX}-{HUBCODE}-{6-digit per-hub sequence}, e.g. HW-LOS-001042.
     // The number was already allocated on mount/reset (see fetchAwbPreview
     // above) from the local tag pool -- popped from a block reserved via
     // the atomic reserve_awb_block()/next_awb_number() counter, so it's
@@ -1601,7 +1601,7 @@ export const CargoForm = ({
     const hubCode = getHubCode(user.hub_code || user.hub);
     let resolvedAwb = awb;
     if (!resolvedAwb) {
-      resolvedAwb = await getNextTag(`${hubCode}-CG`, `EHI-${hubCode}-CG`);
+      resolvedAwb = await getNextTag(`${hubCode}-CG`, `${getTenantTagPrefix()}-${hubCode}-CG`);
     }
 
     // Flags reuse of a tag whose previous consignment already completed
@@ -1847,8 +1847,8 @@ export const CargoForm = ({
     entryRef: tx.id,
     serialNumber: (tx as any).serialAtSubmit ?? (serialNumber - 1),
     date: `${new Date().toLocaleDateString("en-GB")} ${tnow()}`,
-    hubName: user?.hub || "EHI Cargo Station",
-    agentName: user?.name || "EHI Agent",
+    hubName: user?.hub || "Air Cargo Hub",
+    agentName: user?.name || "Cargo Agent",
     airline: (() => {
       const txAir = tx.airline || airline;
       return txAir === "Green Africa"
@@ -1887,7 +1887,7 @@ export const CargoForm = ({
         pieces: tx.pieces || 1,
         weight: tx.kg || 0,
         airline: tx.airline || airline,
-        hubName: user?.hub || "EHI Cargo Station",
+        hubName: user?.hub || "Air Cargo Hub",
         date: `${new Date().toLocaleDateString("en-GB")} ${tnow()}`,
         contentType: tx.detail?.split(" · ")[4] || contentType,
         agentName: tx.enteredByName,
@@ -1915,7 +1915,7 @@ export const CargoForm = ({
         const width = docType === 'pos80' ? '80mm' : '58mm';
         const { done, failed } = await printBatchViaBluetooth(
           itemsToPrint.map((tx) => async () => compileCargoReceiptStream(
-            { ...buildBatchReceiptData(tx), trackingUrl: `https://app.ehimultisystems.com/track/${tx.id}` },
+            { ...buildBatchReceiptData(tx), trackingUrl: `https://app.haulwey.com/track/${tx.id}` },
             width,
           )),
           (i, total) => setBatchPrintProgress(`Printing ${i + 1} of ${total}…`),
@@ -1957,7 +1957,7 @@ export const CargoForm = ({
         entryRef: successTx.id,
         serialNumber: serialNumber - 1,
         date: `${new Date().toLocaleDateString("en-GB")} ${tnow()}`,
-        hubName: user?.hub || "EHI Cargo Station",
+        hubName: user?.hub || "Air Cargo Hub",
         agentName: user?.name || "EHI Agent",
         airline: (() => {
           const txAir = successTx.airline || airline;
@@ -2020,7 +2020,7 @@ export const CargoForm = ({
                 ? "United Nigeria Airlines"
                 : txAir;
           })(),
-          hubName: user?.hub || "EHI Cargo Station",
+          hubName: user?.hub || "Air Cargo Hub",
           date: `${new Date().toLocaleDateString("en-GB")} ${tnow()}`,
           contentType: successTx.detail?.split(" · ")[4] || contentType,
           agentName: successTx.enteredByName,
@@ -2077,8 +2077,8 @@ export const CargoForm = ({
       entryRef: successTx.id,
       serialNumber: serialNumber - 1,
       date: `${new Date().toLocaleDateString("en-GB")} ${tnow()}`,
-      hubName: user?.hub || "EHI Cargo Station",
-      agentName: user?.name || "EHI Agent",
+      hubName: user?.hub || "Air Cargo Hub",
+      agentName: user?.name || "Cargo Agent",
       airline: (() => {
         const txAir = successTx.airline || airline;
         return txAir === "Green Africa"
@@ -2247,7 +2247,7 @@ export const CargoForm = ({
                   const m = await import('../../lib/escposCargoReceiptPrinting');
                   const thermalPrintData = {
                     ...printData,
-                    trackingUrl: `https://app.ehimultisystems.com/track/${successTx.id}`,
+                    trackingUrl: `https://app.haulwey.com/track/${successTx.id}`,
                   };
                   return await m.compileCargoReceiptStream(thermalPrintData, '80mm');
                 });
@@ -2269,7 +2269,7 @@ export const CargoForm = ({
                   const m = await import('../../lib/escposCargoReceiptPrinting');
                   const thermalPrintData = {
                     ...printData,
-                    trackingUrl: `https://app.ehimultisystems.com/track/${successTx.id}`,
+                    trackingUrl: `https://app.haulwey.com/track/${successTx.id}`,
                   };
                   return await m.compileCargoReceiptStream(thermalPrintData, '58mm');
                 });

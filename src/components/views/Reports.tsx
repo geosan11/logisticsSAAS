@@ -545,7 +545,7 @@ export const Reports = ({ user, transactions, onBack }: { user: User; transactio
     let wsData: any[][] = [];
     if (selectedReport === 'revenue') {
       wsData = [
-        ['EHI MULTISYSTEMS - REVENUE SUMMARY'],
+        ['HAULWEY - REVENUE SUMMARY'],
         ['Period:', dateRange.from.toLocaleDateString(), 'to', dateRange.to.toLocaleDateString()],
         [],
         ['Category', 'Count', 'Amount (NGN)'],
@@ -558,7 +558,7 @@ export const Reports = ({ user, transactions, onBack }: { user: User; transactio
       ];
     } else if (selectedReport === 'routes') {
       wsData = [
-        ['EHI MULTISYSTEMS - ROUTE PROFITABILITY'],
+        ['HAULWEY - ROUTE PROFITABILITY'],
         ['Period:', dateRange.from.toLocaleDateString(), 'to', dateRange.to.toLocaleDateString()],
         [],
         ['Route', 'Transactions', 'Air Cargo (NGN)', 'Marketing (NGN)', 'Total Revenue (NGN)'],
@@ -566,7 +566,7 @@ export const Reports = ({ user, transactions, onBack }: { user: User; transactio
       ];
     } else if (selectedReport === 'customers') {
       wsData = [
-        ['EHI MULTISYSTEMS - TOP CONSIGNEES'],
+        ['HAULWEY - TOP CONSIGNEES'],
         ['Period:', dateRange.from.toLocaleDateString(), 'to', dateRange.to.toLocaleDateString()],
         [],
         ['Customer Name', 'Transactions', 'Last Seen', 'Total Revenue (NGN)'],
@@ -574,7 +574,7 @@ export const Reports = ({ user, transactions, onBack }: { user: User; transactio
       ];
     } else if (selectedReport === 'debtors') {
       wsData = [
-        ['EHI MULTISYSTEMS - DEBTOR AGING'],
+        ['HAULWEY - DEBTOR AGING'],
         ['Period:', dateRange.from.toLocaleDateString(), 'to', dateRange.to.toLocaleDateString()],
         [],
         ['Customer Name', 'Age (Days)', 'Bucket', 'Amount (NGN)'],
@@ -582,7 +582,7 @@ export const Reports = ({ user, transactions, onBack }: { user: User; transactio
       ];
     } else if (selectedReport === 'staff') {
       wsData = [
-        ['EHI MULTISYSTEMS - STAFF PRODUCTIVITY'],
+        ['HAULWEY - STAFF PRODUCTIVITY'],
         ['Period:', dateRange.from.toLocaleDateString(), 'to', dateRange.to.toLocaleDateString()],
         [],
         ['ALL AGENTS COMBINED'],
@@ -602,7 +602,7 @@ export const Reports = ({ user, transactions, onBack }: { user: User; transactio
       };
       const d = deptData[selectedReport];
       wsData = [
-        [`EHI MULTISYSTEMS - ${d.label}`],
+        [`HAULWEY - ${d.label}`],
         ['Period:', dateRange.from.toLocaleDateString(), 'to', dateRange.to.toLocaleDateString()],
         [],
         ['ALL AGENTS COMBINED'],
@@ -615,7 +615,7 @@ export const Reports = ({ user, transactions, onBack }: { user: User; transactio
       ];
     } else if (selectedReport === 'hubs') {
       wsData = [
-        ['EHI MULTISYSTEMS - HUB COMPARISON'],
+        ['HAULWEY - HUB COMPARISON'],
         ['Period:', dateRange.from.toLocaleDateString(), 'to', dateRange.to.toLocaleDateString()],
         [],
         ['Hub Code/Name', 'State', 'Entries', 'Total Revenue (NGN)'],
@@ -629,7 +629,7 @@ export const Reports = ({ user, transactions, onBack }: { user: User; transactio
       ];
     } else if (selectedReport === 'b2b_sales') {
       wsData = [
-        ['EHI MULTISYSTEMS - OFFICE WORK (B2B) SALES'],
+        ['HAULWEY - OFFICE WORK (B2B) SALES'],
         ['Period:', dateRange.from.toLocaleDateString(), 'to', dateRange.to.toLocaleDateString()],
         [],
         ['Office Work Client', 'Entries', 'Routes Used', 'Total Revenue (NGN)'],

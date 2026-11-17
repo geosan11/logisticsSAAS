@@ -354,7 +354,8 @@ export async function downloadDailyExcel(
     : streamType === 'marketing' ? 'Marketing'
     : streamType === 'package' ? 'Package Desk'
     : 'Master Ledger';
-  const titleRow = `EHI Multisystems Nigeria Ltd — ${streamLabel} Entries`;
+  const companyTitle = (typeof localStorage !== 'undefined' && localStorage.getItem('ehi_company_name')) || 'Haulwey';
+  const titleRow = `${companyTitle} — ${streamLabel} Entries`;
   const dateRow = `Hub: ${hubName} | Generated: ${generatedLabel}`;
   const totalAmount = transactions.reduce((s, t) => s + (t.amount || 0), 0);
   const summaryRow = `Total Entries: ${transactions.length} | Total Revenue: NGN ${totalAmount.toLocaleString('en-NG')}`;
@@ -407,7 +408,7 @@ export async function downloadDailyExcel(
     ]);
     const expTotal = expenses.reduce((s, e) => s + (e.amount || 0), 0);
     const expAoa = [
-      [`EHI Multisystems Nigeria Ltd — Operating Expenses`],
+      [`${companyTitle} — Operating Expenses`],
       [`Hub: ${hubName} | Generated: ${generatedLabel}`],
       [`Total Expenses: ${expenses.length} | Total Amount: NGN ${expTotal.toLocaleString('en-NG')}`],
       [],
@@ -419,7 +420,7 @@ export async function downloadDailyExcel(
     autoFitExcelJsColumns(expWs);
   }
 
-  const exportFilename = filenameOverride || `EHI_${streamType}_${hubName.replace(/\s+/g,'_')}_${today}.xlsx`;
+  const exportFilename = filenameOverride || `Haulwey_${streamType}_${hubName.replace(/\s+/g,'_')}_${today}.xlsx`;
   await downloadExcelJsWorkbook(wb, exportFilename);
 }
 
@@ -451,8 +452,9 @@ export async function downloadAirlineManifestExcel(
   const airlineNames = Array.from(byAirline.keys()).sort();
 
   const headers = ['Airline', 'Tag Number', 'Content', 'KG', 'Route', 'Amount', 'Agent'];
+  const companyTitle = (typeof localStorage !== 'undefined' && localStorage.getItem('ehi_company_name')) || 'Haulwey';
   const aoa: unknown[][] = [
-    [`EHI Multisystems Nigeria Ltd — Airline Manifest`],
+    [`${companyTitle} — Airline Manifest`],
     [`Hub: ${hubName} | Generated: ${generatedLabel}`],
     [],
     headers,
@@ -490,5 +492,5 @@ export async function downloadAirlineManifestExcel(
   const ws = wb.addWorksheet('Manifest');
   sanitizeSpreadsheetAoA(aoa).forEach(r => ws.addRow(r));
   autoFitExcelJsColumns(ws);
-  await downloadExcelJsWorkbook(wb, `EHI_Airline_Manifest_${hubName.replace(/\s+/g,'_')}_${today}.xlsx`);
+  await downloadExcelJsWorkbook(wb, `Haulwey_Airline_Manifest_${hubName.replace(/\s+/g,'_')}_${today}.xlsx`);
 }

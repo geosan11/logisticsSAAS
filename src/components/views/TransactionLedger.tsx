@@ -1761,7 +1761,7 @@ export const TransactionLedger = ({
             paymentMode: formatPaymentModeDisplay(tx.mode, tx.wallet_deduction_amount, tx.amount),
             bankName: tx.bank,
             pickupPin: tx.pickupPin,
-            trackingUrl: `https://app.ehimultisystems.com/track/${tx.id}`,
+            trackingUrl: `https://app.haulwey.com/track/${tx.id}`,
             retrievedAmount: (tx as any).raw?.retrieved_amount || 0,
           }, width);
         } else if (tx.type === 'package') {
@@ -1781,7 +1781,7 @@ export const TransactionLedger = ({
             paymentMode: formatPaymentModeDisplay(tx.mode, tx.wallet_deduction_amount, tx.amount),
             paymentNarration: tx.paymentNarration,
             bankName: tx.bank,
-            trackingUrl: `https://app.ehimultisystems.com/track/${tx.id}`,
+            trackingUrl: `https://app.haulwey.com/track/${tx.id}`,
             retrievedAmount: (tx as any).raw?.retrieved_amount || 0,
           }, width);
         } else {
@@ -1823,7 +1823,7 @@ export const TransactionLedger = ({
             paymentMode: formatPaymentModeDisplay(tx.mode, tx.wallet_deduction_amount, tx.amount),
             paymentNarration: tx.paymentNarration,
             bankName: tx.bank,
-            trackingUrl: `https://app.ehimultisystems.com/track/${tx.id}`,
+            trackingUrl: `https://app.haulwey.com/track/${tx.id}`,
             retrievedAmount: (tx as any).raw?.retrieved_amount || 0,
           }, width);
         }
@@ -2008,7 +2008,7 @@ export const TransactionLedger = ({
           pieces: tx.pieces || 1,
           kg: tx.kg || 0,
           contents: (tx as any).contents,
-          hubName: user?.hub || 'EHI Station',
+          hubName: user?.hub || 'Station',
           date: txDisplayDateTime(tx.created_at, tx.time),
         };
 
@@ -2057,7 +2057,7 @@ export const TransactionLedger = ({
           name: tx.name,
           route,
           airline: tx.airline,
-          hubName: user?.hub || 'EHI Cargo Station',
+          hubName: user?.hub || 'Air Cargo Hub',
           date: txDisplayDateTime(tx.created_at, tx.time),
           bigBags: big,
           medBags: med,
@@ -2092,7 +2092,7 @@ export const TransactionLedger = ({
         pieces: tx.pieces || 1,
         weight: tx.kg || 0,
         airline: tx.airline,
-        hubName: user?.hub || 'EHI Cargo Station',
+        hubName: user?.hub || 'Air Cargo Hub',
         date: txDisplayDateTime(tx.created_at, tx.time),
         contentType: tx.contentType || (tx.detail ? tx.detail.split(' · ')[4] : undefined),
       };
@@ -2140,7 +2140,7 @@ export const TransactionLedger = ({
           pieces: tx.pieces || 1,
           kg: tx.kg || 0,
           contents: (tx as any).contents,
-          hubName: user?.hub || 'EHI Station',
+          hubName: user?.hub || 'Station',
           date: txDisplayDateTime(tx.created_at, tx.time),
         };
 
@@ -2181,7 +2181,7 @@ export const TransactionLedger = ({
           name: tx.name,
           route,
           airline: tx.airline,
-          hubName: user?.hub || 'EHI Cargo Station',
+          hubName: user?.hub || 'Air Cargo Hub',
           date: txDisplayDateTime(tx.created_at, tx.time),
           bigBags: big,
           medBags: med,
@@ -2216,7 +2216,7 @@ export const TransactionLedger = ({
         pieces: tx.pieces || 1,
         weight: tx.kg || 0,
         airline: tx.airline,
-        hubName: user?.hub || 'EHI Cargo Station',
+        hubName: user?.hub || 'Air Cargo Hub',
         date: txDisplayDateTime(tx.created_at, tx.time),
         contentType: tx.contentType || (tx.detail ? tx.detail.split(' · ')[4] : undefined),
       };
@@ -3653,7 +3653,7 @@ export const TransactionLedger = ({
       downloadBaggageLedgerPDF({
         airlineName: 'Excess Baggage',
         date: `${new Date().toLocaleDateString('en-GB')} ${tnow()}`,
-        hubName: user.hub || 'EHI Hub',
+        hubName: user.hub || 'Hub',
         transactions: txs,
         filters: {
           flight: vjFlightFilter === 'All' ? '' : vjFlightFilter,
@@ -3672,7 +3672,7 @@ export const TransactionLedger = ({
       const exps = filteredEntries
         .filter(e => e.source === 'expense')
         .map(e => e.raw as Expense);
-      await downloadDailyExcel(defaultTypeFilter || 'mixed', txs, user.hub || 'EHI Hub', undefined, exps);
+      await downloadDailyExcel(defaultTypeFilter || 'mixed', txs, user.hub || 'Hub', undefined, exps);
       showToast({ message: `Exported ${txs.length} entries to Excel.`, type: 'success' });
       return;
     }
@@ -3707,11 +3707,11 @@ export const TransactionLedger = ({
       }
 
       const today = dateInputValue(new Date());
-      const hubTag = (user.hub || 'EHI_Hub').replace(/\s+/g, '_');
+      const hubTag = (user.hub || 'Hub').replace(/\s+/g, '_');
       const streamTag = defaultTypeFilter || 'Master_Ledger';
-      const filename = `EHI_${streamTag}_Complete_All_Time_${hubTag}_${today}.xlsx`;
+      const filename = `Haulwey_${streamTag}_Complete_All_Time_${hubTag}_${today}.xlsx`;
 
-      await downloadDailyExcel(defaultTypeFilter || 'mixed', finalTxs, user.hub || 'EHI Hub', filename, allExps);
+      await downloadDailyExcel(defaultTypeFilter || 'mixed', finalTxs, user.hub || 'Hub', filename, allExps);
       showToast({ message: `Successfully exported complete ledger history (${finalTxs.length} entries) to Excel!`, type: 'success' });
     } catch (err: any) {
       showToast({ message: `Failed to export all-time ledger: ${err.message || err}`, type: 'error' });
@@ -3864,7 +3864,7 @@ export const TransactionLedger = ({
                     const txs = filteredEntries
                       .filter(e => e.source === 'transaction')
                       .map(e => e.raw as Transaction);
-                    await downloadAirlineManifestExcel(txs, user.hub || 'EHI Hub');
+                    await downloadAirlineManifestExcel(txs, user.hub || 'Hub');
                   });
                 }}
                 className="flex flex-col items-start px-2.5 py-2 rounded-lg hover:bg-[var(--color-surface-hover)] text-left transition-colors cursor-pointer group border-t border-[var(--color-border)]"

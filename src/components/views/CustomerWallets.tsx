@@ -757,7 +757,7 @@ export const CustomerWallets = ({
         </head>
         <body>
           <div class="header">
-            <div class="title">EHI MULTISYSTEMS</div>
+            <div class="title">HAULWEY</div>
             <div>Customer Credit Wallet Receipt</div>
             <div>${user.hub || 'Cargo Outpost'}</div>
           </div>

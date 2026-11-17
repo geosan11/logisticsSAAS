@@ -8,8 +8,9 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="EHI Ops">
+    <meta name="apple-mobile-web-app-title" content="Haulwey">
     <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="icon" href="/icon-192.png">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon.png">
@@ -20,10 +21,10 @@
     <meta name="format-detection" content="telephone=no">
 
     <!-- Theme color for Safari toolbar — must match --color-canvas in src/index.css -->
-    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+    <meta name="theme-color" content="#090A0C" media="(prefers-color-scheme: dark)">
     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
 
-    <title>EHI Logistics SaaS</title>
+    <title>Haulwey | Logistics OS</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600;700&family=Geist:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" media="print" onload="this.media='all'">
@@ -84,8 +85,12 @@
       </style>
       <div id="splash">
         <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect width="64" height="64" rx="14" class="ehi-splash-mark-bg" />
-          <text x="32" y="42" text-anchor="middle" class="ehi-splash-mark-text" font-size="28" font-weight="800" font-family="monospace">E</text>
+          <rect width="64" height="64" rx="16" fill="#0D1117" />
+          <rect x="16" y="15" width="8" height="34" rx="4" fill="#FFFFFF" />
+          <rect x="40" y="15" width="8" height="34" rx="4" fill="#FFFFFF" />
+          <path d="M20 37 C 25 37, 27 27, 44 27" stroke="#FF6B00" stroke-width="5" stroke-linecap="round" />
+          <circle cx="32" cy="32" r="6" fill="#FF6B00" />
+          <circle cx="32" cy="32" r="2.5" fill="#0D1117" />
         </svg>
         <div class="ehi-splash-ring"></div>
       </div>

@@ -13,9 +13,9 @@ export default defineConfig(() => {
         registerType: 'autoUpdate',
         includeAssets: ['apple-touch-icon.png'],
         manifest: {
-          name: 'EHI Multisystems',
-          short_name: 'EHI Ops',
-          description: 'EHI Multisystems Logistics Intelligence Platform — cargo, ValueJet excess baggage, and marketing operations.',
+          name: 'Haulwey',
+          short_name: 'Haulwey',
+          description: 'Haulwey Logistics Operating System — multi-tenant Road and Air consignment management.',
           start_url: '/',
           display: 'standalone',
           // Matches the app's default (dark) theme -- these are static and
@@ -24,8 +24,8 @@ export default defineConfig(() => {
           // (src/lib/useTheme.ts defaults to 'dark'), avoiding a light/dark
           // flash on the OS-level PWA splash for the common case.
           // Value == --color-canvas (dark) in src/index.css / #splash in index.html.
-          background_color: '#0f1117',
-          theme_color: '#0f1117',
+          background_color: '#090A0C',
+          theme_color: '#090A0C',
           icons: [
             { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
             { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },

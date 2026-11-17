@@ -1,5 +1,5 @@
 /**
- * EHI Multisystems — WhatsApp Receipt Notifications via Termii
+ * Haulwey — WhatsApp Receipt Notifications via Termii
  * Live mode: calls POST /api/notify/whatsapp
  */
 import { supabase } from './supabase';
@@ -60,7 +60,7 @@ export function buildCargoWhatsApp(data: {
 }): string {
   const payment = data.bank ? `${data.mode} (${data.bank})` : data.mode;
   let text = 
-    `✈️ *EHI Multisystems Nigeria Ltd*\n` +
+    `✈️ *Haulwey*\n` +
     `━━━━━━━━━━━━━━━━━━━━\n` +
     `*CARGO RECEIPT*\n` +
     `Ref: \`${data.ref}\`\n\n` +
@@ -83,8 +83,8 @@ export function buildCargoWhatsApp(data: {
 
   text += 
     `━━━━━━━━━━━━━━━━━━━━\n` +
-    `Thank you for choosing EHI Multisystems.\n` +
-    `_Powered by EHI Logistics Platform_`;
+    `Thank you for choosing Haulwey.\n` +
+    `_Powered by Haulwey_`;
 
   return text;
 }
@@ -101,7 +101,7 @@ export function buildMarketingWhatsApp(data: {
 }): string {
   const payment = data.bank ? `${data.mode} (${data.bank})` : data.mode;
   let text = 
-    `📦 *EHI Multisystems Nigeria Ltd*\n` +
+    `📦 *Haulwey*\n` +
     `━━━━━━━━━━━━━━━━━━━━\n` +
     `*FIELD MARKETING RECEIPT*\n` +
     `Ref: \`${data.ref}\`\n\n` +
@@ -118,7 +118,7 @@ export function buildMarketingWhatsApp(data: {
   text +=
     `━━━━━━━━━━━━━━━━━━━━\n` +
     `Thank you for your business.\n` +
-    `_EHI Multisystems Nigeria Ltd_`;
+    `_Powered by Haulwey_`;
 
   return text;
 }
@@ -135,7 +135,7 @@ export function buildPackageWhatsApp(data: {
 }): string {
   const payment = data.bank ? `${data.mode} (${data.bank})` : data.mode;
   let text =
-    `📦 *EHI Multisystems Nigeria Ltd*\n` +
+    `📦 *Haulwey*\n` +
     `━━━━━━━━━━━━━━━━━━━━\n` +
     `*PACKAGE / PARCEL RECEIPT*\n` +
     `Ref: \`${data.ref}\`\n\n` +
@@ -152,7 +152,7 @@ export function buildPackageWhatsApp(data: {
   text +=
     `━━━━━━━━━━━━━━━━━━━━\n` +
     `Thank you for your business.\n` +
-    `_EHI Multisystems Nigeria Ltd_`;
+    `_Powered by Haulwey_`;
 
   return text;
 }

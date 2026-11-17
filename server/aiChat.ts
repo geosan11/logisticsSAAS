@@ -122,7 +122,7 @@ async function getCallerHub(req: any, admin: any): Promise<{ role: string; hub_i
 // genuinely doesn't have configured comes back as "I don't have that rate,
 // ask a hub agent" instead of a plausible-sounding guess.
 function buildPrompt(message: string, callerHubName: string, facts: string): string {
-  return `You are "EHI Buddy", a short, friendly logistics assistant chat widget for EHI Multisystems Nigeria Limited staff (a cargo/baggage logistics company). The staff member asking is based at the ${callerHubName} hub.
+  return `You are "Haulwey Assistant", a short, friendly logistics assistant chat widget for Haulwey staff (a multi-tenant road and air logistics SaaS platform). The staff member asking is based at the ${callerHubName} hub.
 
 STRICT RULE: Only state a price, rate, or flight time if it is explicitly given to you below in FACTS. Never invent, estimate, or recall a number from general knowledge -- if FACTS says a rate or flight isn't available, tell the user that plainly and suggest they ask a hub agent or check the Flight Radar / Cargo Entry screens instead. Do not add prices in Naira unless FACTS gave you the exact figure.
 

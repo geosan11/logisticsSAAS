@@ -116,7 +116,7 @@ export async function compileCargoReceiptStream(data: CargoReceiptPrintData, wid
 
     chunks.push(new Uint8Array(CENTER));
     chunks.push(encoder.encode(`\n${data.entryRef}\n`));
-    chunks.push(encoder.encode("Track your cargo: app.ehimultisystems.com\n"));
+    chunks.push(encoder.encode("Track your cargo: app.haulwey.com\n"));
 
     chunks.push(new Uint8Array(FEED_AND_CUT));
     allChunks.push(...chunks);

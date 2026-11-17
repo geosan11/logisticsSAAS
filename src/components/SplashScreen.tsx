@@ -26,7 +26,7 @@ export const SplashScreen = ({ label = 'Loading your workspace' }: { label?: str
     >
       <img
         src={ehiLogo}
-        alt="EHI Multisystems"
+        alt="Haulwey"
         className="ehi-splash-logo"
         style={{
           width: 'clamp(96px, 30vw, 160px)',

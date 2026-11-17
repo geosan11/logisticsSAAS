@@ -170,13 +170,19 @@ export async function getAirlineLogoRaster(
   }
 }
 
-const EHI_SVG = `<svg viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
-  <rect width="400" height="300" fill="white"/>
-  <path d="M 180 140 C 140 140 90 110 70 95 C 110 115 150 160 170 170 Z" fill="#000000"/>
-  <path d="M 170 170 C 190 120 250 80 350 70 C 290 90 220 130 180 180 Z" fill="#000000"/>
-  <text x="210" y="240" font-family="Arial,sans-serif" font-weight="900" font-size="110" fill="#000000" text-anchor="middle">EHI</text>
-  <rect x="95" y="255" width="230" height="30" fill="#000000"/>
-  <text x="210" y="277" font-family="Arial,sans-serif" font-weight="bold" font-size="19" fill="#ffffff" text-anchor="middle">MULTISYSTEMS</text>
+const EHI_SVG = `<svg viewBox="0 0 280 64" xmlns="http://www.w3.org/2000/svg">
+  <rect width="280" height="64" fill="white"/>
+  <g transform="translate(4, 4)">
+    <rect width="56" height="56" rx="14" fill="#000000" />
+    <rect x="14" y="13" width="7" height="30" rx="3.5" fill="#FFFFFF" />
+    <circle cx="17.5" cy="14" r="2" fill="#000000" />
+    <rect x="35" y="13" width="7" height="30" rx="3.5" fill="#FFFFFF" />
+    <circle cx="38.5" cy="42" r="2" fill="#000000" />
+    <path d="M17.5 32 C 22 32, 24 24, 38.5 24" stroke="#000000" stroke-width="4.5" stroke-linecap="round" />
+    <circle cx="28" cy="28" r="5" fill="#000000" />
+    <circle cx="28" cy="28" r="2" fill="#FFFFFF" />
+  </g>
+  <text x="76" y="42" font-family="Arial,sans-serif" font-size="28" font-weight="700" fill="#000000">Haulwey</text>
 </svg>`;
 
 export async function ehiSvgToRaster(widthDots: number): Promise<Uint8Array> {
@@ -189,7 +195,7 @@ export async function ehiSvgToRaster(widthDots: number): Promise<Uint8Array> {
   }
 }
 
-// 58mm-only header: plain "EHI MULTISYSTEMS NIG LTD" text instead of the
+// 58mm-only header: plain "HAULWEY LOGISTICS" text instead of the
 // rasterized EHI logo image, with the airline's own logo (if resolvable)
 // printed right after it. The EHI logo raster was consistently the single
 // biggest chunk of a 58mm receipt's Bluetooth payload -- dropping it here
@@ -210,7 +216,7 @@ export async function textHeaderWithAirline(
     new Uint8Array(CENTER),
     new Uint8Array(REVERSE_ON),
     new Uint8Array(BOLD_ON),
-    encoder.encode(" EHI MULTISYSTEMS NIG LTD \n"),
+    encoder.encode(" HAULWEY LOGISTICS \n"),
     new Uint8Array(BOLD_OFF),
     new Uint8Array(REVERSE_OFF),
     encoder.encode('\n'),
@@ -235,7 +241,7 @@ export async function textHeaderWithAirline(
 // Uses ehi-logo-bw.png -- a dedicated, pre-made pure black-and-white
 // export of the logo, smaller and simpler to rasterize than running the
 // full-color logo through a threshold each time (which previously needed
-// threshold 200 specifically to force the amber MULTISYSTEMS banner to
+// previously needed thresholding -- that workaround is no longer needed since
 // convert to solid black -- that workaround is no longer needed since
 // this source has no color to threshold away in the first place).
 // logoVariant 'cargo' swaps in ehi-logo-cargo.png -- a distinct olive-green
@@ -250,9 +256,9 @@ export async function brandingHeader(logoWidthDots = 160, logoVariant: 'default'
     chunks.push(encoder.encode('\n\n'));
   } catch {
     chunks.push(new Uint8Array(BOLD_ON));
-    chunks.push(encoder.encode("EHI MULTISYSTEMS\n"));
+    chunks.push(encoder.encode("HAULWEY\n"));
     chunks.push(new Uint8Array(BOLD_OFF));
-    chunks.push(encoder.encode("NIGERIA LIMITED\n\n"));
+    chunks.push(encoder.encode("LOGISTICS OS\n\n"));
   }
   return chunks;
 }
@@ -327,10 +333,10 @@ export async function brandingHeaderWithAirline(
     return brandingHeader(widthDots, logoVariant);
   }
 
-  // The composite image contains the EHI logo scaled to the left half;
-  // the MULTISYSTEMS banner is small at that scale, so print it full-width below.
+  // The composite image contains the Haulwey logo scaled to the left half;
+  // print the brand banner full-width below.
   chunks.push(new Uint8Array(REVERSE_ON));
-  chunks.push(encoder.encode(" EHI MULTISYSTEMS NIGERIA LIMITED \n"));
+  chunks.push(encoder.encode(" HAULWEY LOGISTICS \n"));
   chunks.push(new Uint8Array(REVERSE_OFF));
   chunks.push(encoder.encode('\n'));
   return chunks;

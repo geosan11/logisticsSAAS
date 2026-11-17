@@ -239,7 +239,7 @@ export const ITDashboard = ({ user, onBack }: { user: User, onBack?: () => void 
       newBug = {
         id: mockId,
         title: 'WhatsApp dispatch connection reset',
-        description: 'Socket hangup with EHI service gateway during high-volume customer receipt transfers.',
+        description: 'Socket hangup with Haulwey service gateway during high-volume customer receipt transfers.',
         component: 'WhatsApp SMS',
         severity: 'High',
         status: 'Active',
@@ -452,7 +452,7 @@ export const ITDashboard = ({ user, onBack }: { user: User, onBack?: () => void 
             <span>Debugging & Fallbacks Portal</span>
           </h1>
           <p className="text-xs text-[var(--color-muted)] mt-1 max-w-xl">
-            Live diagnostic node tracking network drops, Dexie cache anomalies, real-time message timeouts, and compliance audits for EHI Multisystems.
+            Live diagnostic node tracking network drops, Dexie cache anomalies, real-time message timeouts, and compliance audits for Haulwey.
           </p>
         </div>
 
@@ -723,7 +723,7 @@ export const ITDashboard = ({ user, onBack }: { user: User, onBack?: () => void 
             <div className="text-center py-12 border border-dashed border-[var(--color-border)] rounded">
               <CheckCircle className="mx-auto text-emerald-400 mb-2.5" size={32} />
               <div className="text-sm font-bold text-[var(--color-foreground)] font-sans">Zero Bugs Detected Matching Filters</div>
-              <div className="text-xs text-[var(--color-muted)] mt-1">EHI Multisystems Node is compiling and running flawlessly.</div>
+              <div className="text-xs text-[var(--color-muted)] mt-1">Haulwey Node is compiling and running flawlessly.</div>
             </div>
           ) : (
             <div className="space-y-2.5">
@@ -872,7 +872,7 @@ export const ITDashboard = ({ user, onBack }: { user: User, onBack?: () => void 
         <div className="space-y-4">
           <div className="ehi-card flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h3 className="text-sm font-bold font-sans text-[var(--color-foreground)] mb-1">EHI Multi-Systems Automated Integration Test</h3>
+              <h3 className="text-sm font-bold font-sans text-[var(--color-foreground)] mb-1">Haulwey Automated Integration Test</h3>
               <p className="text-xs text-[var(--color-muted)] font-mono">
                 Initiates secure ping packets against local caches and master microservice gateways to locate hidden network drops.
               </p>
@@ -1018,7 +1018,7 @@ export const ITDashboard = ({ user, onBack }: { user: User, onBack?: () => void 
                   <div className="flex justify-between items-center bg-[var(--color-surface-2)]/60 px-3 py-2 rounded border border-[var(--color-border)]">
                     <span className="text-[11px] font-mono text-[var(--color-muted)]">Client Core Platform</span>
                     <span className="text-[11px] font-mono text-amber-400 font-bold">
-                      EHI-REACT v2.4 (Chrome WebKit)
+                      HAULWEY-REACT v2.4 (Chrome WebKit)
                     </span>
                   </div>
                 </div>
@@ -1045,7 +1045,7 @@ export const ITDashboard = ({ user, onBack }: { user: User, onBack?: () => void 
           <div className="flex items-center justify-between ehi-card p-3">
             <div>
               <h3 className="text-sm font-bold font-sans text-[var(--color-foreground)]">IT Department Improvements & Refinement Roadmap</h3>
-              <p className="text-[10px] font-mono text-[var(--color-muted)] mt-0.5">Submit software refinement proposals to EHI core developers based on logged bug metrics.</p>
+              <p className="text-[10px] font-mono text-[var(--color-muted)] mt-0.5">Submit software refinement proposals to Haulwey core developers based on logged bug metrics.</p>
             </div>
             
             <button

@@ -85,7 +85,7 @@ const AnalyticsPDF = ({ data }: { data: AnalyticsReportData }) => {
           })}
         </View>
 
-        <Text style={styles.footer}>EHI Logistics • Analytics Export • {new Date().toLocaleString()}</Text>
+        <Text style={styles.footer}>Haulwey • Analytics Export • {new Date().toLocaleString()}</Text>
       </Page>
     </Document>
   );
@@ -97,7 +97,7 @@ export const downloadAnalyticsPDF = async (data: AnalyticsReportData) => {
   const link = document.createElement('a');
   link.href = url;
   
-  link.download = `ehi_analytics_${data.period}_${new Date().toISOString().split('T')[0]}.pdf`;
+  link.download = `haulwey_analytics_${data.period}_${new Date().toISOString().split('T')[0]}.pdf`;
   
   document.body.appendChild(link);
   link.click();

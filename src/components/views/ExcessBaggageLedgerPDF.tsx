@@ -129,7 +129,7 @@ const BaggageLedgerPDF = ({ data }: { data: BaggageLedgerReportData }) => {
 
         <LedgerTable rows={data.transactions} />
 
-        <Text style={styles.footer}>EHI Logistics • {data.airlineName} Ledger • {new Date().toLocaleString()}</Text>
+        <Text style={styles.footer}>Haulwey • {data.airlineName} Ledger • {new Date().toLocaleString()}</Text>
       </Page>
 
       {/* One page per flight, breaking down what that specific flight
@@ -154,7 +154,7 @@ const BaggageLedgerPDF = ({ data }: { data: BaggageLedgerReportData }) => {
 
             <LedgerTable rows={rows} />
 
-            <Text style={styles.footer}>EHI Logistics • {data.airlineName} Ledger • Flight {flight} • {new Date().toLocaleString()}</Text>
+            <Text style={styles.footer}>Haulwey • {data.airlineName} Ledger • Flight {flight} • {new Date().toLocaleString()}</Text>
           </Page>
         );
       })}

@@ -627,8 +627,8 @@ export const DebtorsTab = ({
           <div className="bg-white rounded p-8 text-black print:p-0 print:m-0 print:w-full print:shadow-none min-h-[A4]">
             <div className="flex justify-between items-start border-b border-gray-300 pb-6 mb-6">
               <div>
-                <h1 className="text-[24px] font-sans font-black text-black leading-none tracking-tight">EHI MULTISYSTEMS</h1>
-                <div className="text-[12px] font-sans text-gray-500 mt-1">Logistics Intelligence Platform</div>
+                <h1 className="text-[24px] font-sans font-black text-black leading-none tracking-tight">HAULWEY</h1>
+                <div className="text-[12px] font-sans text-gray-500 mt-1">Logistics Operating System</div>
                 <div className="text-[12px] font-sans text-gray-600 mt-4">{user?.hub || 'HQ'} Hub Operations</div>
               </div>
               <div className="text-right">
@@ -690,7 +690,7 @@ export const DebtorsTab = ({
             </div>
 
             <div className="text-[11px] font-sans text-gray-500 italic text-center border-t border-gray-200 pt-4 mt-12">
-              Payment is due within 30 days of service date. Please remit payment to EHI Multisystems accounts.
+              Payment is due within 30 days of service date. Please remit payment to designated accounts.
             </div>
           </div>
         </div>,

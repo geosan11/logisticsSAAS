@@ -193,15 +193,21 @@ describe('Money & Formatting Helpers', () => {
   });
 
   describe('generatePaymentNarration & extractNarrationFromText', () => {
-    test('generates expected narration code format: EHI-[HUB]-[YYMMDD]-[SERIAL]', () => {
+    test('generates expected narration code format: HW-[HUB]-[YYMMDD]-[SERIAL] (fallback prefix)', () => {
       const narration = generatePaymentNarration('Lagos Air Cargo Station', 42);
-      assert.match(narration, /^EHI-LOS-\d{6}-0042$/);
+      assert.match(narration, /^HW-LOS-\d{6}-0042$/);
     });
 
-    test('extractNarrationFromText parses code out of unstructured SMS alert text', () => {
+    test('extractNarrationFromText parses legacy EHI- code out of unstructured SMS alert text', () => {
       const sms = 'Credit alert of NGN 50,000 ref: EHI-LOS-261116-0042 from Access Bank';
       const extracted = extractNarrationFromText(sms);
       assert.strictEqual(extracted, 'EHI-LOS-261116-0042');
+    });
+
+    test('extractNarrationFromText parses new HW- code out of unstructured SMS alert text', () => {
+      const sms = 'Credit alert of NGN 50,000 ref: HW-LOS-261116-0042 from Access Bank';
+      const extracted = extractNarrationFromText(sms);
+      assert.strictEqual(extracted, 'HW-LOS-261116-0042');
     });
   });
 });

@@ -13,7 +13,7 @@ import { useContentTypes } from "../../lib/contentTypes";
 import { useExpenseCategories } from "../../lib/expenseCategories";
 import { useBanks } from "../../lib/banks";
 import { MIN_PACKAGE_AMOUNT } from "../../lib/constants";
-import { getNextTag } from "../../lib/tagPool";
+import { getNextTag, getTenantTagPrefix } from "../../lib/tagPool";
 import {
   Plus,
   CheckCircle,
@@ -102,7 +102,7 @@ export const PackageForm = ({
   useEffect(() => {
     const allocate = async () => {
       const hubCode = getHubCode(user.hub_code || user.hub);
-      const tag = await getNextTag(`${hubCode}-PKG`, `EHI-${hubCode}-PKG`);
+      const tag = await getNextTag(`${hubCode}-PKG`, `${getTenantTagPrefix()}-${hubCode}-PKG`);
       if (tag) {
         setTrackingRef(tag);
       } else {
@@ -392,7 +392,7 @@ export const PackageForm = ({
     setWalletRemainderBank('');
     setTrackingRef('');
     const hubCodeReset = getHubCode(user.hub_code || user.hub);
-    getNextTag(`${hubCodeReset}-PKG`, `EHI-${hubCodeReset}-PKG`).then(tag => {
+    getNextTag(`${hubCodeReset}-PKG`, `${getTenantTagPrefix()}-${hubCodeReset}-PKG`).then(tag => {
       if (tag) {
         setTrackingRef(tag);
       } else {
@@ -706,7 +706,7 @@ export const PackageForm = ({
                           paymentMode: formatPaymentModeDisplay(successTx.mode, successTx.wallet_deduction_amount, successTx.amount),
                           paymentNarration: successTx.paymentNarration,
                           bankName: bank || undefined,
-                          trackingUrl: `https://app.ehimultisystems.com/track/${successTx.id}`,
+                          trackingUrl: `https://app.haulwey.com/track/${successTx.id}`,
                         };
                         return await m.compilePackageReceiptStream(printData, '80mm');
                       });
@@ -742,7 +742,7 @@ export const PackageForm = ({
                           paymentMode: formatPaymentModeDisplay(successTx.mode, successTx.wallet_deduction_amount, successTx.amount),
                           paymentNarration: successTx.paymentNarration,
                           bankName: bank || undefined,
-                          trackingUrl: `https://app.ehimultisystems.com/track/${successTx.id}`,
+                          trackingUrl: `https://app.haulwey.com/track/${successTx.id}`,
                         };
                         return await m.compilePackageReceiptStream(printData, '58mm');
                       });
@@ -799,7 +799,7 @@ export const PackageForm = ({
                         pieces: successTx.pieces,
                         kg: successTx.kg,
                         contents: successTx.contents,
-                        hubName: user?.hub || "EHI Station",
+                        hubName: user?.hub || "Haulwey Station",
                         date: `${new Date().toLocaleDateString("en-GB")} ${tnow()}`,
                         agentName: successTx.enteredByName,
                         phone: successTx.consigneePhone,

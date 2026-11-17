@@ -1,6 +1,7 @@
 import { PRICING, CARGO_ROUTES } from './constants.js';
 import { Transaction, PaymentMode } from './types.js';
 import type { ChangeEvent } from 'react';
+import { getTenantTagPrefix } from './tagPool.js';
 
 // Money math done as plain float multiplication/division (e.g. amount * (1
 // - commissionRate / 100)) routinely lands a fraction of a kobo off an exact
@@ -183,11 +184,12 @@ export const generatePaymentNarration = (hubName: string, serial: string | numbe
     d.getDate().toString().padStart(2, '0')
   ].join('');
   const ser = serial.toString().padStart(4, '0');
-  return `EHI-${code}-${yymmdd}-${ser}`;
+  const prefix = getTenantTagPrefix();
+  return `${prefix}-${code}-${yymmdd}-${ser}`;
 };
 
 export const extractNarrationFromText = (text: string): string | null => {
-  const match = text.match(/EHI-[A-Z]{2,4}-\d{6}-\d{3,4}/i);
+  const match = text.match(/(?:[A-Z0-9]{2,6}|EHI)-[A-Z]{2,4}-\d{6}-\d{3,4}/i);
   return match ? match[0].toUpperCase() : null;
 };
 

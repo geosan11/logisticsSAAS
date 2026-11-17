@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="none">
+  <!-- 16px Optimized Favicon (Concept 1: Hub Route H) -->
+  <rect width="16" height="16" rx="4" fill="#090A0C" />
+  <rect x="3" y="3" width="2.5" height="10" rx="1.25" fill="#FFFFFF" />
+  <rect x="10.5" y="3" width="2.5" height="10" rx="1.25" fill="#FFFFFF" />
+  <path d="M4.5 9 C 6 9, 8 7, 11.5 7" stroke="#FF6B00" stroke-width="2" stroke-linecap="round" />
+  <circle cx="8" cy="8" r="1.6" fill="#FF6B00" />
+</svg>

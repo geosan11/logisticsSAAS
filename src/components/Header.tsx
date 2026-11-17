@@ -92,7 +92,7 @@ export const Header = ({
           <div className="flex md:hidden items-center gap-2 ehi-header-brand shrink-0">
             <img
               src={ehiLogo}
-              alt="EHI Multisystems"
+              alt="Haulwey"
               className="rounded-md"
               style={{ height: 26, width: 'auto', objectFit: 'contain' }}
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}

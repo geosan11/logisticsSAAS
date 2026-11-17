@@ -325,7 +325,7 @@ const MarketingTagPage = ({
     </View>
 
     <View style={styles.footer}>
-      <Text style={styles.footerText}>EHI MULTISYSTEMS NIGERIA LIMITED</Text>
+      <Text style={styles.footerText}>{(typeof localStorage !== 'undefined' && localStorage.getItem('ehi_company_name')) || 'HAULWEY'} • POWERED BY HAULWEY</Text>
     </View>
   </Page>
 );
@@ -347,7 +347,7 @@ const MarketingTagOnlyPDF = ({ data }: { data: MarketingTagPDFData }) => {
 async function buildTagData(data: MarketingTagPDFData): Promise<MarketingTagPDFData> {
   let result = data;
   if (!result.qrCodeDataUrl) {
-    const trackingUrl = `https://app.ehimultisystems.com/track/${encodeURIComponent(result.id)}`;
+    const trackingUrl = `https://app.haulwey.com/track/${encodeURIComponent(result.id)}`;
     try {
       const qrCodeDataUrl = await QRCode.toDataURL(trackingUrl, { margin: 1, width: 240, errorCorrectionLevel: 'L' });
       result = { ...result, qrCodeDataUrl };
@@ -368,7 +368,7 @@ async function buildTagData(data: MarketingTagPDFData): Promise<MarketingTagPDFD
 export const printMarketingTagPDF = async (data: MarketingTagPDFData, preOpenedWindow?: Window | null) => {
   const withQr = await buildTagData(data);
   const blob = await pdf(<MarketingTagOnlyPDF data={withQr} />).toBlob();
-  await printPdfSmart(blob, `EHI-Tag-${data.id}.pdf`, 'tag', preOpenedWindow);
+  await printPdfSmart(blob, `Tag-${data.id}.pdf`, 'tag', preOpenedWindow);
 };
 
 export const downloadMarketingTagPDF = async (data: MarketingTagPDFData) => {
@@ -377,7 +377,7 @@ export const downloadMarketingTagPDF = async (data: MarketingTagPDFData) => {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `EHI-Tag-${data.id}.pdf`;
+  a.download = `Tag-${data.id}.pdf`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

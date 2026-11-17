@@ -160,7 +160,7 @@ export async function signIn(email: string, password: string): Promise<UserProfi
 export const DEMO_PROFILES: Record<string, UserProfile> = {
   admin: {
     id: '00000000-0000-0000-0000-000000000001',
-    email: 'admin.demo@ehimultisystems.com',
+    email: 'admin.demo@haulwey.com',
     name: 'Captain Geo (Ops Director)',
     role: 'super_admin',
     hub: 'Lagos Hub',
@@ -177,7 +177,7 @@ export const DEMO_PROFILES: Record<string, UserProfile> = {
   },
   cargo: {
     id: '00000000-0000-0000-0000-000000000002',
-    email: 'cargo.demo@ehimultisystems.com',
+    email: 'cargo.demo@haulwey.com',
     name: 'Amaka Obi (Air Cargo Lead)',
     role: 'cargo_agent',
     hub: 'Lagos Hub',
@@ -194,7 +194,7 @@ export const DEMO_PROFILES: Record<string, UserProfile> = {
   },
   road: {
     id: '00000000-0000-0000-0000-000000000003',
-    email: 'road.demo@ehimultisystems.com',
+    email: 'road.demo@haulwey.com',
     name: 'Tunde Adeleke (Road Operations)',
     role: 'admin',
     hub: 'Abuja Hub',

@@ -41,7 +41,7 @@ export const LoginScreen = ({ onLogin, notice }: { onLogin: (user: UserProfile) 
     setResetSending(true);
     setResetError('');
     try {
-      const resetOrigin = import.meta.env.DEV ? window.location.origin : 'https://app.ehimultisystems.com';
+      const resetOrigin = import.meta.env.DEV ? window.location.origin : 'https://app.haulwey.com';
       const { error } = await supabase.auth.resetPasswordForEmail(resetEmail.trim().toLowerCase(), {
         redirectTo: `${resetOrigin}/`,
       });
@@ -165,16 +165,16 @@ export const LoginScreen = ({ onLogin, notice }: { onLogin: (user: UserProfile) 
         <header className="flex items-center gap-3">
           <img
             src={ehiLogo}
-            alt="EHI Multisystems"
+            alt="Haulwey"
             className="h-10 w-10 sm:h-11 sm:w-11 rounded-2xl object-cover shadow-md border border-white/80 bg-white/90 p-0.5 shrink-0"
             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
           />
           <div>
             <div className="text-[15px] sm:text-[17px] font-extrabold text-slate-900 tracking-[-0.02em] leading-tight">
-              EHI Multisystems
+              Haulwey
             </div>
             <div className="text-[11px] font-medium text-slate-600 tracking-tight">
-              Logistics &amp; Aviation Operations
+              Air &amp; Road Logistics OS
             </div>
           </div>
         </header>
@@ -200,7 +200,7 @@ export const LoginScreen = ({ onLogin, notice }: { onLogin: (user: UserProfile) 
         <div className="mx-auto mb-5 w-14 h-14 rounded-2xl bg-white/95 border border-white shadow-[0_6px_20px_rgba(15,23,42,0.08)] p-1.5 flex items-center justify-center overflow-hidden">
           <img
             src={ehiLogo}
-            alt="EHI Logo"
+            alt="Haulwey Logo"
             className="w-full h-full rounded-xl object-contain"
           />
         </div>
@@ -364,7 +364,7 @@ export const LoginScreen = ({ onLogin, notice }: { onLogin: (user: UserProfile) 
             <span>Track a Shipment or Waybill →</span>
           </Link>
           <p className="text-[11px] font-medium text-slate-400 tracking-[-0.01em]">
-            Authorized personnel only · EHI Command Portal
+            Authorized personnel only · Haulwey Command Portal
           </p>
         </div>
       </main>
@@ -417,7 +417,7 @@ export const LoginScreen = ({ onLogin, notice }: { onLogin: (user: UserProfile) 
                       type="email"
                       value={resetEmail}
                       onChange={(e) => setResetEmail(e.target.value)}
-                      placeholder="you@ehimultisystems.com"
+                      placeholder="you@haulwey.com"
                       autoComplete="email"
                       autoFocus
                       className="w-full h-11 px-4 text-sm rounded-xl focus:outline-none transition-all bg-[#eef3f8]/80 text-slate-900 border border-slate-200/50 focus:border-slate-900/40 focus:ring-2 focus:ring-slate-900/15"

@@ -1,69 +1,41 @@
 export const EHILogo = ({ className, width, height }: { className?: string, width?: number | string, height?: number | string }) => (
   <svg 
-    viewBox="0 0 400 300" 
+    viewBox="0 0 280 64" 
     width={width || "100%"} 
     height={height || "100%"} 
     className={className}
+    fill="none"
     xmlns="http://www.w3.org/2000/svg"
   >
-    {/* Left Gold Swoosh */}
-    <path 
-      d="M 180 140 C 140 140 90 110 70 95 C 110 115 150 160 170 170 Z" 
-      fill="#F59E0B" 
-    />
-    {/* Right Blue Swoosh */}
-    <path 
-      d="M 170 170 C 190 120 250 80 350 70 C 290 90 220 130 180 180 Z" 
-      fill="#025AAA" 
-    />
+    {/* Concept 1: The Connected Hub-Route "H" */}
+    <g id="mark" transform="translate(4, 4)">
+      <rect width="56" height="56" rx="14" fill="#0D1117" />
+      
+      {/* Left Route Pillar */}
+      <rect x="14" y="13" width="7" height="30" rx="3.5" fill="#FFFFFF" />
+      <circle cx="17.5" cy="14" r="2" fill="#090A0C" />
+      
+      {/* Right Route Pillar */}
+      <rect x="35" y="13" width="7" height="30" rx="3.5" fill="#FFFFFF" />
+      <circle cx="38.5" cy="42" r="2" fill="#090A0C" />
+      
+      {/* Dynamic Forward Transit Bridge & Hub (Brand Accent: Signal Amber) */}
+      <path d="M17.5 32 C 22 32, 24 24, 38.5 24" stroke="#FF6B00" stroke-width="4.5" stroke-linecap="round" />
+      <circle cx="28" cy="28" r="5" fill="#FF6B00" />
+      <circle cx="28" cy="28" r="2" fill="#090A0C" />
+    </g>
 
-    {/* EHI Text */}
+    {/* Wordmark "Haulwey" */}
     <text 
-      x="210" 
-      y="240" 
-      fontFamily="Inter, Arial, sans-serif" 
-      fontWeight="900" 
-      fontSize="110" 
-      fill="#025AAA" 
-      textAnchor="middle" 
-      letterSpacing="2"
+      x="76" 
+      y="42" 
+      fontFamily="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" 
+      fontSize="28" 
+      fontWeight="700" 
+      letterSpacing="-0.03em" 
+      fill="currentColor"
     >
-      EHI
-    </text>
-    
-    {/* MULTISYSTEMS box */}
-    <rect 
-      x="95" 
-      y="255" 
-      width="230" 
-      height="30" 
-      fill="#F59E0B" 
-    />
-    <text 
-      x="210" 
-      y="277" 
-      fontFamily="Inter, Arial, sans-serif" 
-      fontWeight="bold" 
-      fontSize="19" 
-      fill="#000000" 
-      textAnchor="middle" 
-      letterSpacing="1"
-    >
-      MULTISYSTEMS
-    </text>
-
-    {/* NIGERIA LIMITED */}
-    <text 
-      x="210" 
-      y="315" 
-      fontFamily="Inter, Arial, sans-serif" 
-      fontWeight="800" 
-      fontSize="20" 
-      fill="#000000" 
-      textAnchor="middle" 
-      letterSpacing="4"
-    >
-      NIGERIA LIMITED
+      Haulwey
     </text>
   </svg>
 );
