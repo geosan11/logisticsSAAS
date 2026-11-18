@@ -8,6 +8,9 @@ import {
   canAccessIncomingRole,
   formatCargoSpecs,
   formatRouteDisplay,
+  formatAwbDisplay,
+  formatRoutePath,
+  formatTelemetryMetrics,
   type IncomingCargoItem,
 } from './incomingLogic';
 
@@ -66,8 +69,9 @@ describe('Incoming to Hub Logic & Helpers', () => {
   });
 
   describe('formatRouteDisplay', () => {
-    test('returns trimmed route when present', () => {
-      assert.strictEqual(formatRouteDisplay('  Abuja - Lagos  '), 'Abuja - Lagos');
+    test('returns trimmed route when present and normalizes arrows', () => {
+      assert.strictEqual(formatRouteDisplay('  Abuja - Lagos  '), 'Abuja → Lagos');
+      assert.strictEqual(formatRouteDisplay('Kano -> Lagos Hub'), 'Kano → Lagos Hub');
       assert.strictEqual(formatRouteDisplay('Kano Station'), 'Kano Station');
     });
 
@@ -75,6 +79,63 @@ describe('Incoming to Hub Logic & Helpers', () => {
       assert.strictEqual(formatRouteDisplay(null), 'Direct route');
       assert.strictEqual(formatRouteDisplay(undefined), 'Direct route');
       assert.strictEqual(formatRouteDisplay('   '), 'Direct route');
+    });
+  });
+
+  describe('formatAwbDisplay', () => {
+    test('preserves and uppercases tags that already start with AWB prefix', () => {
+      assert.strictEqual(formatAwbDisplay('AWB-LOS-89102'), 'AWB-LOS-89102');
+      assert.strictEqual(formatAwbDisplay('awb-abv-44120'), 'AWB-ABV-44120');
+      assert.strictEqual(formatAwbDisplay('AWB:PHC-99214'), 'AWB:PHC-99214');
+      assert.strictEqual(formatAwbDisplay('awb 12345'), 'AWB 12345');
+      assert.strictEqual(formatAwbDisplay('awb88990'), 'AWB-88990');
+    });
+
+    test('prepends AWB prefix cleanly when absent', () => {
+      assert.strictEqual(formatAwbDisplay('987654'), 'AWB 987654');
+      assert.strictEqual(formatAwbDisplay('LOS-9988'), 'AWB LOS-9988');
+    });
+
+    test('returns empty string for null, undefined, or empty values', () => {
+      assert.strictEqual(formatAwbDisplay(null), '');
+      assert.strictEqual(formatAwbDisplay(undefined), '');
+      assert.strictEqual(formatAwbDisplay(''), '');
+      assert.strictEqual(formatAwbDisplay('   '), '');
+    });
+  });
+
+  describe('formatRoutePath', () => {
+    test('extracts origin and destination from arrow or hyphen separated strings', () => {
+      const p1 = formatRoutePath('Kano -> Lagos Hub');
+      assert.strictEqual(p1.origin, 'Kano');
+      assert.strictEqual(p1.destination, 'Lagos Hub');
+      assert.strictEqual(p1.display, 'Kano → Lagos Hub');
+
+      const p2 = formatRoutePath('Abuja to Lagos');
+      assert.strictEqual(p2.origin, 'Abuja');
+      assert.strictEqual(p2.destination, 'Lagos');
+      assert.strictEqual(p2.display, 'Abuja → Lagos');
+    });
+
+    test('handles single hub or station name gracefully', () => {
+      const p = formatRoutePath('Kano Station');
+      assert.strictEqual(p.origin, 'Kano Station');
+      assert.strictEqual(p.destination, '');
+      assert.strictEqual(p.display, 'Kano Station');
+    });
+  });
+
+  describe('formatTelemetryMetrics', () => {
+    test('formats in-transit and metric strings cleanly without stutter', () => {
+      const m1 = formatTelemetryMetrics(4, 4, 47, 916.5, false);
+      assert.strictEqual(m1.inTransitText, '4 in transit');
+      assert.strictEqual(m1.piecesText, '47 pcs');
+      assert.strictEqual(m1.weightText, '916.5 kg');
+
+      const m2 = formatTelemetryMetrics(1, 4, 14, 320.5, true);
+      assert.strictEqual(m2.inTransitText, '1 of 4 in transit');
+      assert.strictEqual(m2.piecesText, '14 pcs');
+      assert.strictEqual(m2.weightText, '320.5 kg');
     });
   });
 

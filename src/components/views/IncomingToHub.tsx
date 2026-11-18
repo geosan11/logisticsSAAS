@@ -20,6 +20,8 @@ import {
   calculateIncomingMetrics,
   formatCargoSpecs,
   formatRouteDisplay,
+  formatAwbDisplay,
+  formatTelemetryMetrics,
   IncomingCargoItem,
 } from '../../lib/incomingLogic';
 
@@ -96,8 +98,22 @@ export const IncomingToHub = ({ user, onBack }: { user: User; onBack?: () => voi
     return calculateIncomingMetrics(cargoList);
   }, [cargoList]);
 
+  const telemetry = useMemo(() => {
+    return formatTelemetryMetrics(
+      filteredCargo.length,
+      cargoList.length,
+      metrics.totalPieces,
+      metrics.totalWeight,
+      Boolean(searchQuery)
+    );
+  }, [filteredCargo.length, cargoList.length, metrics.totalPieces, metrics.totalWeight, searchQuery]);
+
   const handleOpenScanner = () => {
-    window.dispatchEvent(new CustomEvent('ehi-nav', { detail: 'Scan' }));
+    if (onBack) {
+      onBack();
+    } else {
+      window.dispatchEvent(new CustomEvent('ehi-nav', { detail: 'Scan' }));
+    }
   };
 
   const handleCopyIdentifier = useCallback((text: string, id: string) => {
@@ -117,7 +133,7 @@ export const IncomingToHub = ({ user, onBack }: { user: User; onBack?: () => voi
   return (
     <div className="flex flex-col h-full bg-[var(--color-canvas)] text-[var(--color-foreground)] overflow-hidden select-none">
       {/* ── 1. Unified Quiet Header Toolbar ──────────────────────────── */}
-      <header className="border-b border-[var(--color-border)] px-4 py-3 sm:px-6 shrink-0 bg-[var(--color-canvas)]">
+      <header className={`border-b border-[var(--color-border)] px-4 sm:px-6 shrink-0 bg-[var(--color-canvas)] ${isCompact ? 'py-2.5' : 'py-3'}`}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             {onBack && <BackButton onClick={onBack} />}
@@ -126,9 +142,8 @@ export const IncomingToHub = ({ user, onBack }: { user: User; onBack?: () => voi
                 Incoming to Hub
               </h1>
               <p className="text-[12px] font-sans text-[var(--color-muted)] truncate mt-0.5">
-                Cargo departed elsewhere heading to{' '}
+                In-transit cargo en route to{' '}
                 <strong className="font-medium text-[var(--color-foreground)]">{user.hub}</strong>
-                {' '}— not yet scanned as arrived
               </p>
             </div>
           </div>
@@ -145,6 +160,14 @@ export const IncomingToHub = ({ user, onBack }: { user: User; onBack?: () => voi
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setSearchQuery('');
+                    (e.target as HTMLElement).blur();
+                  }
+                }}
+                autoComplete="off"
+                spellCheck="false"
                 placeholder="Filter incoming cargo..."
                 aria-label="Filter incoming cargo"
                 className="w-full min-h-[44px] h-11 pl-9 pr-11 text-[13px] font-sans rounded-full bg-[var(--color-surface-1)] border border-[var(--color-border)] text-[var(--color-foreground)] placeholder:text-[var(--color-muted)] focus:outline-none focus:border-[var(--color-border-strong)] transition-colors"
@@ -188,39 +211,34 @@ export const IncomingToHub = ({ user, onBack }: { user: User; onBack?: () => voi
       </header>
 
       {/* ── 2. KPI Summary Telemetry Bar (No Duplication) ─────────────── */}
-      <div className="bg-[var(--color-surface-1)] border-b border-[var(--color-border)] px-4 py-2.5 sm:px-6 flex items-center justify-between text-[12px] font-sans text-[var(--color-muted)] flex-wrap gap-2 shrink-0">
+      <div className={`bg-[var(--color-surface-1)] border-b border-[var(--color-border)] px-4 sm:px-6 flex items-center justify-between text-[12px] font-sans text-[var(--color-muted)] flex-wrap gap-2 shrink-0 ${isCompact ? 'py-2' : 'py-2.5'}`}>
         <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
           <span className="inline-flex items-center gap-1.5 font-medium text-[var(--color-foreground)]">
             <span className="w-2 h-2 rounded-full bg-[var(--color-info)]"></span>
-            <span className="tabular-nums font-mono">{filteredCargo.length}</span>
-            {searchQuery ? `of ${cargoList.length} in transit` : 'in transit'}
+            <span className="tabular-nums font-mono">{telemetry.inTransitText}</span>
           </span>
           <span className="text-[var(--color-border-strong)] hidden sm:inline">·</span>
-          <span>
-            Total pieces:{' '}
+          <div className="flex items-center gap-1.5">
+            <span>Total:</span>
             <span className="tabular-nums font-mono font-medium text-[var(--color-foreground)]">
-              {metrics.totalPieces.toLocaleString()}
-            </span>{' '}
-            pcs
-          </span>
-          <span className="text-[var(--color-border-strong)] hidden sm:inline">·</span>
-          <span>
-            Total weight:{' '}
+              {telemetry.piecesText}
+            </span>
+            <span className="text-[var(--color-border-strong)]">·</span>
             <span className="tabular-nums font-mono font-medium text-[var(--color-foreground)]">
-              {metrics.totalWeight.toLocaleString()}
-            </span>{' '}
-            kg
-          </span>
+              {telemetry.weightText}
+            </span>
+          </div>
         </div>
 
         <div className="text-[11px] text-[var(--color-muted)] flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-success)]"></span>
           <span>Live feed</span>
         </div>
       </div>
 
       {/* ── 3. Cargo Content Stream (Density Aware) ──────────────────── */}
       <div className="flex-1 overflow-y-auto">
-        <div className={`max-w-7xl mx-auto ${isCompact ? 'p-3 sm:p-4 space-y-2.5' : 'p-4 sm:p-6 space-y-3.5'}`}>
+        <div className={`max-w-7xl mx-auto ${isCompact ? 'p-3 sm:p-4 space-y-2' : 'p-4 sm:p-6 space-y-3.5'}`}>
           {loading ? (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
               <Spinner size="lg" tone="current" className="text-[var(--color-muted)]" />
@@ -289,12 +307,13 @@ export const IncomingToHub = ({ user, onBack }: { user: User; onBack?: () => voi
               const itemKey = String(c.id || c.entry_ref || i);
               const { pcsStr, kgStr } = formatCargoSpecs(c.total_pcs, c.total_kg);
               const routeStr = formatRouteDisplay(c.route);
+              const awbClean = formatAwbDisplay(c.awb_tag_number);
 
               return (
                 <div
                   key={itemKey}
                   className={`bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-2xl hover:border-[var(--color-border-strong)] transition-all flex flex-col md:flex-row justify-between items-start md:items-center gap-4 ${
-                    isCompact ? 'p-3.5 sm:p-4' : 'p-4 sm:p-5'
+                    isCompact ? 'p-3 sm:p-4' : 'p-4 sm:p-5'
                   }`}
                 >
                   {/* Left Column: Consignee & Shipment Details */}
@@ -309,28 +328,25 @@ export const IncomingToHub = ({ user, onBack }: { user: User; onBack?: () => voi
                       </span>
                     </div>
 
-                    {/* Identifiers: Ref, AWB, Airline + Quick Copy Action */}
+                    {/* Identifiers: Ref, AWB, Airline + Tactile Copy Action */}
                     <div className="flex items-center gap-2 text-[12px] font-sans text-[var(--color-muted)] flex-wrap">
                       <span className="font-mono tabular-nums font-semibold text-[var(--color-foreground)]">
                         {c.entry_ref || c.id}
                       </span>
-                      {c.awb_tag_number && (
+                      {awbClean && (
                         <span>
-                          · AWB{' '}
-                          <span className="font-mono tabular-nums text-[var(--color-foreground)]">
-                            {c.awb_tag_number}
-                          </span>
+                          · <span className="font-mono tabular-nums text-[var(--color-foreground)]">{awbClean}</span>
                         </span>
                       )}
                       {c.airline && <span>· {c.airline}</span>}
 
-                      {/* 44px Quick Copy Action */}
+                      {/* 44px Tactile Copy Action (Clean Hitbox, No Bleed) */}
                       <button
                         type="button"
                         onClick={() => handleCopyIdentifier(c.awb_tag_number || c.entry_ref || c.id || '', itemKey)}
-                        aria-label="Copy shipment reference"
-                        title="Copy reference or AWB tag"
-                        className="min-h-[44px] min-w-[44px] -my-2 -ml-1 p-2 rounded-full inline-flex items-center justify-center text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
+                        aria-label={`Copy reference for ${c.consignee_name || c.entry_ref || 'shipment'}`}
+                        title="Copy tracking or AWB tag"
+                        className="min-h-[44px] min-w-[44px] w-11 h-11 rounded-full inline-flex items-center justify-center text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer shrink-0"
                       >
                         {copiedId === itemKey ? (
                           <Check size={13} className="text-[var(--color-success)]" />
@@ -340,33 +356,32 @@ export const IncomingToHub = ({ user, onBack }: { user: User; onBack?: () => voi
                       </button>
                     </div>
 
-                    {/* Physical Cargo Breakdown: Pieces, Weight, Route, Content */}
-                    <div className="text-[13px] font-sans text-[var(--color-text-secondary)] flex items-center gap-2 flex-wrap pt-0.5">
-                      <span className="inline-flex items-center gap-1 font-mono tabular-nums font-medium text-[var(--color-foreground)]">
+                    {/* Physical Cargo Breakdown: High-Legibility Pieces, Weight, Route, Content */}
+                    <div className="flex items-center gap-2 flex-wrap pt-0.5 text-[12px] font-sans">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-[var(--color-surface-2)] font-mono tabular-nums font-semibold text-[var(--color-foreground)] border border-[var(--color-border)]">
                         {pcsStr}
                       </span>
-                      <span>·</span>
-                      <span className="inline-flex items-center gap-1 font-mono tabular-nums font-medium text-[var(--color-foreground)]">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-[var(--color-surface-2)] font-mono tabular-nums font-semibold text-[var(--color-foreground)] border border-[var(--color-border)]">
                         {kgStr}
                       </span>
-                      <span>·</span>
-                      <span>{routeStr}</span>
-                      <span>·</span>
+                      <span className="text-[var(--color-border-strong)]">·</span>
+                      <span className="text-[var(--color-text-secondary)] font-medium">{routeStr}</span>
+                      <span className="text-[var(--color-border-strong)]">·</span>
                       <span className="text-[var(--color-muted)]">{c.content_type || 'General cargo'}</span>
                     </div>
                   </div>
 
-                  {/* Right Column: 44px Primary Action Button */}
+                  {/* Right Column: 44px Receive Action Button */}
                   <div className="shrink-0 flex items-center justify-end w-full md:w-auto pt-2 md:pt-0 border-t md:border-t-0 border-[var(--color-border)]">
                     <button
                       type="button"
                       onClick={handleOpenScanner}
-                      aria-label="Scan arrivals"
+                      aria-label={`Receive shipment for ${c.consignee_name || c.entry_ref || 'arrival'}`}
                       className="min-h-[44px] h-11 px-4 rounded-full text-[13px] font-sans font-medium bg-[var(--color-surface-2)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] flex items-center gap-1.5 transition-colors cursor-pointer w-full md:w-auto justify-center shrink-0"
-                      title="Open scanner to receive arrivals"
+                      title="Receive arrival"
                     >
                       <QrCode size={14} className="text-[var(--color-muted)] shrink-0" />
-                      <span>Scan arrivals</span>
+                      <span>Receive</span>
                     </button>
                   </div>
                 </div>
