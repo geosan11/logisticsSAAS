@@ -35,6 +35,30 @@ export function timeSince(dateStr: string, nowMs = Date.now()): string {
 }
 
 /**
+ * Formats physical cargo specifications (pieces and weight) into a clean tabular string.
+ */
+export function formatCargoSpecs(
+  pieces: number | string | null | undefined,
+  weight: number | string | null | undefined
+): { pcsStr: string; kgStr: string } {
+  const p = typeof pieces === 'number' ? pieces : parseFloat(String(pieces || ''));
+  const w = typeof weight === 'number' ? weight : parseFloat(String(weight || ''));
+
+  return {
+    pcsStr: !isNaN(p) && p > 0 ? `${p} pcs` : '— pcs',
+    kgStr: !isNaN(w) && w > 0 ? `${Math.round(w * 10) / 10} kg` : '— kg',
+  };
+}
+
+/**
+ * Cleans and standardizes route display string.
+ */
+export function formatRouteDisplay(route: string | null | undefined): string {
+  if (!route || !route.trim()) return 'Direct route';
+  return route.trim();
+}
+
+/**
  * Checks if a cargo route matches a given destination hub name using
  * fuzzy word tokens (matching scanLogic.ts / isCorrectDestination convention).
  */
@@ -47,11 +71,14 @@ export function matchesDestinationHub(route: string | null | undefined, hubName:
 }
 
 /**
- * Filters incoming cargo list by search terms (consignee, entry ref, AWB, route, airline).
+ * Filters incoming cargo list by search terms (consignee, entry ref, AWB, route, airline, content type).
  */
 export function filterIncomingCargo<T extends IncomingCargoItem>(items: T[], query: string): T[] {
   const trimmed = query.trim().toLowerCase();
   if (!trimmed) return items;
+
+  // Split query into individual search tokens for multi-token search
+  const tokens = trimmed.split(/\s+/).filter(Boolean);
 
   return items.filter((c) => {
     const consignee = (c.consignee_name || '').toLowerCase();
@@ -61,14 +88,8 @@ export function filterIncomingCargo<T extends IncomingCargoItem>(items: T[], que
     const airline = (c.airline || '').toLowerCase();
     const contentType = (c.content_type || '').toLowerCase();
 
-    return (
-      consignee.includes(trimmed) ||
-      ref.includes(trimmed) ||
-      awb.includes(trimmed) ||
-      route.includes(trimmed) ||
-      airline.includes(trimmed) ||
-      contentType.includes(trimmed)
-    );
+    const searchableText = `${consignee} ${ref} ${awb} ${route} ${airline} ${contentType}`;
+    return tokens.every((token) => searchableText.includes(token));
   });
 }
 

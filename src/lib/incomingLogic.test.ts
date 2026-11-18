@@ -6,6 +6,8 @@ import {
   filterIncomingCargo,
   calculateIncomingMetrics,
   canAccessIncomingRole,
+  formatCargoSpecs,
+  formatRouteDisplay,
   type IncomingCargoItem,
 } from './incomingLogic';
 
@@ -36,6 +38,43 @@ describe('Incoming to Hub Logic & Helpers', () => {
 
     test('handles invalid date strings gracefully', () => {
       assert.strictEqual(timeSince('invalid-date', fixedNow), '—');
+    });
+  });
+
+  describe('formatCargoSpecs', () => {
+    test('formats numeric pieces and weights correctly', () => {
+      const res = formatCargoSpecs(5, 25.5);
+      assert.strictEqual(res.pcsStr, '5 pcs');
+      assert.strictEqual(res.kgStr, '25.5 kg');
+    });
+
+    test('formats string pieces and weights correctly with coercion', () => {
+      const res = formatCargoSpecs('12', '84.23');
+      assert.strictEqual(res.pcsStr, '12 pcs');
+      assert.strictEqual(res.kgStr, '84.2 kg');
+    });
+
+    test('falls back gracefully to dashes for null, undefined, or zero values', () => {
+      const res1 = formatCargoSpecs(null, undefined);
+      assert.strictEqual(res1.pcsStr, '— pcs');
+      assert.strictEqual(res1.kgStr, '— kg');
+
+      const res2 = formatCargoSpecs(0, 0);
+      assert.strictEqual(res2.pcsStr, '— pcs');
+      assert.strictEqual(res2.kgStr, '— kg');
+    });
+  });
+
+  describe('formatRouteDisplay', () => {
+    test('returns trimmed route when present', () => {
+      assert.strictEqual(formatRouteDisplay('  Abuja - Lagos  '), 'Abuja - Lagos');
+      assert.strictEqual(formatRouteDisplay('Kano Station'), 'Kano Station');
+    });
+
+    test('falls back to "Direct route" when null, empty, or whitespace', () => {
+      assert.strictEqual(formatRouteDisplay(null), 'Direct route');
+      assert.strictEqual(formatRouteDisplay(undefined), 'Direct route');
+      assert.strictEqual(formatRouteDisplay('   '), 'Direct route');
     });
   });
 
@@ -114,6 +153,15 @@ describe('Incoming to Hub Logic & Helpers', () => {
       assert.strictEqual(res[0].consignee_name, 'Binta Bello Pharmacy');
     });
 
+    test('filters by multi-token search query', () => {
+      const res = filterIncomingCargo(sampleItems, 'binta lagos');
+      assert.strictEqual(res.length, 1);
+      assert.strictEqual(res[0].entry_ref, 'KAN-CRG-002');
+
+      const resNone = filterIncomingCargo(sampleItems, 'binta abuja');
+      assert.strictEqual(resNone.length, 0);
+    });
+
     test('filters by entry reference', () => {
       const res = filterIncomingCargo(sampleItems, 'crg-001');
       assert.strictEqual(res.length, 1);
@@ -135,6 +183,12 @@ describe('Incoming to Hub Logic & Helpers', () => {
     test('filters by route destination', () => {
       const res = filterIncomingCargo(sampleItems, 'Lagos');
       assert.strictEqual(res.length, 2);
+    });
+
+    test('filters by content type', () => {
+      const res = filterIncomingCargo(sampleItems, 'pharmaceuticals');
+      assert.strictEqual(res.length, 1);
+      assert.strictEqual(res[0].consignee_name, 'Binta Bello Pharmacy');
     });
 
     test('returns empty array when no items match query', () => {
