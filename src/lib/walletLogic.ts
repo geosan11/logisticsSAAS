@@ -123,6 +123,68 @@ export function canDirectTopUpRole(role: string): boolean {
 }
 
 /**
+ * Filter wallet history transactions by directional category (all, credits, debits).
+ */
+export function filterWalletTransactions(
+  transactions: WalletTransaction[],
+  filter: 'all' | 'credits' | 'debits'
+): WalletTransaction[] {
+  if (filter === 'all') return transactions;
+  if (filter === 'credits') {
+    return transactions.filter((tx) => isTransactionCredit(tx.type));
+  }
+  return transactions.filter((tx) => !isTransactionCredit(tx.type));
+}
+
+/**
+ * Determine archive/delete eligibility for a wallet.
+ */
+export function canArchiveWallet(wallet: {
+  balance: number;
+  total_topped_up: number;
+  total_used: number;
+}): {
+  allowed: boolean;
+  isPermanentDelete: boolean;
+  reason?: string;
+} {
+  const hasHistory = wallet.total_topped_up > 0 || wallet.total_used > 0;
+  if (wallet.balance > 0) {
+    return {
+      allowed: false,
+      isPermanentDelete: false,
+      reason: 'Wallet still has an active balance',
+    };
+  }
+  if (!hasHistory && wallet.balance === 0) {
+    return {
+      allowed: true,
+      isPermanentDelete: true,
+      reason: 'Empty wallet with no transaction history can be deleted',
+    };
+  }
+  return {
+    allowed: true,
+    isPermanentDelete: false,
+    reason: 'Zero-balance wallet with transaction history can be safely archived',
+  };
+}
+
+/**
+ * Format search result count string for counter staff clarity.
+ */
+export function formatWalletResultCount(
+  filteredCount: number,
+  totalCount: number,
+  hasSearch: boolean
+): string {
+  if (hasSearch) {
+    return `Showing ${filteredCount} of ${totalCount} accounts`;
+  }
+  return `${totalCount} ${totalCount === 1 ? 'account' : 'accounts'}`;
+}
+
+/**
  * Density-aware Tailwind CSS classes for the Customer Wallets view.
  */
 export function getWalletDensityClasses(isCompact: boolean): {

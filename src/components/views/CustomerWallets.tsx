@@ -28,6 +28,8 @@ import {
   canForceDeleteRole,
   canDirectTopUpRole,
   getWalletDensityClasses,
+  filterWalletTransactions,
+  formatWalletResultCount,
 } from '../../lib/walletLogic';
 import { BackButton } from '../BackButton';
 import { Button } from '../ui';
@@ -50,6 +52,8 @@ import {
   XCircle,
   Phone,
   Tag,
+  MoreVertical,
+  Archive,
 } from 'lucide-react';
 
 export interface CustomerWallet {
@@ -124,6 +128,8 @@ export const CustomerWallets = ({
   const [walletHistory, setWalletHistory] = useState<WalletTransaction[]>([]);
   const [walletHistoryCapped, setWalletHistoryCapped] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyFilter, setHistoryFilter] = useState<'all' | 'credits' | 'debits'>('all');
+  const [menuWalletId, setMenuWalletId] = useState<string | null>(null);
 
   // Top-Up form states
   const [formName, setFormName] = useState(initialCustomerName || '');
@@ -154,11 +160,13 @@ export const CustomerWallets = ({
   const [payoutNote, setPayoutNote] = useState('');
   const [savingPayout, setSavingPayout] = useState(false);
 
-  // Esc-to-close for the three portalled modals
+  // Esc-to-close for modals and menus
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
-      if (payoutWalletId) {
+      if (menuWalletId) {
+        setMenuWalletId(null);
+      } else if (payoutWalletId) {
         if (!savingPayout) setPayoutWalletId(null);
       } else if (showHistoryModal) {
         setShowHistoryModal(false);
@@ -168,7 +176,20 @@ export const CustomerWallets = ({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [showTopUpModal, showHistoryModal, payoutWalletId, savingTopUp, savingPayout]);
+  }, [showTopUpModal, showHistoryModal, payoutWalletId, savingTopUp, savingPayout, menuWalletId]);
+
+  // Click-away listener to close action menus
+  useEffect(() => {
+    if (!menuWalletId) return;
+    const onDocumentClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('[data-wallet-menu]')) {
+        setMenuWalletId(null);
+      }
+    };
+    window.addEventListener('click', onDocumentClick);
+    return () => window.removeEventListener('click', onDocumentClick);
+  }, [menuWalletId]);
 
   // Pending cash payouts awaiting a second person's approval
   const [pendingPayouts, setPendingPayouts] = useState<WalletTransaction[]>([]);
@@ -721,41 +742,41 @@ export const CustomerWallets = ({
       </header>
 
       {/* Summary KPI Cards */}
-      <section className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 ${density.gridGap}`}>
-        <div className={`bg-[var(--color-surface-card)] rounded-2xl border border-[var(--color-border)] shadow-xs space-y-1.5 ${density.cardPadding}`}>
+      <section className={`grid grid-cols-1 sm:grid-cols-3 ${density.gridGap}`}>
+        <div className={`bg-[var(--color-surface-card)] rounded-2xl border border-[var(--color-border)] shadow-xs space-y-1 sm:space-y-1.5 ${density.cardPadding}`}>
           <div className="text-xs font-medium text-[var(--color-muted)]">
             Total credit liability
           </div>
           <div className="text-xl sm:text-2xl font-semibold tabular-nums tracking-tight text-[var(--color-foreground)]">
             ₦{fmt(totalLiability)}
           </div>
-          <div className="text-xs text-[var(--color-muted)]">
+          <div className="text-xs text-[var(--color-muted)] truncate">
             {liabilityCapped || walletsCapped
               ? 'Count exceeds display limit · Total may be partial'
               : 'Prepaid customer funds held'}
           </div>
         </div>
 
-        <div className={`bg-[var(--color-surface-card)] rounded-2xl border border-[var(--color-border)] shadow-xs space-y-1.5 ${density.cardPadding}`}>
+        <div className={`bg-[var(--color-surface-card)] rounded-2xl border border-[var(--color-border)] shadow-xs space-y-1 sm:space-y-1.5 ${density.cardPadding}`}>
           <div className="text-xs font-medium text-[var(--color-muted)]">
             Active wallets
           </div>
           <div className="text-xl sm:text-2xl font-semibold tabular-nums tracking-tight text-[var(--color-foreground)]">
             {activeWalletsCount} <span className="text-sm font-normal text-[var(--color-muted)]">customers</span>
           </div>
-          <div className="text-xs text-[var(--color-muted)]">
+          <div className="text-xs text-[var(--color-muted)] truncate">
             Available for immediate deduction
           </div>
         </div>
 
-        <div className={`bg-[var(--color-surface-card)] rounded-2xl border border-[var(--color-border)] shadow-xs space-y-1.5 col-span-1 sm:col-span-2 md:col-span-1 ${density.cardPadding}`}>
+        <div className={`bg-[var(--color-surface-card)] rounded-2xl border border-[var(--color-border)] shadow-xs space-y-1 sm:space-y-1.5 ${density.cardPadding}`}>
           <div className="text-xs font-medium text-[var(--color-muted)]">
             Lifetime topped up
           </div>
           <div className="text-xl sm:text-2xl font-semibold tabular-nums tracking-tight text-[var(--color-foreground)]">
             ₦{fmt(lifetimeToppedUp)}
           </div>
-          <div className="text-xs text-[var(--color-muted)]">
+          <div className="text-xs text-[var(--color-muted)] truncate">
             Cumulative advance deposits
           </div>
         </div>
@@ -851,15 +872,15 @@ export const CustomerWallets = ({
                         onClick={() => handleApprovePayout(payout)}
                         disabled={isSelf || busy}
                         title={isSelf ? "You cannot approve your own request" : 'Approve'}
-                        className="flex-1 h-11 min-h-[44px] rounded-xl text-xs font-medium bg-[var(--color-surface-card)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] text-[var(--color-success)] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                        className="flex-1 h-11 min-h-[44px] rounded-xl text-xs font-medium bg-[var(--color-surface-card)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
                       >
-                        <CheckCircle2 size={15} />
+                        <CheckCircle2 size={15} className="text-[var(--color-success)]" />
                         <span>Approve</span>
                       </button>
                       <button
                         onClick={() => setRejectingPayoutId(payout.id)}
                         disabled={busy}
-                        className="flex-1 h-11 min-h-[44px] rounded-xl text-xs font-medium bg-[var(--color-surface-card)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] text-[var(--color-error)] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                        className="flex-1 h-11 min-h-[44px] rounded-xl text-xs font-medium bg-[var(--color-surface-card)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] text-[var(--color-muted)] hover:text-[var(--color-error)] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
                       >
                         <XCircle size={15} />
                         <span>Reject</span>
@@ -868,9 +889,10 @@ export const CustomerWallets = ({
                   )}
 
                   {isSelf && (
-                    <p className="text-xs text-[var(--color-muted)] italic">
-                      You submitted this request. A different supervisor or accountant must approve it.
-                    </p>
+                    <div className="text-xs text-[var(--color-muted)] bg-[var(--color-surface-2)] px-3 py-2 rounded-lg border border-[var(--color-border)] flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-muted)] shrink-0" />
+                      <span>You submitted this request. A different supervisor or accountant must approve it.</span>
+                    </div>
                   )}
                 </div>
               );
@@ -881,31 +903,36 @@ export const CustomerWallets = ({
 
       {/* Unified Toolbar: Active/Archived Selector & Search */}
       <section className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-        {/* Segmented active/archived selector */}
-        <div className="inline-flex items-center p-1 bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-xl shrink-0 self-start sm:self-auto">
-          <button
-            onClick={() => setWalletView('active')}
-            className={`min-h-[44px] h-11 px-4 text-xs font-medium rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 ${
-              walletView === 'active'
-                ? 'bg-[var(--color-surface-hover)] text-[var(--color-foreground)] shadow-xs'
-                : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
-            }`}
-          >
-            <span>Active</span>
-            <span className="text-[11px] text-[var(--color-muted)]">
-              ({wallets.length})
-            </span>
-          </button>
-          <button
-            onClick={() => setWalletView('archived')}
-            className={`min-h-[44px] h-11 px-4 text-xs font-medium rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 ${
-              walletView === 'archived'
-                ? 'bg-[var(--color-surface-hover)] text-[var(--color-foreground)] shadow-xs'
-                : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
-            }`}
-          >
-            <span>Archived</span>
-          </button>
+        {/* Segmented active/archived selector & result count */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="inline-flex items-center p-1 bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-xl shrink-0 self-start sm:self-auto">
+            <button
+              onClick={() => setWalletView('active')}
+              className={`min-h-[44px] h-11 px-4 text-xs font-medium rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 ${
+                walletView === 'active'
+                  ? 'bg-[var(--color-surface-hover)] text-[var(--color-foreground)] shadow-xs'
+                  : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
+              }`}
+            >
+              <span>Active</span>
+              <span className="text-[11px] text-[var(--color-muted)]">
+                ({wallets.length})
+              </span>
+            </button>
+            <button
+              onClick={() => setWalletView('archived')}
+              className={`min-h-[44px] h-11 px-4 text-xs font-medium rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 ${
+                walletView === 'archived'
+                  ? 'bg-[var(--color-surface-hover)] text-[var(--color-foreground)] shadow-xs'
+                  : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
+              }`}
+            >
+              <span>Archived</span>
+            </button>
+          </div>
+          <span className="text-xs text-[var(--color-muted)] hidden md:inline">
+            {formatWalletResultCount(filteredWallets.length, wallets.length, Boolean(search.trim()))}
+          </span>
         </div>
 
         {/* Search input with 44px tap targets */}
@@ -1045,80 +1072,83 @@ ALTER TABLE cargo_entries ADD CONSTRAINT cargo_entries_receipt_mode_check CHECK 
             )}
           </div>
         ) : (
-          <div className="space-y-2.5">
+          <div className="space-y-3">
             {filteredWallets.map((wallet) => {
               const isActive = (wallet.balance || 0) > 0;
               const sourceLabel = getSourceTypeLabel(wallet.source_type);
+              const isMenuOpen = menuWalletId === wallet.id;
 
               return (
                 <div
                   key={wallet.id}
-                  className={`bg-[var(--color-surface-card)] rounded-2xl border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)]/30 transition-all shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4 ${density.itemPadding}`}
+                  className={`bg-[var(--color-surface-card)] rounded-2xl border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)]/30 transition-all shadow-xs space-y-3 ${density.itemPadding}`}
                 >
-                  {/* Left: Customer Info */}
-                  <div className="space-y-1.5 min-w-0 flex-1">
-                    <div className="flex items-center gap-2.5 flex-wrap">
+                  {/* Top row: Customer Name + Status on left; Available Balance on right */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                    <div className="flex items-center gap-2.5 flex-wrap min-w-0">
                       <span
-                        className="font-medium text-sm sm:text-base text-[var(--color-foreground)] truncate"
+                        className="font-semibold text-base sm:text-lg text-[var(--color-foreground)] truncate"
                         title={wallet.customer_name}
                       >
                         {wallet.customer_name}
                       </span>
                       {isActive ? (
-                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-[var(--color-success)]/15 text-[var(--color-success)] border border-[var(--color-success)]/20">
+                        <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-[var(--color-success)]/15 text-[var(--color-success)] border border-[var(--color-success)]/20">
                           Active
                         </span>
                       ) : (
-                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-[var(--color-surface-2)] text-[var(--color-muted)] border border-[var(--color-border)]">
+                        <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-[var(--color-surface-2)] text-[var(--color-muted)] border border-[var(--color-border)]">
                           Exhausted
                         </span>
                       )}
                     </div>
 
-                    <div className="text-xs text-[var(--color-muted)] flex items-center gap-3 flex-wrap">
+                    <div className="flex items-baseline sm:items-end justify-between sm:justify-end gap-2 shrink-0">
+                      <span className="text-xs text-[var(--color-muted)] sm:hidden">
+                        Available balance:
+                      </span>
+                      <div className="text-right">
+                        <div className="text-xl sm:text-2xl font-semibold tabular-nums text-[var(--color-foreground)]">
+                          ₦{fmt(wallet.balance)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Middle row: Metadata tags & Lifetime breakdown */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-[var(--color-muted)] border-t border-[var(--color-border)] pt-2.5">
+                    <div className="flex items-center gap-3 flex-wrap">
                       {wallet.customer_phone && (
-                        <span className="inline-flex items-center gap-1">
+                        <a
+                          href={`tel:${wallet.customer_phone}`}
+                          className="inline-flex items-center gap-1 hover:text-[var(--color-foreground)] transition-colors"
+                        >
                           <Phone size={12} className="text-[var(--color-muted)]" />
                           <span>{wallet.customer_phone}</span>
-                        </span>
+                        </a>
                       )}
                       <span className="inline-flex items-center gap-1">
                         <Tag size={12} className="text-[var(--color-muted)]" />
                         <span>Source: {sourceLabel}</span>
                       </span>
                       {wallet.source_ref && (
-                        <span>Ref: {wallet.source_ref}</span>
+                        <span className="font-mono text-[11px] text-[var(--color-foreground)] bg-[var(--color-surface-1)] px-1.5 py-0.5 rounded border border-[var(--color-border)]">
+                          {wallet.source_ref}
+                        </span>
                       )}
                       <span>
                         Updated {new Date(wallet.updated_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                       </span>
                     </div>
+
+                    <div className="text-[11px] tabular-nums text-[var(--color-muted)]">
+                      Topped up ₦{fmt(wallet.total_topped_up)} · Used ₦{fmt(wallet.total_used)}
+                    </div>
                   </div>
 
-                  {/* Right: Balance & Actions */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between md:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[var(--color-border)]">
-                    <div className="text-left md:text-right space-y-0.5">
-                      <div className="text-xs text-[var(--color-muted)] font-normal">
-                        Available balance
-                      </div>
-                      <div className="text-lg sm:text-xl font-semibold tabular-nums text-[var(--color-foreground)]">
-                        ₦{fmt(wallet.balance)}
-                      </div>
-                      <div className="text-[11px] tabular-nums text-[var(--color-muted)]">
-                        Topped up ₦{fmt(wallet.total_topped_up)} · Used ₦{fmt(wallet.total_used)}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <button
-                        onClick={() => handleOpenHistory(wallet)}
-                        className="h-11 min-h-[44px] px-3.5 rounded-xl text-xs font-medium bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] text-[var(--color-foreground)] inline-flex items-center gap-1.5 cursor-pointer transition-colors"
-                        title="View transaction audit trail"
-                      >
-                        <History size={14} />
-                        <span>History</span>
-                      </button>
-
+                  {/* Action row: Routine operations + More actions overflow menu */}
+                  <div className="flex items-center justify-between gap-2 pt-1 border-t border-[var(--color-border)]">
+                    <div className="flex items-center gap-2 flex-wrap">
                       {canTopUp && (
                         <button
                           onClick={() => {
@@ -1150,31 +1180,73 @@ ALTER TABLE cargo_entries ADD CONSTRAINT cargo_entries_receipt_mode_check CHECK 
                       )}
 
                       <button
+                        onClick={() => handleOpenHistory(wallet)}
+                        className="h-11 min-h-[44px] px-3.5 rounded-xl text-xs font-medium bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] text-[var(--color-foreground)] inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+                        title="View transaction audit trail"
+                      >
+                        <History size={14} />
+                        <span>History</span>
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 relative" data-wallet-menu>
+                      <button
                         onClick={() => printWalletReceipt(wallet)}
                         className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] text-[var(--color-muted)] hover:text-[var(--color-foreground)] inline-flex items-center justify-center cursor-pointer transition-colors"
-                        title="Print wallet receipt"
+                        title="Print wallet statement receipt"
                       >
                         <Printer size={15} />
                       </button>
 
                       <button
-                        onClick={() => handleRemoveWallet(wallet)}
-                        className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] text-[var(--color-muted)] hover:text-[var(--color-error)] inline-flex items-center justify-center cursor-pointer transition-colors"
-                        title={wallet.balance === 0 && wallet.total_topped_up === 0 ? 'Delete empty wallet' : 'Archive wallet'}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setMenuWalletId(isMenuOpen ? null : wallet.id);
+                        }}
+                        className={`w-11 h-11 min-w-[44px] min-h-[44px] rounded-xl border border-[var(--color-border)] inline-flex items-center justify-center cursor-pointer transition-colors ${
+                          isMenuOpen
+                            ? 'bg-[var(--color-surface-hover)] text-[var(--color-foreground)]'
+                            : 'bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
+                        }`}
+                        title="More actions"
                       >
-                        <Trash2 size={15} />
+                        <MoreVertical size={16} />
                       </button>
 
-                      {canForceDelete && (
-                        <button
-                          onClick={() => handleForceDelete(wallet)}
-                          disabled={forceDeletingId === wallet.id}
-                          className="h-11 min-h-[44px] px-3 rounded-xl text-xs font-medium bg-[var(--color-surface-1)] border border-[var(--color-error)]/30 text-[var(--color-error)] hover:bg-[var(--color-error)]/10 inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors"
-                          title="Permanently force delete this wallet and unlink references"
+                      {/* Accessible dropdown menu for administrative actions */}
+                      {isMenuOpen && (
+                        <div
+                          className="absolute right-0 bottom-full mb-2 z-30 w-52 bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-xl shadow-xl py-1.5 overflow-hidden animate-in fade-in zoom-in-95 duration-100"
+                          style={{ boxShadow: 'var(--shadow-modal)' }}
                         >
-                          {forceDeletingId === wallet.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                          <span>Force delete</span>
-                        </button>
+                          <button
+                            onClick={() => {
+                              setMenuWalletId(null);
+                              handleRemoveWallet(wallet);
+                            }}
+                            className="w-full min-h-[44px] px-3.5 text-left text-xs font-medium text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)] flex items-center gap-2 cursor-pointer transition-colors"
+                          >
+                            <Archive size={14} className="text-[var(--color-muted)]" />
+                            <span>{wallet.balance === 0 && wallet.total_topped_up === 0 ? 'Delete empty wallet' : 'Archive account'}</span>
+                          </button>
+
+                          {canForceDelete && (
+                            <>
+                              <div className="h-px bg-[var(--color-border)] my-1" />
+                              <button
+                                onClick={() => {
+                                  setMenuWalletId(null);
+                                  handleForceDelete(wallet);
+                                }}
+                                disabled={forceDeletingId === wallet.id}
+                                className="w-full min-h-[44px] px-3.5 text-left text-xs font-medium text-[var(--color-error)] hover:bg-[var(--color-error)]/10 flex items-center gap-2 cursor-pointer disabled:opacity-50 transition-colors"
+                              >
+                                <Trash2 size={14} />
+                                <span>Force delete (Purge)</span>
+                              </button>
+                            </>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -1190,10 +1262,10 @@ ALTER TABLE cargo_entries ADD CONSTRAINT cargo_entries_receipt_mode_check CHECK 
         createPortal(
           <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
             <div
-              className="bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-2xl w-full max-w-md overflow-hidden space-y-4 p-5 sm:p-6 shadow-xl"
+              className="bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-2xl w-full max-w-md overflow-hidden max-h-[90vh] flex flex-col p-5 sm:p-6 shadow-xl"
               style={{ boxShadow: 'var(--shadow-modal)' }}
             >
-              <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-3.5">
+              <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-3.5 shrink-0">
                 <div>
                   <h3 className="text-base font-semibold text-[var(--color-foreground)]">
                     Top-up customer credit wallet
@@ -1211,7 +1283,7 @@ ALTER TABLE cargo_entries ADD CONSTRAINT cargo_entries_receipt_mode_check CHECK 
                 </button>
               </div>
 
-              <form onSubmit={handleSaveTopUp} className="space-y-4">
+              <form onSubmit={handleSaveTopUp} className="flex-1 overflow-y-auto pr-1 space-y-4 pt-3.5">
                 <div>
                   <label className="block text-xs font-medium text-[var(--color-muted)] mb-1.5">
                     Customer name *
@@ -1240,9 +1312,14 @@ ALTER TABLE cargo_entries ADD CONSTRAINT cargo_entries_receipt_mode_check CHECK 
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-[var(--color-muted)] mb-1.5">
-                    Top-up amount (₦) *
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-medium text-[var(--color-muted)]">
+                      Top-up amount (₦) *
+                    </label>
+                    <span className="text-[11px] text-[var(--color-muted)]">
+                      Quick presets:
+                    </span>
+                  </div>
                   <input
                     type="number"
                     required
@@ -1252,6 +1329,23 @@ ALTER TABLE cargo_entries ADD CONSTRAINT cargo_entries_receipt_mode_check CHECK 
                     onChange={(e) => setFormAmount(e.target.value)}
                     className="w-full h-11 min-h-[44px] px-3.5 text-base font-semibold tabular-nums rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border)] text-[var(--color-foreground)] placeholder:text-[var(--color-muted)] focus:outline-none focus:border-[var(--color-border-strong)] transition-colors"
                   />
+                  {/* Touchscreen quick preset pills for Panasonic CF-31 */}
+                  <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                    {[10000, 20000, 50000, 100000, 200000].map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => setFormAmount(String(preset))}
+                        className={`h-8 min-h-[32px] px-2.5 rounded-lg text-xs tabular-nums font-medium transition-colors cursor-pointer border ${
+                          formAmount === String(preset)
+                            ? 'bg-[var(--color-surface-hover)] border-[var(--color-border-strong)] text-[var(--color-foreground)]'
+                            : 'bg-[var(--color-surface-1)] border-[var(--color-border)] text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
+                        }`}
+                      >
+                        ₦{fmt(preset)}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1315,7 +1409,7 @@ ALTER TABLE cargo_entries ADD CONSTRAINT cargo_entries_receipt_mode_check CHECK 
                   </div>
                 </div>
 
-                <div className="pt-2 flex items-center justify-end gap-2.5">
+                <div className="pt-2 flex items-center justify-end gap-2.5 border-t border-[var(--color-border)]">
                   <button
                     type="button"
                     onClick={() => setShowTopUpModal(false)}
@@ -1350,7 +1444,7 @@ ALTER TABLE cargo_entries ADD CONSTRAINT cargo_entries_receipt_mode_check CHECK 
         createPortal(
           <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
             <div
-              className="bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-2xl w-full max-w-xl overflow-hidden space-y-4 p-5 sm:p-6 max-h-[85vh] flex flex-col shadow-xl"
+              className="bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-2xl w-full max-w-xl overflow-hidden max-h-[85vh] flex flex-col p-5 sm:p-6 shadow-xl"
               style={{ boxShadow: 'var(--shadow-modal)' }}
             >
               <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-3.5 shrink-0">
@@ -1375,24 +1469,62 @@ ALTER TABLE cargo_entries ADD CONSTRAINT cargo_entries_receipt_mode_check CHECK 
                 </button>
               </div>
 
+              {/* History filter tabs */}
+              <div className="flex items-center justify-between gap-2 pt-2 shrink-0">
+                <div className="inline-flex items-center p-0.5 bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-lg">
+                  <button
+                    onClick={() => setHistoryFilter('all')}
+                    className={`h-8 px-2.5 text-xs font-medium rounded-md transition-colors cursor-pointer ${
+                      historyFilter === 'all'
+                        ? 'bg-[var(--color-surface-hover)] text-[var(--color-foreground)] shadow-xs'
+                        : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
+                    }`}
+                  >
+                    All ({walletHistory.length})
+                  </button>
+                  <button
+                    onClick={() => setHistoryFilter('credits')}
+                    className={`h-8 px-2.5 text-xs font-medium rounded-md transition-colors cursor-pointer ${
+                      historyFilter === 'credits'
+                        ? 'bg-[var(--color-surface-hover)] text-[var(--color-foreground)] shadow-xs'
+                        : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
+                    }`}
+                  >
+                    Credits
+                  </button>
+                  <button
+                    onClick={() => setHistoryFilter('debits')}
+                    className={`h-8 px-2.5 text-xs font-medium rounded-md transition-colors cursor-pointer ${
+                      historyFilter === 'debits'
+                        ? 'bg-[var(--color-surface-hover)] text-[var(--color-foreground)] shadow-xs'
+                        : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
+                    }`}
+                  >
+                    Debits
+                  </button>
+                </div>
+              </div>
+
               {walletHistoryCapped && (
-                <div className="text-xs text-[var(--color-muted)] shrink-0 bg-[var(--color-surface-1)] p-2.5 rounded-lg border border-[var(--color-border)]">
+                <div className="text-xs text-[var(--color-muted)] shrink-0 bg-[var(--color-surface-1)] p-2.5 rounded-lg border border-[var(--color-border)] mt-2">
                   Showing the most recent 5,000 entries. Older records exist in archive.
                 </div>
               )}
 
-              <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
+              <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 pt-2">
                 {historyLoading ? (
                   <div className="p-8 text-center text-[var(--color-muted)] space-y-2">
                     <Loader2 size={24} className="animate-spin mx-auto text-[var(--color-foreground)]" />
                     <span className="text-xs font-sans">Fetching transaction history...</span>
                   </div>
-                ) : walletHistory.length === 0 ? (
+                ) : filterWalletTransactions(walletHistory, historyFilter).length === 0 ? (
                   <div className="p-8 text-center text-[var(--color-muted)] text-xs">
-                    No transaction entries found for this wallet.
+                    {walletHistory.length === 0
+                      ? 'No transaction entries found for this wallet.'
+                      : `No ${historyFilter} transactions found.`}
                   </div>
                 ) : (
-                  walletHistory.map((tx) => {
+                  filterWalletTransactions(walletHistory, historyFilter).map((tx) => {
                     const isCredit = isTransactionCredit(tx.type);
                     const typeLabel = getTransactionTypeLabel(tx.type);
                     const canUndo =
@@ -1457,10 +1589,10 @@ ALTER TABLE cargo_entries ADD CONSTRAINT cargo_entries_receipt_mode_check CHECK 
                             <button
                               onClick={() => handleReverseDeduction(tx)}
                               disabled={reversingTxId === tx.id}
-                              className="mt-1 h-8 min-h-[36px] px-2.5 inline-flex items-center justify-center gap-1.5 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-hover)] text-[var(--color-error)] rounded-lg transition-colors border border-[var(--color-border)] text-xs font-medium disabled:opacity-50 cursor-pointer"
+                              className="mt-2 min-h-[44px] h-11 px-3.5 inline-flex items-center justify-center gap-1.5 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-hover)] text-[var(--color-error)] rounded-xl transition-colors border border-[var(--color-border)] text-xs font-medium disabled:opacity-50 cursor-pointer"
                               title="Refund this deduction and revert shipment back to debt"
                             >
-                              {reversingTxId === tx.id ? <Loader2 size={12} className="animate-spin" /> : <Undo2 size={12} />}
+                              {reversingTxId === tx.id ? <Loader2 size={13} className="animate-spin" /> : <Undo2 size={13} />}
                               <span>Undo deduction</span>
                             </button>
                           )}
@@ -1503,10 +1635,10 @@ ALTER TABLE cargo_entries ADD CONSTRAINT cargo_entries_receipt_mode_check CHECK 
           return createPortal(
             <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
               <div
-                className="bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-2xl w-full max-w-sm overflow-hidden space-y-4 p-5 sm:p-6 shadow-xl"
+                className="bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-2xl w-full max-w-sm overflow-hidden max-h-[90vh] flex flex-col p-5 sm:p-6 shadow-xl"
                 style={{ boxShadow: 'var(--shadow-modal)' }}
               >
-                <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-3.5">
+                <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-3.5 shrink-0">
                   <div className="min-w-0">
                     <h3 className="text-base font-semibold text-[var(--color-foreground)]">
                       Pay cash out
@@ -1524,80 +1656,91 @@ ALTER TABLE cargo_entries ADD CONSTRAINT cargo_entries_receipt_mode_check CHECK 
                   </button>
                 </div>
 
-                <div className="text-xs text-[var(--color-muted)] leading-relaxed bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-xl p-3">
-                  This creates an approval request. A supervisor or accountant must confirm the payout before funds are disbursed.
-                </div>
-
-                <div className="space-y-3.5">
-                  <div>
-                    <label className="text-xs font-medium text-[var(--color-muted)] block mb-1.5">
-                      Amount ₦ (max ₦{fmt(wallet.balance)}) *
-                    </label>
-                    <input
-                      type="number"
-                      value={payoutAmount}
-                      onChange={(e) => setPayoutAmount(e.target.value)}
-                      placeholder={String(wallet.balance)}
-                      max={wallet.balance}
-                      min="1"
-                      className="w-full h-11 min-h-[44px] px-3.5 bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-xl text-base font-semibold tabular-nums text-[var(--color-foreground)] placeholder:text-[var(--color-muted)] focus:outline-none focus:border-[var(--color-border-strong)] transition-colors"
-                    />
+                <div className="flex-1 overflow-y-auto pr-1 space-y-4 pt-3.5">
+                  <div className="text-xs text-[var(--color-muted)] leading-relaxed bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-xl p-3">
+                    This creates an approval request. A supervisor or accountant must confirm the payout before funds are disbursed.
                   </div>
 
-                  <div>
-                    <label className="text-xs font-medium text-[var(--color-muted)] block mb-1.5">
-                      Department (record-keeping)
-                    </label>
-                    <select
-                      value={payoutDepartment}
-                      onChange={(e) => setPayoutDepartment(e.target.value as RetrievalEntryType)}
-                      className="w-full h-11 min-h-[44px] px-3 text-sm font-sans rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border)] text-[var(--color-foreground)] focus:outline-none focus:border-[var(--color-border-strong)] transition-colors"
+                  <div className="space-y-3.5">
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-xs font-medium text-[var(--color-muted)]">
+                          Amount ₦ (max ₦{fmt(wallet.balance)}) *
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setPayoutAmount(String(wallet.balance))}
+                          className="text-[11px] font-medium text-[var(--color-foreground)] underline hover:text-[var(--color-muted)] cursor-pointer"
+                        >
+                          Pay full ₦{fmt(wallet.balance)}
+                        </button>
+                      </div>
+                      <input
+                        type="number"
+                        value={payoutAmount}
+                        onChange={(e) => setPayoutAmount(e.target.value)}
+                        placeholder={String(wallet.balance)}
+                        max={wallet.balance}
+                        min="1"
+                        className="w-full h-11 min-h-[44px] px-3.5 bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-xl text-base font-semibold tabular-nums text-[var(--color-foreground)] placeholder:text-[var(--color-muted)] focus:outline-none focus:border-[var(--color-border-strong)] transition-colors"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-medium text-[var(--color-muted)] block mb-1.5">
+                        Department (record-keeping)
+                      </label>
+                      <select
+                        value={payoutDepartment}
+                        onChange={(e) => setPayoutDepartment(e.target.value as RetrievalEntryType)}
+                        className="w-full h-11 min-h-[44px] px-3 text-sm font-sans rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border)] text-[var(--color-foreground)] focus:outline-none focus:border-[var(--color-border-strong)] transition-colors"
+                      >
+                        <option value="cargo">Cargo</option>
+                        <option value="package">Package</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-medium text-[var(--color-muted)] block mb-1.5">
+                        Note / remarks (optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={payoutNote}
+                        onChange={(e) => setPayoutNote(e.target.value)}
+                        placeholder="Why cash is being paid out..."
+                        className="w-full h-11 min-h-[44px] px-3.5 bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-xl text-sm font-sans text-[var(--color-foreground)] placeholder:text-[var(--color-muted)] focus:outline-none focus:border-[var(--color-border-strong)] transition-colors"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-2 flex items-center justify-end gap-2.5 border-t border-[var(--color-border)]">
+                    <button
+                      type="button"
+                      onClick={() => setPayoutWalletId(null)}
+                      className="h-11 min-h-[44px] px-4 rounded-xl text-xs font-medium bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] text-[var(--color-foreground)] cursor-pointer transition-colors"
                     >
-                      <option value="cargo">Cargo</option>
-                      <option value="package">Package</option>
-                    </select>
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={savingPayout}
+                      onClick={() => handleRequestPayout(wallet)}
+                      className="h-11 min-h-[44px] px-5 rounded-full bg-[var(--color-primary-pill)] text-[var(--color-primary-pill-text)] hover:bg-[var(--color-primary-pill-hover)] text-xs font-semibold shadow-xs disabled:opacity-50 cursor-pointer transition-colors inline-flex items-center gap-1.5"
+                    >
+                      {savingPayout ? (
+                        <>
+                          <Loader2 size={14} className="animate-spin" />
+                          <span>Requesting...</span>
+                        </>
+                      ) : (
+                        <>
+                          <HandCoins size={15} />
+                          <span>Request cash payout</span>
+                        </>
+                      )}
+                    </button>
                   </div>
-
-                  <div>
-                    <label className="text-xs font-medium text-[var(--color-muted)] block mb-1.5">
-                      Note / remarks (optional)
-                    </label>
-                    <input
-                      type="text"
-                      value={payoutNote}
-                      onChange={(e) => setPayoutNote(e.target.value)}
-                      placeholder="Why cash is being paid out..."
-                      className="w-full h-11 min-h-[44px] px-3.5 bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-xl text-sm font-sans text-[var(--color-foreground)] placeholder:text-[var(--color-muted)] focus:outline-none focus:border-[var(--color-border-strong)] transition-colors"
-                    />
-                  </div>
-                </div>
-
-                <div className="pt-2 flex items-center justify-end gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => setPayoutWalletId(null)}
-                    className="h-11 min-h-[44px] px-4 rounded-xl text-xs font-medium bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] text-[var(--color-foreground)] cursor-pointer transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    disabled={savingPayout}
-                    onClick={() => handleRequestPayout(wallet)}
-                    className="h-11 min-h-[44px] px-5 rounded-full bg-[var(--color-primary-pill)] text-[var(--color-primary-pill-text)] hover:bg-[var(--color-primary-pill-hover)] text-xs font-semibold shadow-xs disabled:opacity-50 cursor-pointer transition-colors inline-flex items-center gap-1.5"
-                  >
-                    {savingPayout ? (
-                      <>
-                        <Loader2 size={14} className="animate-spin" />
-                        <span>Requesting...</span>
-                      </>
-                    ) : (
-                      <>
-                        <HandCoins size={15} />
-                        <span>Request cash payout</span>
-                      </>
-                    )}
-                  </button>
                 </div>
               </div>
             </div>,

@@ -10,6 +10,9 @@ import {
   canForceDeleteRole,
   canDirectTopUpRole,
   getWalletDensityClasses,
+  filterWalletTransactions,
+  canArchiveWallet,
+  formatWalletResultCount,
 } from './walletLogic';
 import type { CustomerWallet, WalletTransaction } from '../components/views/CustomerWallets';
 
@@ -179,6 +182,100 @@ describe('walletLogic', () => {
       const spacious = getWalletDensityClasses(false);
       assert.ok(spacious.containerPadding.includes('space-y-4'));
       assert.ok(spacious.cardPadding.includes('p-4'));
+    });
+  });
+
+  describe('filterWalletTransactions', () => {
+    const sampleTxs: WalletTransaction[] = [
+      {
+        id: 'tx-1',
+        wallet_id: 'w-1',
+        type: 'top_up',
+        amount: 50000,
+        balance_before: 0,
+        balance_after: 50000,
+        logged_by: 'Musa',
+        created_at: '2026-11-18T10:00:00Z',
+      },
+      {
+        id: 'tx-2',
+        wallet_id: 'w-1',
+        type: 'deduction',
+        amount: 20000,
+        balance_before: 50000,
+        balance_after: 30000,
+        logged_by: 'Musa',
+        created_at: '2026-11-18T11:00:00Z',
+      },
+      {
+        id: 'tx-3',
+        wallet_id: 'w-1',
+        type: 'refund',
+        amount: 5000,
+        balance_before: 30000,
+        balance_after: 35000,
+        logged_by: 'Supervisor',
+        created_at: '2026-11-18T12:00:00Z',
+      },
+      {
+        id: 'tx-4',
+        wallet_id: 'w-1',
+        type: 'cash_payout',
+        amount: 10000,
+        balance_before: 35000,
+        balance_after: 25000,
+        logged_by: 'Supervisor',
+        created_at: '2026-11-18T13:00:00Z',
+      },
+    ];
+
+    it('returns all transactions when filter is all', () => {
+      assert.equal(filterWalletTransactions(sampleTxs, 'all').length, 4);
+    });
+
+    it('filters credit transactions (top_up, refund)', () => {
+      const credits = filterWalletTransactions(sampleTxs, 'credits');
+      assert.equal(credits.length, 2);
+      assert.ok(credits.every((tx) => tx.type === 'top_up' || tx.type === 'refund'));
+    });
+
+    it('filters debit transactions (deduction, cash_payout)', () => {
+      const debits = filterWalletTransactions(sampleTxs, 'debits');
+      assert.equal(debits.length, 2);
+      assert.ok(debits.every((tx) => tx.type === 'deduction' || tx.type === 'cash_payout'));
+    });
+  });
+
+  describe('canArchiveWallet', () => {
+    it('disallows archiving when wallet has an active positive balance', () => {
+      const res = canArchiveWallet({ balance: 5000, total_topped_up: 5000, total_used: 0 });
+      assert.equal(res.allowed, false);
+      assert.equal(res.isPermanentDelete, false);
+      assert.ok(res.reason?.includes('active balance'));
+    });
+
+    it('allows permanent delete when zero balance and no transaction history', () => {
+      const res = canArchiveWallet({ balance: 0, total_topped_up: 0, total_used: 0 });
+      assert.equal(res.allowed, true);
+      assert.equal(res.isPermanentDelete, true);
+    });
+
+    it('allows archiving (history preserved) when zero balance with past transactions', () => {
+      const res = canArchiveWallet({ balance: 0, total_topped_up: 50000, total_used: 50000 });
+      assert.equal(res.allowed, true);
+      assert.equal(res.isPermanentDelete, false);
+      assert.ok(res.reason?.includes('safely archived'));
+    });
+  });
+
+  describe('formatWalletResultCount', () => {
+    it('formats unfiltered count correctly', () => {
+      assert.equal(formatWalletResultCount(5, 5, false), '5 accounts');
+      assert.equal(formatWalletResultCount(1, 1, false), '1 account');
+    });
+
+    it('formats filtered count correctly', () => {
+      assert.equal(formatWalletResultCount(2, 5, true), 'Showing 2 of 5 accounts');
     });
   });
 });
