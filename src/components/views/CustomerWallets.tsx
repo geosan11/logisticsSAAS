@@ -497,7 +497,7 @@ export const CustomerWallets = ({
   const handleForceDelete = async (wallet: CustomerWallet) => {
     const ok = await confirm({
       title: 'Force delete this wallet?',
-      message: `This PERMANENTLY deletes ${wallet.customer_name}'s wallet, including its entire top-up/deduction history. Any cargo, baggage, marketing, or package entry that was ever paid from this wallet will keep its own record but lose its link to it. This cannot be undone.`,
+      message: `This PERMANENTLY deletes ${wallet.customer_name}'s wallet, including its entire top-up/deduction history. Any cargo, package, or legacy entry that was ever paid from this wallet will keep its own record but lose its link to it. This cannot be undone.`,
       confirmLabel: 'Force Delete',
       tone: 'danger',
     });
@@ -812,7 +812,7 @@ export const CustomerWallets = ({
           <div className="text-[8px] font-mono text-[var(--color-muted)]">
             {liabilityCapped || walletsCapped
               ? 'Wallet count exceeds this view\'s cap — total may be incomplete'
-              : 'Prepaid balance held by EHI'}
+              : 'Prepaid customer balance'}
           </div>
         </div>
 
@@ -1223,7 +1223,7 @@ ALTER TABLE cargo_entries ADD CONSTRAINT cargo_entries_receipt_mode_check CHECK 
                   >
                     <option value="advance_deposit">Advance Deposit</option>
                     <option value="airline_retrieval">Airline Retrieval</option>
-                    <option value="refund">EHI Overcharge Refund</option>
+                    <option value="refund">Overcharge Refund</option>
                     <option value="manual_credit">Manual Adjustment</option>
                   </select>
                 </div>

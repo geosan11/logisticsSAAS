@@ -93,16 +93,10 @@ const EODReportPDF = ({ data }: { data: EODReportData }) => (
             <Text style={styles.summaryLabel}>Cargo Station ({data.cargoCount})</Text>
             <Text style={styles.summaryValue}>NGN {data.cargoTotal.toLocaleString('en-NG', { maximumFractionDigits: 2 })}</Text>
           </View>
-          {data.mktgCount > 0 && (
+          {(data.mktgCount + data.vjCount) > 0 && (
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Marketing (legacy) ({data.mktgCount})</Text>
-              <Text style={styles.summaryValue}>NGN {data.mktgTotal.toLocaleString('en-NG', { maximumFractionDigits: 2 })}</Text>
-            </View>
-          )}
-          {data.vjCount > 0 && (
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Excess Baggage (legacy) ({data.vjCount})</Text>
-              <Text style={styles.summaryValue}>NGN {data.vjTotal.toLocaleString('en-NG', { maximumFractionDigits: 2 })}</Text>
+              <Text style={styles.summaryLabel}>Legacy ({data.mktgCount + data.vjCount})</Text>
+              <Text style={styles.summaryValue}>NGN {(data.mktgTotal + data.vjTotal).toLocaleString('en-NG', { maximumFractionDigits: 2 })}</Text>
             </View>
           )}
           <View style={styles.summaryRow}>

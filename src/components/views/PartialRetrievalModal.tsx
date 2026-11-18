@@ -22,8 +22,8 @@ interface PartialRetrievalModalProps {
 
 const TYPE_LABEL: Record<string, string> = {
   cargo: 'Cargo',
-  baggage: 'Baggage',
-  marketing: 'Marketing',
+  baggage: 'Legacy',
+  marketing: 'Legacy',
   package: 'Package',
 };
 

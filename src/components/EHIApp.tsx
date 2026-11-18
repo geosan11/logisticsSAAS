@@ -708,8 +708,7 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
         // checking the merged length could warn "truncated" on a table
         // whose real select was never actually capped.
         if ((cargoRes.data?.length || 0) >= LEDGER_ROW_CAP) cappedTables.push('Cargo');
-        if ((baggageRes.data?.length || 0) >= LEDGER_ROW_CAP) cappedTables.push('Excess Baggage');
-        if ((mktRes.data?.length || 0) >= LEDGER_ROW_CAP) cappedTables.push('Marketing');
+        if ((baggageRes.data?.length || 0) >= LEDGER_ROW_CAP || (mktRes.data?.length || 0) >= LEDGER_ROW_CAP) cappedTables.push('Legacy');
         if ((packageRes.data?.length || 0) >= LEDGER_ROW_CAP) cappedTables.push('Package Desk');
         if ((expRes.data?.length || 0) >= LEDGER_ROW_CAP) cappedTables.push('Expenses');
         setLedgerRowsTruncated(cappedTables.length > 0);
@@ -802,8 +801,8 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
             const enteredByName = r.entered_by ? (profileLookup[r.entered_by] || r.entered_by) : undefined;
             allTx.push({
               id: r.transaction_id || r.id,
-              name: r.passenger_name || 'Baggage Passenger',
-              detail: `${r.flight_no || ''} · ${r.destination || ''} · ${r.total_pcs || 1}pcs · +${r.excess_kg || 0}kg excess`,
+              name: r.passenger_name || 'Customer',
+              detail: `${r.flight_no || ''} · ${r.destination || ''} · ${r.total_pcs || 1}pcs · +${r.excess_kg || 0}kg`,
               amount: r.amount || 0,
               mode: computeDebtDisplayModeFromRow(r, 'baggage'),
               time: new Date(r.created_at).toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit' }),
@@ -1397,9 +1396,8 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
 
     const handleEhiNav = (e: Event) => {
       const requested = (e as CustomEvent).detail as TabView;
-      const allowed = getAllowedTabs(user);
 
-      if (allowed.includes(requested) || requested === 'More') {
+      if (canAccessTab(user, requested, logisticsMode) || requested === 'More') {
         setCurrentTab(requested);
       }
     };
@@ -1518,8 +1516,8 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
         const enteredByName = r.entered_by ? (profileLookup[r.entered_by] || r.entered_by) : undefined;
         deltaTx.push({
           id: r.transaction_id || r.id,
-          name: r.passenger_name || 'Baggage Passenger',
-          detail: `${r.flight_no || ''} · ${r.destination || ''} · ${r.total_pcs || 1}pcs · +${r.excess_kg || 0}kg excess`,
+          name: r.passenger_name || 'Customer',
+          detail: `${r.flight_no || ''} · ${r.destination || ''} · ${r.total_pcs || 1}pcs · +${r.excess_kg || 0}kg`,
           amount: r.amount || 0,
           mode: computeDebtDisplayModeFromRow(r, 'baggage'),
           time: new Date(r.created_at).toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit' }),
@@ -1903,8 +1901,8 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
           const r = payload.new as any;
           pushUnique({
             id: r.transaction_id || r.id,
-            name: r.passenger_name || 'Baggage Passenger',
-            detail: `${r.flight_no || ''} · ${r.destination || ''} · ${r.total_pcs || 1}pcs · +${r.excess_kg || 0}kg excess`,
+            name: r.passenger_name || 'Customer',
+            detail: `${r.flight_no || ''} · ${r.destination || ''} · ${r.total_pcs || 1}pcs · +${r.excess_kg || 0}kg`,
             amount: r.amount || 0,
             mode: computeDebtDisplayModeFromRow(r, 'baggage'),
             time: new Date().toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit' }),
@@ -2491,7 +2489,7 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
         transaction_id: tx.id,
         passenger_name: tx.name,
         passenger_phone: (tx as any).phone || null,
-        airline: tx.airline || 'ValueJet',
+        airline: tx.airline || 'Carrier',
         flight_no: flightNo,
         destination: dest,
         pnr: pnr,
@@ -2935,7 +2933,7 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
   }, [streamLedger]);
 
   const STREAM_LEDGER_DEPT_LABEL: Record<Exclude<ShiftDepartment, 'all'>, string> = {
-    cargo: 'Cargo', package: 'Package', marketing: 'Marketing (legacy)', baggage: 'Baggage (legacy)',
+    cargo: 'Cargo', package: 'Package', marketing: 'Legacy', baggage: 'Legacy',
   };
 
   // TransactionLedger is wrapped in memo() -- these three were previously

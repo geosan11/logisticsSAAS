@@ -84,26 +84,33 @@ const RevenueTable = ({ data }: { data: any }) => (
   </View>
 );
 
-const RoutesTable = ({ data }: { data: any[] }) => (
-  <View style={styles.table}>
-    <View style={styles.tableRow}>
-      <View style={styles.tableColHeader}><Text style={styles.tableCellHeader}>Route</Text></View>
-      <View style={styles.tableColHeader}><Text style={[styles.tableCellHeader, styles.textCenter]}>Entries</Text></View>
-      <View style={styles.tableColHeader}><Text style={[styles.tableCellHeader, styles.textRight]}>Cargo (N)</Text></View>
-      <View style={styles.tableColHeader}><Text style={[styles.tableCellHeader, styles.textRight]}>Marketing (N)</Text></View>
-      <View style={styles.tableColHeader}><Text style={[styles.tableCellHeader, styles.textRight]}>Total Revenue</Text></View>
-    </View>
-    {data.map((r, i) => (
-      <View style={styles.tableRow} key={i}>
-        <View style={styles.tableCol}><Text style={styles.tableCell}>{r.route}</Text></View>
-        <View style={styles.tableCol}><Text style={[styles.tableCell, styles.textCenter]}>{r.count}</Text></View>
-        <View style={styles.tableCol}><Text style={[styles.tableCell, styles.textRight]}>{r.cargo.toLocaleString('en-NG', { maximumFractionDigits: 2 })}</Text></View>
-        <View style={styles.tableCol}><Text style={[styles.tableCell, styles.textRight]}>{r.mktg.toLocaleString('en-NG', { maximumFractionDigits: 2 })}</Text></View>
-        <View style={styles.tableCol}><Text style={[styles.tableCell, styles.textRight, styles.fontBold]}>₦{fmt(r.revenue)}</Text></View>
+const RoutesTable = ({ data }: { data: any[] }) => {
+  const hasLegacy = data.some(r => ((r.legacy || r.mktg || 0) > 0));
+  return (
+    <View style={styles.table}>
+      <View style={styles.tableRow}>
+        <View style={styles.tableColHeader}><Text style={styles.tableCellHeader}>Route</Text></View>
+        <View style={styles.tableColHeader}><Text style={[styles.tableCellHeader, styles.textCenter]}>Entries</Text></View>
+        <View style={styles.tableColHeader}><Text style={[styles.tableCellHeader, styles.textRight]}>Cargo (N)</Text></View>
+        {hasLegacy && (
+          <View style={styles.tableColHeader}><Text style={[styles.tableCellHeader, styles.textRight]}>Legacy (N)</Text></View>
+        )}
+        <View style={styles.tableColHeader}><Text style={[styles.tableCellHeader, styles.textRight]}>Total Revenue</Text></View>
       </View>
-    ))}
-  </View>
-);
+      {data.map((r, i) => (
+        <View style={styles.tableRow} key={i}>
+          <View style={styles.tableCol}><Text style={styles.tableCell}>{r.route}</Text></View>
+          <View style={styles.tableCol}><Text style={[styles.tableCell, styles.textCenter]}>{r.count}</Text></View>
+          <View style={styles.tableCol}><Text style={[styles.tableCell, styles.textRight]}>{(r.cargo || 0).toLocaleString('en-NG', { maximumFractionDigits: 2 })}</Text></View>
+          {hasLegacy && (
+            <View style={styles.tableCol}><Text style={[styles.tableCell, styles.textRight]}>{(r.legacy || r.mktg || 0).toLocaleString('en-NG', { maximumFractionDigits: 2 })}</Text></View>
+          )}
+          <View style={styles.tableCol}><Text style={[styles.tableCell, styles.textRight, styles.fontBold]}>₦{fmt(r.revenue)}</Text></View>
+        </View>
+      ))}
+    </View>
+  );
+};
 
 const CustomersTable = ({ data }: { data: any[] }) => (
   <View style={styles.table}>
@@ -268,7 +275,7 @@ export const downloadReportPDF = async (payload: ReportDataPayload) => {
   
   const fromStr = payload.dateRange.from.toISOString().split('T')[0];
   const toStr   = payload.dateRange.to.toISOString().split('T')[0];
-  a.download = `EHI_${payload.reportType}_${fromStr}_to_${toStr}.pdf`;
+  a.download = `Haulwey_${payload.reportType}_${fromStr}_to_${toStr}.pdf`;
   
   a.click();
   URL.revokeObjectURL(url);

@@ -483,16 +483,10 @@ export const EODReconciliation = ({ user, transactions, expenses, onBack, onEOD 
           <span className="text-[11px] font-mono text-[var(--color-muted)]">Cargo Station</span>
           <span className="text-[14px] font-bold font-mono text-[var(--color-accent-amber)]">{fmt(expectedTotals.cargoTotal)}</span>
         </div>
-        {expectedTotals.mktgCount > 0 && (
-          <div className="p-3 border-b border-[var(--color-border)] flex justify-between items-center bg-[rgba(16,185,129,0.05)]">
-            <span className="text-[11px] font-mono text-[var(--color-muted)]">Marketing (legacy)</span>
-            <span className="text-[14px] font-bold font-mono text-[var(--color-success)]">{fmt(expectedTotals.mktgTotal)}</span>
-          </div>
-        )}
-        {expectedTotals.vjCount > 0 && (
-          <div className="p-3 border-b border-[var(--color-border)] flex justify-between items-center bg-[rgba(59,130,246,0.05)]">
-            <span className="text-[11px] font-mono text-[var(--color-muted)]">Excess Baggage (legacy)</span>
-            <span className="text-[14px] font-bold font-mono text-[var(--color-accent-cobalt)]">{fmt(expectedTotals.vjTotal)}</span>
+        {(expectedTotals.mktgCount + expectedTotals.vjCount) > 0 && (
+          <div className="p-3 border-b border-[var(--color-border)] flex justify-between items-center bg-[var(--color-surface-2)]">
+            <span className="text-[11px] font-mono text-[var(--color-muted)]">Legacy</span>
+            <span className="text-[14px] font-bold font-mono text-[var(--color-foreground)]">{fmt(expectedTotals.mktgTotal + expectedTotals.vjTotal)}</span>
           </div>
         )}
         {expectedTotals.packageCount > 0 && (

@@ -167,8 +167,7 @@ export const DepartmentSalesAnalysisView = ({ data, deptLabel, routeLabel }: { d
   </div>
 );
 
-// Self-serve entry point for department screens (Cargo/Marketing/Excess
-// Baggage/Package) -- lets any agent working that desk pull the same
+// Self-serve entry point for department screens (Cargo/Package) -- lets any agent working that desk pull the same
 // collective + per-agent breakdown an admin sees in Reports > "X Sales
 // Analysis", without needing access to the Reports screen itself.
 export const DepartmentSalesAnalysisModal = ({ user, deptType, deptLabel, routeLabel = 'Route', onClose }: {

@@ -84,13 +84,13 @@ const LedgerTable = ({ rows }: { rows: Transaction[] }) => (
     <View style={styles.tableRow}>
       <View style={styles.tableColHeaderNarrow}><Text style={styles.tableCellHeader}>TIME</Text></View>
       <View style={styles.tableColHeaderNarrow}><Text style={styles.tableCellHeader}>REF</Text></View>
-      <View style={styles.tableColHeaderWide}><Text style={styles.tableCellHeader}>PASSENGER</Text></View>
+      <View style={styles.tableColHeaderWide}><Text style={styles.tableCellHeader}>CUSTOMER</Text></View>
       <View style={styles.tableColHeaderNarrow}><Text style={styles.tableCellHeader}>FLIGHT</Text></View>
       <View style={styles.tableColHeader}><Text style={styles.tableCellHeader}>DESTINATION</Text></View>
       <View style={styles.tableColHeader}><Text style={styles.tableCellHeader}>PNR</Text></View>
       <View style={styles.tableColHeaderNarrow}><Text style={styles.tableCellHeader}>PCS</Text></View>
       <View style={styles.tableColHeaderNarrow}><Text style={styles.tableCellHeader}>TOTAL KG</Text></View>
-      <View style={styles.tableColHeaderNarrow}><Text style={styles.tableCellHeader}>EXCESS</Text></View>
+      <View style={styles.tableColHeaderNarrow}><Text style={styles.tableCellHeader}>KG</Text></View>
       <View style={styles.tableColHeader}><Text style={styles.tableCellHeader}>AMOUNT (NGN)</Text></View>
       <View style={styles.tableColHeaderWide}><Text style={styles.tableCellHeader}>MODE</Text></View>
     </View>
@@ -145,7 +145,7 @@ const BaggageLedgerPDF = ({ data }: { data: BaggageLedgerReportData }) => {
             <View style={{ backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 4, padding: 10, marginBottom: 10 }}>
               <Text style={{ fontSize: 11, fontWeight: 'bold', marginBottom: 6 }}>Flight {flight} — {destinations}</Text>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text style={{ fontSize: 9 }}>Passengers: {rows.length}</Text>
+                <Text style={{ fontSize: 9 }}>Customers: {rows.length}</Text>
                 <Text style={{ fontSize: 9 }}>Pieces: {rows.reduce((a, t) => a + (t.pieces || 0), 0)}</Text>
                 <Text style={{ fontSize: 9 }}>Excess KG: {rows.reduce((a, t) => a + (t.excessKg || 0), 0)}</Text>
                 <Text style={{ fontSize: 10, fontWeight: 'bold' }}>Revenue: NGN {flightTotal.toLocaleString('en-NG', { maximumFractionDigits: 2 })}</Text>

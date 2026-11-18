@@ -36,6 +36,7 @@ import {
   Package,
   Plane,
   TrendingUp,
+  Archive,
   Minus,
   ChevronRight,
   Download,
@@ -537,8 +538,7 @@ export const TransactionLedger = ({
     if (!t) return "All";
     const lower = t.toLowerCase();
     if (lower === 'cargo') return 'Cargo';
-    if (lower === 'baggage') return 'Baggage';
-    if (lower === 'marketing') return 'Marketing';
+    if (lower === 'baggage' || lower === 'marketing' || lower === 'legacy') return 'Legacy';
     if (lower === 'package') return 'Package';
     if (lower === 'expense') return 'Expense';
     if (lower === 'office work') return 'Office Work';
@@ -937,8 +937,11 @@ export const TransactionLedger = ({
 
   const allTimeFilterParams: LedgerSearchParams = useMemo(() => {
     const typeFilterLower = typeFilter.toLowerCase();
-    const isRealType = ['cargo', 'baggage', 'marketing', 'package'].includes(typeFilterLower);
-    const types: LedgerEntryType[] | null = isRealType
+    const isLegacy = typeFilterLower === 'legacy' || typeFilterLower === 'baggage' || typeFilterLower === 'marketing';
+    const isRealType = ['cargo', 'package'].includes(typeFilterLower);
+    const types: LedgerEntryType[] | null = isLegacy
+      ? (['baggage', 'marketing'] as LedgerEntryType[])
+      : isRealType
       ? [typeFilterLower as LedgerEntryType]
       : (typeFilter === 'Expense' ? [] : null);
     return {
@@ -1209,12 +1212,14 @@ export const TransactionLedger = ({
     if (typeFilter !== "All") {
       if (typeFilter === "Office Work") {
         if (!isOfficeWorkEntry(e)) return false;
+      } else if (typeFilter === "Legacy") {
+        if (e.type !== 'baggage' && e.type !== 'marketing' && e.type !== 'legacy') return false;
       } else if (e.type !== typeFilter.toLowerCase()) {
         return false;
       }
     }
 
-    if (typeFilter.toLowerCase() === 'baggage' && e.source === 'transaction') {
+    if ((typeFilter.toLowerCase() === 'legacy' || typeFilter.toLowerCase() === 'baggage') && e.source === 'transaction') {
       const tx = e.raw as Transaction;
       if (vjFlightFilter !== "All" && tx.flight !== vjFlightFilter) return false;
       if (vjDestFilter !== "All" && tx.destination !== vjDestFilter) return false;
@@ -3139,25 +3144,29 @@ export const TransactionLedger = ({
 
     if (!hasActiveSearchOrFilter && filteredEntries.length > 0) {
       shiftsToMark.forEach((s: any) => {
-        result.push({
-          id: `shift-start-${s.id}`,
-          time: new Date(s.started_at).toISOString().split('T')[1].slice(0, 5),
-          type: 'shift-marker',
-          name: 'SHIFT STARTED',
-          detail: `Day started at ${new Date(s.started_at).toLocaleString()}`,
-          amount: 0,
-          mode: '',
-          status: '',
-          source: 'transaction',
-          raw: s,
-        });
-        if (s.ended_at) {
+        const startDate = s.started_at ? new Date(s.started_at) : null;
+        if (startDate && !isNaN(startDate.getTime())) {
+          result.push({
+            id: `shift-start-${s.id}`,
+            time: startDate.toISOString().split('T')[1].slice(0, 5),
+            type: 'shift-marker',
+            name: 'SHIFT STARTED',
+            detail: `Day started at ${startDate.toLocaleString()}`,
+            amount: 0,
+            mode: '',
+            status: '',
+            source: 'transaction',
+            raw: s,
+          });
+        }
+        const endDate = s.ended_at ? new Date(s.ended_at) : null;
+        if (endDate && !isNaN(endDate.getTime())) {
           result.push({
             id: `shift-end-${s.id}`,
-            time: new Date(s.ended_at).toISOString().split('T')[1].slice(0, 5),
+            time: endDate.toISOString().split('T')[1].slice(0, 5),
             type: 'shift-marker',
             name: 'SHIFT ENDED',
-            detail: `Day ended at ${new Date(s.ended_at).toLocaleString()}`,
+            detail: `Day ended at ${endDate.toLocaleString()}`,
             amount: 0,
             mode: '',
             status: '',
@@ -3433,19 +3442,25 @@ export const TransactionLedger = ({
   // gated behind an open dropdown). Computed once here instead, keyed only
   // on entries (the pre-filter array these counts are meant to reflect).
   const typeChipCounts = useMemo(() => {
-    let cargo = 0, baggage = 0, marketing = 0, pkg = 0, expense = 0, officeWork = 0;
+    let cargo = 0, legacy = 0, pkg = 0, expense = 0, officeWork = 0;
     for (const e of entries) {
       if (e.type === 'cargo') cargo++;
-      if (e.type === 'baggage') baggage++;
-      if (e.type === 'marketing') marketing++;
+      if (e.type === 'baggage' || e.type === 'marketing' || e.type === 'legacy') legacy++;
       if (e.type === 'package') pkg++;
       if (e.type === 'expense') expense++;
       if (isOfficeWorkEntry(e)) officeWork++;
     }
-    return {
-      All: entries.length, Cargo: cargo, Baggage: baggage, Marketing: marketing,
-      Package: pkg, Expense: expense, 'Office Work': officeWork,
-    } as Record<string, number>;
+    const counts: Record<string, number> = {
+      All: entries.length,
+      Cargo: cargo,
+      Package: pkg,
+      Expense: expense,
+      'Office Work': officeWork,
+    };
+    if (legacy > 0) {
+      counts['Legacy'] = legacy;
+    }
+    return counts;
   }, [entries]);
 
   // Extracted so the two render sites below (standalone when
@@ -3507,23 +3522,6 @@ export const TransactionLedger = ({
 
   const handleExportExcel = async (exportAllHistorical: boolean = false) => {
     setShowExportOptions(false);
-    if (defaultTypeFilter === 'baggage') {
-      const { downloadBaggageLedgerPDF } = await import('./ExcessBaggageLedgerPDF');
-      const txs = filteredEntries
-        .filter(e => e.source === 'transaction')
-        .map(e => e.raw as Transaction);
-      downloadBaggageLedgerPDF({
-        airlineName: 'Excess Baggage',
-        date: `${new Date().toLocaleDateString('en-GB')} ${tnow()}`,
-        hubName: user.hub || 'Hub',
-        transactions: txs,
-        filters: {
-          flight: vjFlightFilter === 'All' ? '' : vjFlightFilter,
-          destination: vjDestFilter === 'All' ? '' : vjDestFilter
-        }
-      });
-      return;
-    }
 
     if (!exportAllHistorical) {
       // Fast in-memory export of whatever is currently on screen (0 extra queries, 0 egress)
@@ -3601,8 +3599,7 @@ export const TransactionLedger = ({
       <div className="min-w-0">
         <div className="text-[11px] font-mono font-bold text-[var(--color-accent-amber)] tracking-widest uppercase leading-tight truncate">
           {defaultTypeFilter === 'cargo' ? 'Cargo Ledger'
-           : defaultTypeFilter === 'baggage' ? 'Excess Baggage Ledger'
-           : defaultTypeFilter === 'marketing' ? 'Marketing Ledger'
+           : (defaultTypeFilter === 'baggage' || defaultTypeFilter === 'marketing') ? 'Legacy Ledger'
            : defaultTypeFilter === 'package' ? 'Package Ledger'
            : 'Master Ledger'}
         </div>
@@ -3694,28 +3691,26 @@ export const TransactionLedger = ({
               </span>
             </button>
 
-            {defaultTypeFilter !== 'baggage' && (
-              <button
-                type="button"
-                onClick={() => {
-                  setShowExportOptions(false);
-                  handleExportExcel(true);
-                }}
-                className="flex flex-col items-start px-2.5 py-2 rounded-lg hover:bg-[var(--color-surface-hover)] text-left transition-colors cursor-pointer group border-t border-[var(--color-border)]"
-              >
-                <div className="flex items-center justify-between w-full">
-                  <span className="text-[11px] font-mono font-bold text-[var(--color-accent-amber)] flex items-center gap-1">
-                    Excel Ledger (All Time)
-                  </span>
-                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[rgba(251,191,36,0.15)] text-[var(--color-accent-amber)] font-bold">
-                    {allTimeTotals?.rowCount ? `${allTimeTotals.rowCount}` : 'Complete'}
-                  </span>
-                </div>
-                <span className="text-[9px] text-[var(--color-muted)] mt-0.5">
-                  Full database history from Day 1 till now.
+            <button
+              type="button"
+              onClick={() => {
+                setShowExportOptions(false);
+                handleExportExcel(true);
+              }}
+              className="flex flex-col items-start px-2.5 py-2 rounded-lg hover:bg-[var(--color-surface-hover)] text-left transition-colors cursor-pointer group border-t border-[var(--color-border)]"
+            >
+              <div className="flex items-center justify-between w-full">
+                <span className="text-[11px] font-mono font-bold text-[var(--color-accent-amber)] flex items-center gap-1">
+                  Excel Ledger (All Time)
                 </span>
-              </button>
-            )}
+                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[rgba(251,191,36,0.15)] text-[var(--color-accent-amber)] font-bold">
+                  {allTimeTotals?.rowCount ? `${allTimeTotals.rowCount}` : 'Complete'}
+                </span>
+              </div>
+              <span className="text-[9px] text-[var(--color-muted)] mt-0.5">
+                Full database history from Day 1 till now.
+              </span>
+            </button>
 
             {airlineManifestSummary.length > 0 && (
               <button
@@ -4210,7 +4205,8 @@ export const TransactionLedger = ({
                     { label: 'Package',    value: 'Package',    activeClass: 'bg-[rgba(168,85,247,0.15)] border-[var(--color-purple-border)] text-[var(--color-purple-fg)]' },
                     { label: 'Expense',    value: 'Expense',    activeClass: 'bg-[rgba(239,68,68,0.15)] border-[var(--color-error)] text-[var(--color-error)]' },
                     { label: 'Office Work',value: 'Office Work',activeClass: 'bg-[var(--color-surface-2)] border-[var(--color-accent-amber)] text-[var(--color-accent-amber)]' },
-                  ] as const).map(({ label, value, activeClass }) => {
+                    ...((typeChipCounts['Legacy'] ?? 0) > 0 ? [{ label: 'Legacy', value: 'Legacy', activeClass: 'bg-[var(--color-surface-2)] border-[var(--color-muted)] text-[var(--color-foreground)]' }] : []),
+                  ]).map(({ label, value, activeClass }) => {
                     const count = typeChipCounts[value] ?? 0;
                     const isActive = normalizeType(typeFilter) === value;
                     return (
@@ -4603,14 +4599,12 @@ export const TransactionLedger = ({
                             )}
                             <div className={`w-5 h-5 rounded flex items-center justify-center shrink-0 ${
                               e.type === 'cargo' ? 'bg-[rgba(59,130,246,0.15)] text-[var(--color-accent-cobalt)]' :
-                              e.type === 'baggage' ? 'bg-[rgba(251,191,36,0.15)] text-[var(--color-accent-amber)]' :
-                              e.type === 'marketing' ? 'bg-[rgba(16,185,129,0.15)] text-[var(--color-success)]' :
+                              (e.type === 'baggage' || e.type === 'marketing' || e.type === 'legacy') ? 'bg-[var(--color-surface-2)] text-[var(--color-muted)]' :
                               e.type === 'package' ? 'bg-[rgba(168,85,247,0.15)] text-[var(--color-purple)]' :
                               'bg-[rgba(239,68,68,0.15)] text-[var(--color-error)]'
                             }`}>
                               {e.type === 'cargo' && <Package size={10} />}
-                              {e.type === 'baggage' && <Plane size={10} />}
-                              {e.type === 'marketing' && <TrendingUp size={10} />}
+                              {(e.type === 'baggage' || e.type === 'marketing' || e.type === 'legacy') && <Archive size={10} />}
                               {e.type === 'package' && <Truck size={10} />}
                               {e.source === 'expense' && <Minus size={10} />}
                             </div>
@@ -4904,14 +4898,12 @@ export const TransactionLedger = ({
                       <div className="flex items-center gap-1.5 min-w-0">
                         <div className={`w-5 h-5 rounded flex items-center justify-center shrink-0 ${
                           e.type === 'cargo' ? 'bg-[rgba(59,130,246,0.15)] text-[var(--color-accent-cobalt)]' :
-                          e.type === 'baggage' ? 'bg-[rgba(251,191,36,0.15)] text-[var(--color-accent-amber)]' :
-                          e.type === 'marketing' ? 'bg-[rgba(16,185,129,0.15)] text-[var(--color-success)]' :
+                          (e.type === 'baggage' || e.type === 'marketing' || e.type === 'legacy') ? 'bg-[var(--color-surface-2)] text-[var(--color-muted)]' :
                           e.type === 'package' ? 'bg-[rgba(168,85,247,0.15)] text-[var(--color-purple)]' :
                           'bg-[rgba(239,68,68,0.15)] text-[var(--color-error)]'
                         }`}>
                           {e.type === 'cargo' && <Package size={10} />}
-                          {e.type === 'baggage' && <Plane size={10} />}
-                          {e.type === 'marketing' && <TrendingUp size={10} />}
+                          {(e.type === 'baggage' || e.type === 'marketing' || e.type === 'legacy') && <Archive size={10} />}
                           {e.type === 'package' && <Truck size={10} />}
                           {e.source === 'expense' && <Minus size={10} />}
                         </div>
@@ -5234,21 +5226,19 @@ export const TransactionLedger = ({
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                   viewingDetail.type === 'cargo' ? 'bg-[var(--color-info-bg)] text-[var(--color-info-fg)]' :
-                  viewingDetail.type === 'baggage' ? 'bg-[var(--color-amber-bg)] text-[var(--color-amber-fg)]' :
-                  viewingDetail.type === 'marketing' ? 'bg-[var(--color-success-bg)] text-[var(--color-success-fg)]' :
+                  (viewingDetail.type === 'baggage' || viewingDetail.type === 'marketing' || viewingDetail.type === 'legacy') ? 'bg-[var(--color-surface-2)] text-[var(--color-muted)]' :
                   viewingDetail.type === 'package' ? 'bg-[var(--color-purple-bg)] text-[var(--color-purple-fg)]' :
                   'bg-[var(--color-error-bg)] text-[var(--color-error-fg)]'
                 }`}>
                   {viewingDetail.type === 'cargo' && <Package size={20} />}
-                  {viewingDetail.type === 'baggage' && <Plane size={20} />}
-                  {viewingDetail.type === 'marketing' && <TrendingUp size={20} />}
+                  {(viewingDetail.type === 'baggage' || viewingDetail.type === 'marketing' || viewingDetail.type === 'legacy') && <Archive size={20} />}
                   {viewingDetail.type === 'package' && <Truck size={20} />}
                   {viewingDetail.source === 'expense' && <Minus size={20} />}
                 </div>
                 <div>
                   <h3 className="font-mono text-[var(--color-accent-amber)] text-[14px] font-bold">{viewingDetail.id}</h3>
                   <span className="text-[10px] text-[var(--color-muted)] uppercase tracking-wider">
-                    {viewingDetail.type === 'marketing' ? 'Marketing (legacy)' : viewingDetail.type === 'baggage' ? 'Baggage (legacy)' : viewingDetail.type}
+                    {(viewingDetail.type === 'marketing' || viewingDetail.type === 'baggage' || viewingDetail.type === 'legacy') ? 'Legacy' : viewingDetail.type}
                   </span>
                 </div>
               </div>
@@ -5882,7 +5872,7 @@ export const TransactionLedger = ({
                 <>
                   <div className="space-y-1">
                     <label className="text-[11px] font-sans font-medium text-[var(--color-muted)]">
-                      Passenger Name
+                      Customer Name
                     </label>
                     <input
                       id="edit-tx-baggage-name"

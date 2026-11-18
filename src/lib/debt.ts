@@ -261,7 +261,7 @@ export async function fetchAllDebtAndRetrievalEntries(): Promise<Transaction[]> 
   } as Transaction));
 
   baggageData.forEach((r: any) => mapped.push({
-    id: r.transaction_id || r.id, name: r.passenger_name || 'Passenger',
+    id: r.transaction_id || r.id, name: r.passenger_name || 'Customer',
     detail: r.is_debt_clearance ? 'DEBT CLEARANCE' : `${r.flight_no || ''}`,
     amount: r.amount || 0, amountPaid: r.amount_paid || 0, paymentHistory: r.payment_history || [],
     mode: r.payment_mode || 'Debt', pieces: r.total_pcs ?? undefined, kg: r.excess_kg ?? undefined, totalKg: r.total_kg ?? undefined,

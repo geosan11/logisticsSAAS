@@ -1,4 +1,4 @@
-export type DepartmentKey = 'cargo' | 'package' | 'baggage' | 'marketing';
+export type DepartmentKey = 'cargo' | 'package' | 'baggage' | 'marketing' | 'legacy';
 
 export interface RawDepartmentStream {
   key: DepartmentKey;
@@ -24,8 +24,8 @@ export interface BuildDepartmentRowsOptions {
 
 /**
  * Builds department stream rows according to Haulwey legacy-stream visibility rules:
- * - Legacy streams ('baggage' and 'marketing') with 0 entries are completely omitted.
- * - Legacy streams with > 0 entries are included and labelled '(legacy)'.
+ * - Legacy streams ('baggage', 'marketing', 'legacy') are combined under ONE neutral label 'Legacy'.
+ * - If total legacy count is 0, the Legacy row is completely omitted.
  * - Active streams ('cargo' and 'package') are always preserved.
  * - The returned grandTotal ALWAYS includes all amounts across all streams (including legacy).
  */
@@ -35,25 +35,28 @@ export function buildDepartmentRows(
 ): { rows: DepartmentRow[]; grandTotal: number } {
   const rows: DepartmentRow[] = [];
   let grandTotal = 0;
+  let legacyAmount = 0;
+  let legacyCount = 0;
+  let legacyKg = 0;
+  let hasLegacyStream = false;
 
   for (const stream of streams) {
     const amount = Number(stream.amount) || 0;
     const count = Number(stream.count) || 0;
     grandTotal += amount;
 
-    const isLegacy = stream.key === 'baggage' || stream.key === 'marketing';
+    const isLegacy = stream.key === 'baggage' || stream.key === 'marketing' || stream.key === 'legacy';
 
-    // Rule: hide legacy rows entirely when period has 0 entries
-    if (isLegacy && count === 0) {
+    if (isLegacy) {
+      hasLegacyStream = true;
+      legacyAmount += amount;
+      legacyCount += count;
+      legacyKg += (Number(stream.kg) || 0);
       continue;
     }
 
     let name = stream.name;
-    if (stream.key === 'baggage') {
-      name = 'Excess Baggage (legacy)';
-    } else if (stream.key === 'marketing') {
-      name = 'Marketing (legacy)';
-    } else if (stream.key === 'cargo') {
+    if (stream.key === 'cargo') {
       name = name || options?.cargoLabel || 'Air Cargo';
     } else if (stream.key === 'package') {
       name = name || options?.packageLabel || 'Package Desk';
@@ -65,7 +68,19 @@ export function buildDepartmentRows(
       amount,
       count,
       kg: stream.kg,
-      isLegacy,
+      isLegacy: false,
+    });
+  }
+
+  // Rule: combine legacy rows under ONE neutral label 'Legacy' and omit if count is 0
+  if (hasLegacyStream && legacyCount > 0) {
+    rows.push({
+      key: 'legacy',
+      name: 'Legacy',
+      amount: legacyAmount,
+      count: legacyCount,
+      kg: legacyKg,
+      isLegacy: true,
     });
   }
 
@@ -82,8 +97,7 @@ export function buildDepartmentRowsFromTransactions(
   const nonClearance = transactions.filter(t => !t.is_debt_clearance);
   const cargoTx = nonClearance.filter(t => t.type === 'cargo');
   const pkgTx = nonClearance.filter(t => t.type === 'package');
-  const vjTx = nonClearance.filter(t => t.type === 'baggage');
-  const mktgTx = nonClearance.filter(t => t.type === 'marketing');
+  const legacyTx = nonClearance.filter(t => t.type === 'baggage' || t.type === 'marketing' || t.type === 'legacy');
 
   const streams: RawDepartmentStream[] = [
     {
@@ -101,18 +115,11 @@ export function buildDepartmentRowsFromTransactions(
       kg: pkgTx.reduce((s, t) => s + (t.kg || 0), 0),
     },
     {
-      key: 'baggage',
-      name: 'Excess Baggage (legacy)',
-      amount: vjTx.reduce((s, t) => s + (t.amount || 0), 0),
-      count: vjTx.length,
-      kg: vjTx.reduce((s, t) => s + (t.kg || 0), 0),
-    },
-    {
-      key: 'marketing',
-      name: 'Marketing (legacy)',
-      amount: mktgTx.reduce((s, t) => s + (t.amount || 0), 0),
-      count: mktgTx.length,
-      kg: mktgTx.reduce((s, t) => s + (t.kg || 0), 0),
+      key: 'legacy',
+      name: 'Legacy',
+      amount: legacyTx.reduce((s, t) => s + (t.amount || 0), 0),
+      count: legacyTx.length,
+      kg: legacyTx.reduce((s, t) => s + (t.kg || 0), 0),
     },
   ];
 

@@ -86,8 +86,8 @@ export const Banks = ({ onBack }: { onBack: () => void }) => {
       <div className="ehi-page-body px-4 pt-4 pb-6 space-y-3">
         <div className="bg-[rgba(59,130,246,0.08)] border border-[rgba(59,130,246,0.2)] rounded-xl p-3" style={{ boxShadow: 'var(--shadow-sm)' }}>
           <p className="text-[11px] text-[var(--color-accent-cobalt)] font-sans leading-relaxed">
-            These are the banks staff pick from for Transfer/POS payments across Cargo, Marketing,
-            Package and Excess Baggage. Banks added here won't automatically get CSV statement
+            These are the banks staff pick from for Transfer/POS payments across Cargo and Package
+            operations. Banks added here won't automatically get CSV statement
             auto-matching in Bank Reconciliation -- that needs a developer to add a parser for the new
             format first.
           </p>

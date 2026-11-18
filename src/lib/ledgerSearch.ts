@@ -125,8 +125,8 @@ function mapCargoRow(r: any, profileLookup: Record<string, string>): Transaction
 function mapBaggageRow(r: any, profileLookup: Record<string, string>): Transaction {
   const enteredByName = r.entered_by ? (profileLookup[r.entered_by] || r.entered_by) : undefined;
   return {
-    id: r.transaction_id || r.id, name: r.passenger_name || 'Baggage Passenger',
-    detail: `${r.flight_no || ''} · ${r.destination || ''} · ${r.total_pcs || 1}pcs · +${r.excess_kg || 0}kg excess`,
+    id: r.transaction_id || r.id, name: r.passenger_name || 'Customer',
+    detail: `${r.flight_no || ''} · ${r.destination || ''} · ${r.total_pcs || 1}pcs · +${r.excess_kg || 0}kg`,
     amount: r.amount || 0,
     mode: computeDebtDisplayModeFromRow(r, 'baggage'),
     time: safeTimeString(r.created_at),

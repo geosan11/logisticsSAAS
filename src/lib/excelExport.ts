@@ -232,12 +232,12 @@ export async function downloadDailyExcel(
       ];
     });
   } else if (streamType === 'baggage') {
-    headers = ['Ref', 'Date', 'Time', 'Airline', 'Passenger', 'PNR', 'Flight', 'Destination', 'PCS', 'Total KG', 'Excess KG', 'Amount', 'Mode', 'Bank', 'Agent', ...debtAndWalletHeaders];
+    headers = ['Ref', 'Date', 'Time', 'Airline', 'Customer', 'Reference', 'Movement', 'Destination', 'PCS', 'Total KG', 'KG', 'Amount', 'Mode', 'Bank', 'Agent', ...debtAndWalletHeaders];
     rows = transactions.map(t => [
       t.id,
       rowDate(t),
       t.time || '',
-      t.airline || 'ValueJet',
+      t.airline || '',
       t.name || '',
       t.pnr || '',
       t.flight || '',
@@ -332,7 +332,7 @@ export async function downloadDailyExcel(
         t.id,
         rowDate(t),
         t.time || '',
-        t.type || '',
+        (t.type === 'baggage' || t.type === 'marketing') ? 'Legacy' : (t.type || ''),
         t.name || '',
         t.airline || '',
         route,
@@ -350,8 +350,7 @@ export async function downloadDailyExcel(
   }
 
   const streamLabel = streamType === 'cargo' ? 'Cargo'
-    : streamType === 'baggage' ? 'Excess Baggage'
-    : streamType === 'marketing' ? 'Marketing'
+    : (streamType === 'baggage' || streamType === 'marketing') ? 'Legacy'
     : streamType === 'package' ? 'Package Desk'
     : 'Master Ledger';
   const companyTitle = (typeof localStorage !== 'undefined' && localStorage.getItem('ehi_company_name')) || 'Haulwey';
@@ -473,7 +472,7 @@ export async function downloadAirlineManifestExcel(
     let airlineAmount = 0;
     group.forEach(t => {
       const kg = Number(t.totalKg ?? t.excessKg ?? t.kg ?? 0) || 0;
-      const content = t.type === 'baggage' ? 'Excess Baggage' : (t.contentType || '');
+      const content = (t.type === 'baggage' || t.type === 'marketing') ? 'Legacy' : (t.contentType || '');
       const route = t.route || t.destination || '';
       const amount = Number(t.amount || 0);
       airlineKg += kg;

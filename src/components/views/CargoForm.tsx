@@ -1958,7 +1958,7 @@ export const CargoForm = ({
         serialNumber: serialNumber - 1,
         date: `${new Date().toLocaleDateString("en-GB")} ${tnow()}`,
         hubName: user?.hub || "Air Cargo Hub",
-        agentName: user?.name || "EHI Agent",
+        agentName: user?.name || "Agent",
         airline: (() => {
           const txAir = successTx.airline || airline;
           return txAir === "Green Africa"

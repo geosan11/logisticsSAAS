@@ -184,7 +184,7 @@ export async function validateScan(
       awb_tag_number: ref,
       route: inlineCargoData.destination || inlineCargoData.route || '',
       consignee_name: inlineCargoData.name || inlineCargoData.customerName || 'Unknown',
-      content_type: inlineCargoData.content || inlineCargoData.type || 'Baggage',
+      content_type: inlineCargoData.content || inlineCargoData.type || 'General',
       total_pcs: inlineCargoData.pieces || inlineCargoData.pcs || 1,
       total_kg: inlineCargoData.kg || inlineCargoData.weight || 0,
       _table: 'inline_qr_payload',
@@ -218,24 +218,15 @@ export async function validateScan(
     table: cargo._table,
   };
 
-  // Excess-baggage tickets (manifests) -- ValueJet or any other configured
-  // airline -- are a point-of-sale transaction, not a tracked shipment --
-  // ExcessBaggageForm sets status: 'Delivered' directly at creation with no
-  // ARRIVE/DEPART scan and no tracking_events row ever written. The
-  // terminal-state DELIVER guard below already blocks a DELIVER scan on
-  // these (no ARRIVE record can ever exist), but ARRIVE/DEPART's
-  // "first-ever scan" allowance (for legitimate origin-hub cargo) doesn't
-  // know the difference -- scanning a baggage ticket's QR in either mode
-  // was reachable via the Scanner (no type gate blocks it) and would create
-  // a bogus tracking_events row, revert manifests.status from 'Delivered'
-  // back to 'Arrived'/'In-Transit', and could fire a stray arrival/
-  // departure SMS to the passenger.
+  // Legacy counter tickets (manifests) are a point-of-sale transaction,
+  // not a tracked shipment -- they set status: 'Delivered' directly at creation with no
+  // ARRIVE/DEPART scan and no tracking_events row ever written.
   if (cargo._table === 'manifests' && (mode === 'ARRIVE' || mode === 'DEPART')) {
     return {
       type: 'ERROR',
       cargo: cargoInfo,
       currentHub,
-      message: `${awb} is a ${cargo.airline || 'ValueJet'} excess-baggage ticket, already paid and delivered at the counter -- it doesn't use ARRIVE/DEPART scanning.`,
+      message: `${awb} is a legacy ticket, already paid and delivered at the counter -- it doesn't use ARRIVE/DEPART scanning.`,
     };
   }
 

@@ -41,7 +41,7 @@ function mapDebtRow(r: any, type: DebtDept): Transaction {
   }
   if (type === 'baggage') {
     return {
-      ...base, id: r.transaction_id || r.id, name: r.passenger_name || 'Passenger', detail: `${r.flight_no || ''}`,
+      ...base, id: r.transaction_id || r.id, name: r.passenger_name || 'Customer', detail: `${r.flight_no || ''}`,
       amount: r.amount || 0, amountPaid: r.amount_paid || 0, clientType: r.client_type, consigneePhone: r.passenger_phone,
       pieces: r.total_pcs, kg: r.excess_kg, destination: r.destination,
     } as Transaction;

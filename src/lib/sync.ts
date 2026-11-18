@@ -321,8 +321,8 @@ function mapBaggageLocalRow(item: any): any {
   if (!r) return null;
   return {
     id: r.id || r.transaction_id,
-    name: r.passenger_name || 'Baggage Passenger',
-    detail: `${r.flight_no || ''} · ${r.destination || ''} · ${r.total_pcs || 1}pcs · +${r.excess_kg || 0}kg excess`,
+    name: r.passenger_name || 'Customer',
+    detail: `${r.flight_no || ''} · ${r.destination || ''} · ${r.total_pcs || 1}pcs · +${r.excess_kg || 0}kg`,
     amount: r.amount || 0,
     mode: r.payment_mode || 'POS',
     time: new Date(item.created_at || Date.now()).toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit' }),

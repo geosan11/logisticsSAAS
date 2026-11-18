@@ -11,14 +11,12 @@ import { fetchAllDebtAndRetrievalEntries, buildShadowRowExclusionCounts, extract
 const REPORT_TYPES = [
   { id: 'revenue',       label: 'Revenue Summary',                  desc: 'Stream, mode, and total breakdown' },
   { id: 'airline_sales', label: 'Airline Performance (Sales & KG)', desc: 'Total Sales (₦) and Total Weight (KG) per Airline' },
-  { id: 'routes',        label: 'Route Profitability',              desc: 'Cargo + marketing by destination' },
+  { id: 'routes',        label: 'Route Profitability',              desc: 'Cargo revenue by destination' },
   { id: 'customers',     label: 'Top Consignees',                   desc: 'Highest revenue customers' },
   { id: 'debtors',       label: 'Debtor Aging',                     desc: 'Outstanding balances 0-30/31-60/61-90/90+' },
   { id: 'staff',         label: 'Staff Productivity',               desc: 'Entries and revenue per agent, all departments combined' },
-  { id: 'sales_cargo',      label: 'Cargo Sales Analysis',      desc: 'Owed, collected, and top route per agent -- Cargo only' },
-  { id: 'sales_marketing',  label: 'Marketing Sales Analysis (Legacy)', desc: 'Owed, collected, and top route per agent -- Marketing historical auditing' },
-  { id: 'sales_baggage',    label: 'Baggage Sales Analysis (Legacy)', desc: 'Owed, collected, and top destination per agent -- Baggage historical auditing' },
-  { id: 'sales_package',    label: 'Package Sales Analysis',    desc: 'Owed, collected, and top destination per agent -- Package only' },
+  { id: 'sales_cargo',   label: 'Cargo Sales Analysis',             desc: 'Owed, collected, and top route per agent -- Cargo only' },
+  { id: 'sales_package', label: 'Package Sales Analysis',           desc: 'Owed, collected, and top destination per agent -- Package only' },
   { id: 'hubs',          label: 'Hub Comparison',                   desc: 'Per-hub revenue (admin only)' },
   { id: 'b2b_sales',     label: 'Office Work (B2B) Sales',          desc: 'All Office Work client transactions' },
 ];
@@ -140,8 +138,8 @@ export const Reports = ({ user, transactions, onBack }: { user: User; transactio
             const enteredByName = r.entered_by ? (profileLookup[r.entered_by] || r.entered_by) : undefined;
             allTx.push({
               id: r.transaction_id,
-              name: r.passenger_name || 'Passenger',
-              detail: `${r.flight_no || ''} · ${r.destination || ''} · ${r.total_pcs || 1}pcs · +${r.excess_kg || 0}kg excess`,
+              name: r.passenger_name || 'Customer',
+              detail: `${r.flight_no || ''} · ${r.destination || ''} · ${r.total_pcs || 1}pcs · +${r.excess_kg || 0}kg`,
               amount: r.amount || 0,
               // Same 'Debt Paid' derivation as cargo above.
               mode: r.payment_mode === 'Debt' && (r.amount_paid || 0) + (r.retrieved_amount || 0) >= (r.amount || 0) ? 'Debt Paid' : (r.payment_mode || 'Cash'),
@@ -151,7 +149,7 @@ export const Reports = ({ user, transactions, onBack }: { user: User; transactio
               created_at: r.created_at,
               bank: r.bank,
               hub_id: r.hub_id,
-              airline: r.airline || 'ValueJet',
+              airline: r.airline || 'Carrier',
               destination: r.destination,
               flight: r.flight_no,
               pnr: r.pnr || undefined,
@@ -300,6 +298,8 @@ export const Reports = ({ user, transactions, onBack }: { user: User; transactio
     const marketing = nonClearanceTx.filter(t => t.type === 'marketing');
     const vj        = nonClearanceTx.filter(t => t.type === 'baggage');
     const pkg       = nonClearanceTx.filter(t => t.type === 'package');
+    const legacyCount = marketing.length + vj.length;
+    const legacyAmount = marketing.reduce((s,t) => s+t.amount, 0) + vj.reduce((s,t) => s+t.amount, 0);
     // Payment-history-derived collections (see periodCollectionEvents
     // above) are this file's own fetchedTx not carrying `is_debt_clearance`/
     // payment_history at all (its select() lists explicit columns, neither
@@ -309,9 +309,8 @@ export const Reports = ({ user, transactions, onBack }: { user: User; transactio
     const collectionByMode = sumPaymentHistoryByMode(periodCollectionEvents);
     const streams = [
       { name: 'Air Cargo',          count: cargo.length,     amount: cargo.reduce((s,t) => s+t.amount, 0) },
-      ...(marketing.length > 0 ? [{ name: 'Marketing (legacy)',    count: marketing.length, amount: marketing.reduce((s,t) => s+t.amount, 0) }] : []),
-      ...(vj.length > 0 ? [{ name: 'Excess Baggage (legacy)',     count: vj.length,        amount: vj.reduce((s,t) => s+t.amount, 0) }] : []),
       { name: 'Package Desk',       count: pkg.length,       amount: pkg.reduce((s,t) => s+t.amount, 0) },
+      ...(legacyCount > 0 ? [{ name: 'Legacy', count: legacyCount, amount: legacyAmount }] : []),
     ];
     return {
       streams,
@@ -326,13 +325,13 @@ export const Reports = ({ user, transactions, onBack }: { user: User; transactio
   }, [filteredTx, nonClearanceTx, periodCollectionEvents]);
 
   const routeReport = useMemo(() => {
-    const map: Record<string, { revenue: number; count: number; cargo: number; mktg: number }> = {};
+    const map: Record<string, { revenue: number; count: number; cargo: number; legacy: number }> = {};
     nonClearanceTx.filter(t => t.type === 'cargo' || t.type === 'marketing').forEach(t => {
       const route = t.route || t.detail?.split('·')[0]?.trim() || 'Unknown';
-      if (!map[route]) map[route] = { revenue: 0, count: 0, cargo: 0, mktg: 0 };
+      if (!map[route]) map[route] = { revenue: 0, count: 0, cargo: 0, legacy: 0 };
       map[route].revenue += t.amount;
       map[route].count   += 1;
-      if (t.type === 'cargo') map[route].cargo += t.amount; else map[route].mktg += t.amount;
+      if (t.type === 'cargo') map[route].cargo += t.amount; else map[route].legacy += t.amount;
     });
     return Object.entries(map)
       .map(([route, d]) => ({ route, ...d }))
@@ -373,10 +372,10 @@ export const Reports = ({ user, transactions, onBack }: { user: User; transactio
   }, [filteredTx]);
 
   const staffReport = useMemo(() => {
-    const map: Record<string, { entries: number; revenue: number; collected: number; owed: number; cargo: number; mktg: number; vj: number; pkg: number }> = {};
+    const map: Record<string, { entries: number; revenue: number; collected: number; owed: number; cargo: number; legacy: number; pkg: number }> = {};
     filteredTx.forEach(t => {
       const agent = (t.enteredByName || 'Unknown Agent').trim();
-      if (!map[agent]) map[agent] = { entries: 0, revenue: 0, collected: 0, owed: 0, cargo: 0, mktg: 0, vj: 0, pkg: 0 };
+      if (!map[agent]) map[agent] = { entries: 0, revenue: 0, collected: 0, owed: 0, cargo: 0, legacy: 0, pkg: 0 };
       // Entries/revenue/per-type breakdown must skip DC- debt-clearance
       // shadow rows -- a shadow entry is a PAYMENT against a sale already
       // counted once via the original Debt-mode entry, not a second sale.
@@ -386,10 +385,9 @@ export const Reports = ({ user, transactions, onBack }: { user: User; transactio
         map[agent].entries += 1;
         // Gross value of business this agent brought in.
         map[agent].revenue += t.amount;
-        if (t.type === 'cargo')     map[agent].cargo += t.amount;
-        if (t.type === 'marketing') map[agent].mktg  += t.amount;
-        if (t.type === 'baggage')   map[agent].vj    += t.amount;
-        if (t.type === 'package')   map[agent].pkg   += t.amount;
+        if (t.type === 'cargo') map[agent].cargo += t.amount;
+        if (t.type === 'marketing' || t.type === 'baggage') map[agent].legacy += t.amount;
+        if (t.type === 'package') map[agent].pkg += t.amount;
       }
 
       // Collected -- actual liquid cash, excluding unpaid Debt AND the
@@ -420,7 +418,7 @@ export const Reports = ({ user, transactions, onBack }: { user: User; transactio
     // as the isDebtClearanceTx guard above -- a collection isn't a sale.
     periodCollectionEvents.forEach(e => {
       const agent = (e.by || 'Unknown Agent').trim();
-      if (!map[agent]) map[agent] = { entries: 0, revenue: 0, collected: 0, owed: 0, cargo: 0, mktg: 0, vj: 0, pkg: 0 };
+      if (!map[agent]) map[agent] = { entries: 0, revenue: 0, collected: 0, owed: 0, cargo: 0, legacy: 0, pkg: 0 };
       map[agent].collected += e.amount;
     });
 
@@ -437,8 +435,6 @@ export const Reports = ({ user, transactions, onBack }: { user: User; transactio
   }), { entries: 0, revenue: 0, collected: 0, owed: 0 }), [staffReport]);
 
   const cargoSalesAnalysis = useMemo(() => computeDepartmentSalesAnalysis(filteredTx, 'cargo', periodCollectionEvents), [filteredTx, periodCollectionEvents]);
-  const marketingSalesAnalysis = useMemo(() => computeDepartmentSalesAnalysis(filteredTx, 'marketing', periodCollectionEvents), [filteredTx, periodCollectionEvents]);
-  const baggageSalesAnalysis = useMemo(() => computeDepartmentSalesAnalysis(filteredTx, 'baggage', periodCollectionEvents), [filteredTx, periodCollectionEvents]);
   const packageSalesAnalysis = useMemo(() => computeDepartmentSalesAnalysis(filteredTx, 'package', periodCollectionEvents), [filteredTx, periodCollectionEvents]);
 
   const hubReport = useMemo(() => {
@@ -477,7 +473,7 @@ export const Reports = ({ user, transactions, onBack }: { user: User; transactio
   }, [hubReport]);
 
   const airlineReport = useMemo(() => {
-    const map: Record<string, { cargoSales: number; cargoKg: number; baggageSales: number; baggageKg: number; totalSales: number; totalKg: number; count: number }> = {};
+    const map: Record<string, { cargoSales: number; cargoKg: number; legacySales: number; legacyKg: number; totalSales: number; totalKg: number; count: number }> = {};
     nonClearanceTx.forEach(t => {
       // Normalized the same way AirlinePerformance.tsx's identical
       // aggregation already does -- without this, "Arik Air" vs "arik air"
@@ -486,8 +482,8 @@ export const Reports = ({ user, transactions, onBack }: { user: User; transactio
       // merges them.
       const air = t.airline
         ? normalizeAirlineName(t.airline)
-        : (t.type === 'baggage' ? 'ValueJet' : t.type === 'marketing' ? 'Marketing Desk' : 'Unassigned');
-      if (!map[air]) map[air] = { cargoSales: 0, cargoKg: 0, baggageSales: 0, baggageKg: 0, totalSales: 0, totalKg: 0, count: 0 };
+        : (t.type === 'baggage' || t.type === 'marketing' ? 'Legacy' : 'Unassigned');
+      if (!map[air]) map[air] = { cargoSales: 0, cargoKg: 0, legacySales: 0, legacyKg: 0, totalSales: 0, totalKg: 0, count: 0 };
       const st = map[air];
       st.totalSales += t.amount || 0;
       st.count += 1;
@@ -496,9 +492,9 @@ export const Reports = ({ user, transactions, onBack }: { user: User; transactio
         st.cargoSales += t.amount || 0;
         st.cargoKg += (t as any).totalKg || (t as any).kg || 0;
         st.totalKg += (t as any).totalKg || (t as any).kg || 0;
-      } else if (t.type === 'baggage') {
-        st.baggageSales += t.amount || 0;
-        st.baggageKg += (t as any).excessKg || (t as any).kg || 0;
+      } else if (t.type === 'baggage' || t.type === 'marketing') {
+        st.legacySales += t.amount || 0;
+        st.legacyKg += (t as any).excessKg || (t as any).kg || 0;
         st.totalKg += (t as any).excessKg || (t as any).kg || 0;
       } else if (t.type === 'package') {
         st.totalKg += (t as any).kg || 0;
@@ -560,12 +556,18 @@ export const Reports = ({ user, transactions, onBack }: { user: User; transactio
         ['TOTAL REVENUE', '', revenueReport.total]
       ];
     } else if (selectedReport === 'routes') {
+      const hasLegacyRoute = routeReport.some(r => r.legacy > 0);
       wsData = [
         ['HAULWEY - ROUTE PROFITABILITY'],
         ['Period:', dateRange.from.toLocaleDateString(), 'to', dateRange.to.toLocaleDateString()],
         [],
-        ['Route', 'Transactions', 'Air Cargo (NGN)', 'Marketing (NGN)', 'Total Revenue (NGN)'],
-        ...routeReport.map(r => [r.route, r.count, r.cargo, r.mktg, r.revenue])
+        hasLegacyRoute
+          ? ['Route', 'Transactions', 'Air Cargo (NGN)', 'Legacy (NGN)', 'Total Revenue (NGN)']
+          : ['Route', 'Transactions', 'Air Cargo (NGN)', 'Total Revenue (NGN)'],
+        ...routeReport.map(r => hasLegacyRoute
+          ? [r.route, r.count, r.cargo, r.legacy, r.revenue]
+          : [r.route, r.count, r.cargo, r.revenue]
+        )
       ];
     } else if (selectedReport === 'customers') {
       wsData = [
@@ -584,6 +586,7 @@ export const Reports = ({ user, transactions, onBack }: { user: User; transactio
         ...debtorReport.items.map(d => [d.name, d.age, d.bucket, d.amount])
       ];
     } else if (selectedReport === 'staff') {
+      const hasLegacyStaff = staffReport.some(s => s.legacy > 0);
       wsData = [
         ['HAULWEY - STAFF PRODUCTIVITY'],
         ['Period:', dateRange.from.toLocaleDateString(), 'to', dateRange.to.toLocaleDateString()],
@@ -593,15 +596,18 @@ export const Reports = ({ user, transactions, onBack }: { user: User; transactio
         [staffCollective.entries, staffCollective.revenue, staffCollective.collected, staffCollective.owed],
         [],
         ['PER-AGENT DETAIL'],
-        ['Agent Name', 'Owed (NGN)', 'Entries', 'Total Sales (NGN)', 'Collected (NGN)', 'Cargo', 'Mktg', 'Baggage', 'Package'],
-        ...staffReport.map(s => [s.role, s.owed, s.entries, s.revenue, s.collected, s.cargo, s.mktg, s.vj, s.pkg])
+        hasLegacyStaff
+          ? ['Agent Name', 'Owed (NGN)', 'Entries', 'Total Sales (NGN)', 'Collected (NGN)', 'Cargo', 'Package', 'Legacy']
+          : ['Agent Name', 'Owed (NGN)', 'Entries', 'Total Sales (NGN)', 'Collected (NGN)', 'Cargo', 'Package'],
+        ...staffReport.map(s => hasLegacyStaff
+          ? [s.role, s.owed, s.entries, s.revenue, s.collected, s.cargo, s.pkg, s.legacy]
+          : [s.role, s.owed, s.entries, s.revenue, s.collected, s.cargo, s.pkg]
+        )
       ];
     } else if (selectedReport.startsWith('sales_')) {
       const deptData: Record<string, { label: string; routeLabel: string; data: DepartmentSalesAnalysis }> = {
-        sales_cargo:     { label: 'CARGO SALES ANALYSIS',     routeLabel: 'Route',       data: cargoSalesAnalysis },
-        sales_marketing: { label: 'MARKETING SALES ANALYSIS (LEGACY)', routeLabel: 'Route',       data: marketingSalesAnalysis },
-        sales_baggage:   { label: 'EXCESS BAGGAGE SALES ANALYSIS (LEGACY)',   routeLabel: 'Destination', data: baggageSalesAnalysis },
-        sales_package:   { label: 'PACKAGE SALES ANALYSIS',   routeLabel: 'Destination', data: packageSalesAnalysis },
+        sales_cargo:   { label: 'CARGO SALES ANALYSIS',   routeLabel: 'Route',       data: cargoSalesAnalysis },
+        sales_package: { label: 'PACKAGE SALES ANALYSIS', routeLabel: 'Destination', data: packageSalesAnalysis },
       };
       const d = deptData[selectedReport];
       wsData = [
@@ -648,7 +654,7 @@ export const Reports = ({ user, transactions, onBack }: { user: User; transactio
     autoFitWorksheetColumns(ws);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Report");
-    XLSX.writeFile(wb, `EHI_Report_${selectedReport}_${new Date().toISOString().split('T')[0]}.xlsx`);
+    XLSX.writeFile(wb, `Haulwey_Report_${selectedReport}_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
   const exportToPdf = async () => {
@@ -684,11 +690,6 @@ export const Reports = ({ user, transactions, onBack }: { user: User; transactio
         <div className="grid gap-3 md:grid-cols-2">
           {REPORT_TYPES
             .filter(r => r.id !== 'hubs' || user.role === 'super_admin' || user.role === 'admin')
-            .filter(r => {
-              if (r.id === 'sales_baggage') return baggageSalesAnalysis.collective.entries > 0;
-              if (r.id === 'sales_marketing') return marketingSalesAnalysis.collective.entries > 0;
-              return true;
-            })
             .map(r => (
             <button
               key={r.id}
@@ -758,48 +759,57 @@ export const Reports = ({ user, transactions, onBack }: { user: User; transactio
             ) : (
               <>
                 {selectedReport === 'revenue' && <RevenueReportView data={revenueReport} />}
-                {selectedReport === 'airline_sales' && (
-                  <div className="space-y-4">
-                    <div className="bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded overflow-hidden">
-                      <table className="w-full text-left text-sm">
-                        <thead className="bg-[var(--color-surface-2)] font-mono text-[10px] text-[var(--color-muted)] uppercase">
-                          <tr>
-                            <th className="p-3">Airline / Carrier</th>
-                            <th className="p-3 text-right">Cargo Sales (₦)</th>
-                            <th className="p-3 text-right">Cargo KG</th>
-                            <th className="p-3 text-right">Baggage Sales (₦)</th>
-                            <th className="p-3 text-right">Baggage KG</th>
-                            <th className="p-3 text-right">Total Sales (₦)</th>
-                            <th className="p-3 text-right">Total Weight (KG)</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-[var(--color-border)] font-mono text-[12px]">
-                          {airlineReport.map((a, i) => (
-                            <tr key={i} className="hover:bg-[var(--color-surface-2)]">
-                              <td className="p-3 font-bold text-[var(--color-foreground)]">{a.airline}</td>
-                              <td className="p-3 text-right text-[var(--color-light-muted)]">₦{fmt(a.cargoSales)}</td>
-                              <td className="p-3 text-right text-[var(--color-light-muted)]">{fmt(a.cargoKg)} kg</td>
-                              <td className="p-3 text-right text-[var(--color-light-muted)]">₦{fmt(a.baggageSales)}</td>
-                              <td className="p-3 text-right text-[var(--color-light-muted)]">{fmt(a.baggageKg)} kg</td>
-                              <td className="p-3 text-right font-bold text-[var(--color-success)]">₦{fmt(a.totalSales)}</td>
-                              <td className="p-3 text-right font-bold text-[var(--color-accent-amber)]">{fmt(a.totalKg)} kg</td>
+                {selectedReport === 'airline_sales' && (() => {
+                  const hasLegacySales = airlineReport.some(a => (a.legacySales || 0) > 0 || (a.legacyKg || 0) > 0);
+                  return (
+                    <div className="space-y-4">
+                      <div className="bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded overflow-hidden">
+                        <table className="w-full text-left text-sm">
+                          <thead className="bg-[var(--color-surface-2)] font-mono text-[10px] text-[var(--color-muted)] uppercase">
+                            <tr>
+                              <th className="p-3">Airline / Carrier</th>
+                              <th className="p-3 text-right">Cargo Sales (₦)</th>
+                              <th className="p-3 text-right">Cargo KG</th>
+                              {hasLegacySales && (
+                                <>
+                                  <th className="p-3 text-right">Legacy Sales (₦)</th>
+                                  <th className="p-3 text-right">Legacy KG</th>
+                                </>
+                              )}
+                              <th className="p-3 text-right">Total Sales (₦)</th>
+                              <th className="p-3 text-right">Total Weight (KG)</th>
                             </tr>
-                          ))}
-                          {airlineReport.length === 0 && (
-                            <tr><td colSpan={7} className="p-6 text-center text-[var(--color-muted)]">No airline transactions found for this period.</td></tr>
-                          )}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody className="divide-y divide-[var(--color-border)] font-mono text-[12px]">
+                            {airlineReport.map((a, i) => (
+                              <tr key={i} className="hover:bg-[var(--color-surface-2)]">
+                                <td className="p-3 font-bold text-[var(--color-foreground)]">{a.airline}</td>
+                                <td className="p-3 text-right text-[var(--color-light-muted)]">₦{fmt(a.cargoSales)}</td>
+                                <td className="p-3 text-right text-[var(--color-light-muted)]">{fmt(a.cargoKg)} kg</td>
+                                {hasLegacySales && (
+                                  <>
+                                    <td className="p-3 text-right text-[var(--color-light-muted)]">₦{fmt(a.legacySales)}</td>
+                                    <td className="p-3 text-right text-[var(--color-light-muted)]">{fmt(a.legacyKg)} kg</td>
+                                  </>
+                                )}
+                                <td className="p-3 text-right font-bold text-[var(--color-success)]">₦{fmt(a.totalSales)}</td>
+                                <td className="p-3 text-right font-bold text-[var(--color-accent-amber)]">{fmt(a.totalKg)} kg</td>
+                              </tr>
+                            ))}
+                            {airlineReport.length === 0 && (
+                              <tr><td colSpan={hasLegacySales ? 7 : 5} className="p-6 text-center text-[var(--color-muted)]">No airline transactions found for this period.</td></tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
                 {selectedReport === 'routes'    && <RouteReportView data={routeReport} />}
                 {selectedReport === 'customers' && <CustomerReportView data={customerReport} />}
                 {selectedReport === 'debtors'   && <DebtorReportView data={debtorReport} />}
                 {selectedReport === 'staff'     && <StaffReportView data={staffReport} collective={staffCollective} />}
                 {selectedReport === 'sales_cargo'     && <DepartmentSalesAnalysisView data={cargoSalesAnalysis} deptLabel="Cargo" routeLabel="Route" />}
-                {selectedReport === 'sales_marketing' && <DepartmentSalesAnalysisView data={marketingSalesAnalysis} deptLabel="Marketing (legacy)" routeLabel="Route" />}
-                {selectedReport === 'sales_baggage'   && <DepartmentSalesAnalysisView data={baggageSalesAnalysis} deptLabel="Excess Baggage (legacy)" routeLabel="Destination" />}
                 {selectedReport === 'sales_package'   && <DepartmentSalesAnalysisView data={packageSalesAnalysis} deptLabel="Package" routeLabel="Destination" />}
                 {selectedReport === 'hubs'      && (
                   <div className="space-y-4">
@@ -950,7 +960,7 @@ const RouteReportView = ({ data }: { data: any[] }) => (
         <div className="flex-1">
           <div className="text-[13px] font-bold text-[var(--color-foreground)]">{r.route}</div>
           <div className="text-[10px] text-[var(--color-muted)]">
-            Cargo: ₦{fmt(r.cargo)} · Mktg: ₦{fmt(r.mktg)} · {r.count} entries
+            Cargo: ₦{fmt(r.cargo)}{r.legacy > 0 ? ` · Legacy: ₦${fmt(r.legacy)}` : ''} · {r.count} entries
           </div>
         </div>
         <span className="text-[13px] font-mono font-bold text-[var(--color-accent-amber)]">₦{fmt(r.revenue)}</span>
@@ -1063,16 +1073,10 @@ const StaffReportView = ({ data, collective }: { data: any[]; collective: { entr
                 <span className="text-[11px] font-mono text-[var(--color-foreground)]">₦{fmt(s.cargo)}</span>
               </div>
             )}
-            {s.mktg > 0 && (
+            {s.legacy > 0 && (
               <div className="flex justify-between">
-                <span className="text-[10px] text-[var(--color-muted)]">Marketing (legacy)</span>
-                <span className="text-[11px] font-mono text-[var(--color-foreground)]">₦{fmt(s.mktg)}</span>
-              </div>
-            )}
-            {s.vj > 0 && (
-              <div className="flex justify-between">
-                <span className="text-[10px] text-[var(--color-muted)]">Excess Baggage (legacy)</span>
-                <span className="text-[11px] font-mono text-[var(--color-foreground)]">₦{fmt(s.vj)}</span>
+                <span className="text-[10px] text-[var(--color-muted)]">Legacy</span>
+                <span className="text-[11px] font-mono text-[var(--color-foreground)]">₦{fmt(s.legacy)}</span>
               </div>
             )}
             {s.pkg > 0 && (

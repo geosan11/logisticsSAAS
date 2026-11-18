@@ -241,7 +241,7 @@ export const B2BSalesTab = ({ transactions, user }: B2BSalesTabProps) => {
     autoFitWorksheetColumns(ws);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'B2B Sales');
-    XLSX.writeFile(wb, `EHI_B2B_Sales_Ledger_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    XLSX.writeFile(wb, `Haulwey_B2B_Sales_Ledger_${new Date().toISOString().slice(0, 10)}.xlsx`);
     showToast({ message: 'Excel export downloaded successfully.', type: 'success' });
   };
 

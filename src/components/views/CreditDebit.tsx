@@ -22,7 +22,7 @@ export const CreditDebit = ({ user, transactions: _propTransactions, onBack }: {
 
   const [debtsData, setDebtsData] = useState<Transaction[]>([]);
   const [creditsData, setCreditsData] = useState<Transaction[]>([]);
-  const [commissions, setCommissions] = useState<Record<string, number>>({ 'ValueJet': 10 });
+  const [commissions, setCommissions] = useState<Record<string, number>>({ 'Air Peace': 10 });
 
   const loadLedger = useCallback(async () => {
       setLoading(true);
@@ -77,7 +77,7 @@ export const CreditDebit = ({ user, transactions: _propTransactions, onBack }: {
         }
         if (vjDebts) {
           vjDebts.forEach(r => mappedDebts.push({
-            id: r.transaction_id || r.id, name: r.passenger_name || 'Passenger', detail: `${r.flight_no || ''}`, amount: r.amount || 0, amountPaid: r.amount_paid || 0, mode: 'Debt', time: r.created_at, type: 'baggage', status: 'Intake', raw: r
+            id: r.transaction_id || r.id, name: r.passenger_name || 'Customer', detail: `${r.flight_no || ''}`, amount: r.amount || 0, amountPaid: r.amount_paid || 0, mode: 'Debt', time: r.created_at, type: 'baggage', status: 'Intake', raw: r
           }));
         }
         if (mktDebts) {

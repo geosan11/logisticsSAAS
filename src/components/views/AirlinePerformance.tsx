@@ -29,12 +29,9 @@ interface AirlineStat {
   cargoSales: number;
   cargoKg: number;
   cargoCount: number;
-  baggageSales: number;
-  baggageKg: number;
-  baggageCount: number;
-  marketingSales: number;
-  marketingKg: number;
-  marketingCount: number;
+  legacySales: number;
+  legacyKg: number;
+  legacyCount: number;
   totalSales: number;
   totalKg: number;
   totalCount: number;
@@ -145,11 +142,11 @@ export const AirlinePerformance = ({ user, onBack }: AirlinePerformanceProps) =>
           baggageRes.data.forEach((r) => {
             combined.push({
               id: r.transaction_id,
-              airline: r.airline ? normalizeAirlineName(r.airline) : 'ValueJet',
+              airline: r.airline ? normalizeAirlineName(r.airline) : 'Legacy',
               sales: r.amount || 0,
               kg: r.excess_kg || r.total_kg || 0,
               pcs: r.total_pcs || 1,
-              stream: 'baggage',
+              stream: 'legacy',
             });
           });
         }
@@ -160,11 +157,11 @@ export const AirlinePerformance = ({ user, onBack }: AirlinePerformanceProps) =>
             const pcs = (r.qty_big_bag || 0) + (r.qty_med_bag || 0) + (r.qty_small_bag || 0);
             combined.push({
               id: r.entry_ref,
-              airline: 'Marketing Desk',
+              airline: 'Legacy',
               sales: r.amount_paid || 0,
               kg: estKg,
               pcs: pcs || 1,
-              stream: 'marketing',
+              stream: 'legacy',
             });
           });
         }
@@ -193,12 +190,9 @@ export const AirlinePerformance = ({ user, onBack }: AirlinePerformanceProps) =>
           cargoSales: 0,
           cargoKg: 0,
           cargoCount: 0,
-          baggageSales: 0,
-          baggageKg: 0,
-          baggageCount: 0,
-          marketingSales: 0,
-          marketingKg: 0,
-          marketingCount: 0,
+          legacySales: 0,
+          legacyKg: 0,
+          legacyCount: 0,
           totalSales: 0,
           totalKg: 0,
           totalCount: 0,
@@ -210,14 +204,10 @@ export const AirlinePerformance = ({ user, onBack }: AirlinePerformanceProps) =>
         st.cargoSales += tx.sales;
         st.cargoKg += tx.kg;
         st.cargoCount += 1;
-      } else if (tx.stream === 'baggage') {
-        st.baggageSales += tx.sales;
-        st.baggageKg += tx.kg;
-        st.baggageCount += 1;
-      } else if (tx.stream === 'marketing') {
-        st.marketingSales += tx.sales;
-        st.marketingKg += tx.kg;
-        st.marketingCount += 1;
+      } else if (tx.stream === 'legacy') {
+        st.legacySales += tx.sales;
+        st.legacyKg += tx.kg;
+        st.legacyCount += 1;
       }
 
       st.totalSales += tx.sales;
@@ -244,6 +234,8 @@ export const AirlinePerformance = ({ user, onBack }: AirlinePerformanceProps) =>
     return filtered.sort((a, b) => b.totalSales - a.totalSales);
   }, [airlineStatsMap, selectedAirlineFilter, searchQuery]);
 
+  const hasLegacyStats = useMemo(() => sortedStatsList.some((s) => s.legacySales > 0 || s.legacyKg > 0 || s.legacyCount > 0), [sortedStatsList]);
+
   // Global KPIs
   const grandTotalSales = useMemo(() => sortedStatsList.reduce((s, a) => s + a.totalSales, 0), [sortedStatsList]);
   const grandTotalKg = useMemo(() => sortedStatsList.reduce((s, a) => s + a.totalKg, 0), [sortedStatsList]);
@@ -256,28 +248,34 @@ export const AirlinePerformance = ({ user, onBack }: AirlinePerformanceProps) =>
       import('xlsx'),
       import('../../lib/excelExport'),
     ]);
-    const rows = sortedStatsList.map((st) => ({
-      'Airline Name': st.airline,
-      'Cargo Revenue (₦)': st.cargoSales,
-      'Cargo Weight (KG)': st.cargoKg,
-      'Cargo Tickets': st.cargoCount,
-      'Baggage Revenue (₦)': st.baggageSales,
-      'Baggage Excess (KG)': st.baggageKg,
-      'Baggage Tickets': st.baggageCount,
-      'Marketing Revenue (₦)': st.marketingSales,
-      'Marketing Est. KG': st.marketingKg,
-      'Total Revenue (₦)': st.totalSales,
-      'Total Weight (KG)': st.totalKg,
-      'Total Transactions': st.totalCount,
-      'Avg Yield (₦/KG)': st.totalKg > 0 ? Math.round(st.totalSales / st.totalKg) : 0,
-      'Volume Share (%)': grandTotalSales > 0 ? ((st.totalSales / grandTotalSales) * 100).toFixed(1) + '%' : '0%',
-    }));
+    const rows = sortedStatsList.map((st) => {
+      const base: Record<string, any> = {
+        'Airline Name': st.airline,
+        'Cargo Revenue (₦)': st.cargoSales,
+        'Cargo Weight (KG)': st.cargoKg,
+        'Cargo Tickets': st.cargoCount,
+      };
+
+      if (hasLegacyStats) {
+        base['Legacy Revenue (₦)'] = st.legacySales;
+        base['Legacy Weight (KG)'] = st.legacyKg;
+        base['Legacy Tickets'] = st.legacyCount;
+      }
+
+      base['Total Revenue (₦)'] = st.totalSales;
+      base['Total Weight (KG)'] = st.totalKg;
+      base['Total Transactions'] = st.totalCount;
+      base['Avg Yield (₦/KG)'] = st.totalKg > 0 ? Math.round(st.totalSales / st.totalKg) : 0;
+      base['Volume Share (%)'] = grandTotalSales > 0 ? ((st.totalSales / grandTotalSales) * 100).toFixed(1) + '%' : '0%';
+
+      return base;
+    });
 
     const ws = XLSX.utils.json_to_sheet(sanitizeSpreadsheetRows(rows));
     autoFitWorksheetColumns(ws);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Airline Performance');
-    XLSX.writeFile(wb, `EHI_Airline_Sales_Weight_${startDateTime.slice(0, 10)}_to_${endDateTime.slice(0, 10)}.xlsx`);
+    XLSX.writeFile(wb, `Haulwey_Airline_Sales_Weight_${startDateTime.slice(0, 10)}_to_${endDateTime.slice(0, 10)}.xlsx`);
   };
 
   return (
@@ -399,7 +397,9 @@ export const AirlinePerformance = ({ user, onBack }: AirlinePerformanceProps) =>
             <div className="text-[22px] font-bold font-mono text-[var(--color-accent-amber)]">
               {fmt(grandTotalKg)} <span className="text-[13px]">KG</span>
             </div>
-            <div className="text-[10px] font-mono text-[var(--color-muted)] mt-1">Cargo + Baggage + Marketing Weight</div>
+            <div className="text-[10px] font-mono text-[var(--color-muted)] mt-1">
+              {hasLegacyStats ? 'Cargo + Legacy Weight' : 'Total Cargo Weight'}
+            </div>
           </div>
 
           <div className="bg-[var(--color-surface-card)] border border-[var(--color-border)] p-4 rounded-xl shadow-sm">
@@ -410,7 +410,9 @@ export const AirlinePerformance = ({ user, onBack }: AirlinePerformanceProps) =>
             <div className="text-[22px] font-bold font-mono text-[var(--color-accent-cobalt)]">
               {grandTotalCount.toLocaleString()}
             </div>
-            <div className="text-[10px] font-mono text-[var(--color-muted)] mt-1">Waybills & Baggage Tickets</div>
+            <div className="text-[10px] font-mono text-[var(--color-muted)] mt-1">
+              {hasLegacyStats ? 'Waybills & Legacy Tickets' : 'Waybill Consignments'}
+            </div>
           </div>
 
           <div className="bg-[var(--color-surface-card)] border border-[var(--color-border)] p-4 rounded-xl shadow-sm">
@@ -454,8 +456,12 @@ export const AirlinePerformance = ({ user, onBack }: AirlinePerformanceProps) =>
                   <th className="py-3 px-4">Carrier / Airline</th>
                   <th className="py-3 px-4 text-right">Cargo Sales (₦)</th>
                   <th className="py-3 px-4 text-right">Cargo Weight (KG)</th>
-                  <th className="py-3 px-4 text-right">Baggage Sales (₦)</th>
-                  <th className="py-3 px-4 text-right">Baggage KG</th>
+                  {hasLegacyStats && (
+                    <>
+                      <th className="py-3 px-4 text-right">Legacy Sales (₦)</th>
+                      <th className="py-3 px-4 text-right">Legacy KG</th>
+                    </>
+                  )}
                   <th className="py-3 px-4 text-right">Total Sales (₦)</th>
                   <th className="py-3 px-4 text-right">Total Weight (KG)</th>
                   <th className="py-3 px-4 text-right">Yield (₦/KG)</th>
@@ -465,13 +471,13 @@ export const AirlinePerformance = ({ user, onBack }: AirlinePerformanceProps) =>
               <tbody className="divide-y divide-[var(--color-border)] font-mono text-[12px]">
                 {loading ? (
                   <tr>
-                    <td colSpan={9} className="py-12 text-center text-[var(--color-muted)]">
+                    <td colSpan={hasLegacyStats ? 9 : 7} className="py-12 text-center text-[var(--color-muted)]">
                       Fetching airline performance metrics for selected date/time range...
                     </td>
                   </tr>
                 ) : sortedStatsList.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="py-12 text-center text-[var(--color-muted)]">
+                    <td colSpan={hasLegacyStats ? 9 : 7} className="py-12 text-center text-[var(--color-muted)]">
                       No transaction records found for the selected date & time range.
                     </td>
                   </tr>
@@ -492,12 +498,16 @@ export const AirlinePerformance = ({ user, onBack }: AirlinePerformanceProps) =>
                         <td className="py-3.5 px-4 text-right text-[var(--color-light-muted)]">
                           {fmt(st.cargoKg)} kg
                         </td>
-                        <td className="py-3.5 px-4 text-right text-[var(--color-light-muted)]">
-                          ₦{fmt(st.baggageSales)}
-                        </td>
-                        <td className="py-3.5 px-4 text-right text-[var(--color-light-muted)]">
-                          {fmt(st.baggageKg)} kg
-                        </td>
+                        {hasLegacyStats && (
+                          <>
+                            <td className="py-3.5 px-4 text-right text-[var(--color-light-muted)]">
+                              ₦{fmt(st.legacySales)}
+                            </td>
+                            <td className="py-3.5 px-4 text-right text-[var(--color-light-muted)]">
+                              {fmt(st.legacyKg)} kg
+                            </td>
+                          </>
+                        )}
                         <td className="py-3.5 px-4 text-right font-bold text-[var(--color-success)] text-[13px]">
                           ₦{fmt(st.totalSales)}
                         </td>

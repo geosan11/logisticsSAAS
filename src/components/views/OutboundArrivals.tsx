@@ -16,7 +16,7 @@ function timeSince(dateStr: string): string {
   return `${Math.floor(hours / 24)}d`;
 }
 
-type Source = 'Cargo' | 'Marketing' | 'Package';
+type Source = 'Cargo' | 'Legacy' | 'Package';
 
 interface OutboundArrivalRow {
   key: string;
@@ -92,8 +92,8 @@ export const OutboundArrivals = ({ user, onBack }: { user: User; onBack: () => v
         for (const m of mktRes.data || []) {
           const bags = (m.qty_big_bag || 0) + (m.qty_med_bag || 0) + (m.qty_small_bag || 0);
           merged.push({
-            key: `Marketing-${m.id}`,
-            source: 'Marketing',
+            key: `Legacy-${m.id}`,
+            source: 'Legacy',
             entryRef: m.entry_ref,
             customerName: m.customer_name,
             destinationLabel: m.route || '—',

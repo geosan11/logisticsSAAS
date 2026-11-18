@@ -894,7 +894,7 @@ export const ITDashboard = ({ user, onBack }: { user: User, onBack?: () => void 
             <div>
               <h3 className="text-sm font-bold font-sans text-[var(--color-foreground)] mb-1">Quarantined Offline-Sync Records</h3>
               <p className="text-xs text-[var(--color-muted)] font-mono">
-                Cargo/baggage/marketing/package entries whose sync to the server failed with an error treated as permanent (bad data, or a foreign-key reference that never resolved after {FK_VIOLATION_MAX_RETRIES} retries). These stopped retrying automatically -- requeue them after fixing the underlying issue (e.g. a hub rename/merge).
+                Cargo/package/legacy entries whose sync to the server failed with an error treated as permanent (bad data, or a foreign-key reference that never resolved after {FK_VIOLATION_MAX_RETRIES} retries). These stopped retrying automatically -- requeue them after fixing the underlying issue (e.g. a hub rename/merge).
               </p>
             </div>
             <div className="flex items-center gap-2 self-start md:self-auto">

@@ -523,7 +523,7 @@ export const FlightRadar = ({ user, onBack }: { user: User; onBack: () => void }
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search by airline or flight no. -- e.g. United Nigeria, Green Africa, ValueJet, W3 331"
+            placeholder="Search by airline or flight no. -- e.g. United Nigeria, Green Africa, Air Peace, W3 331"
             className="w-full h-9 pl-8 pr-8 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg text-[12px] font-sans text-[var(--color-foreground)] focus:outline-none focus:border-[var(--color-accent-amber)]"
           />
           {search && (

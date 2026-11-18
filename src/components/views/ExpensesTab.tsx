@@ -69,7 +69,7 @@ export const ExpensesTab = ({ expenses = [], user, period = 'today', onAddExpens
     const ws = XLSX.utils.json_to_sheet(sanitizeSpreadsheetRows(rows));
     autoFitWorksheetColumns(ws);
     XLSX.utils.book_append_sheet(wb, ws, 'Expenses');
-    XLSX.writeFile(wb, `EHI_Expenses_${new Date().toISOString().split('T')[0]}.xlsx`);
+    XLSX.writeFile(wb, `Haulwey_Expenses_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
   const getIcon = (cat: string) => {

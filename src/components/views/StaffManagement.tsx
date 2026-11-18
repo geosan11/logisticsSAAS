@@ -137,8 +137,8 @@ export const StaffManagement = ({ user, onBack }: { user: User; onBack: () => vo
     if (form.password.length < 8) {
       setError('Password must be at least 8 characters.'); setSaving(false); return;
     }
-    if (form.role === 'baggage_agent') {
-      setError('Baggage POS role is no longer assignable.'); setSaving(false); return;
+    if (form.role === 'baggage_agent' || (form.role as string) === 'marketing_agent') {
+      setError('Legacy POS role is no longer assignable.'); setSaving(false); return;
     }
     try {
       const tempPassword = form.password;
@@ -334,7 +334,7 @@ export const StaffManagement = ({ user, onBack }: { user: User; onBack: () => vo
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <span className="text-[13px] font-bold text-[var(--color-foreground)]">{member.name}</span>
                   <span className={`text-[8px] font-bold uppercase px-2 py-0.5 rounded font-mono ${roleColor(member.role)}`}>
-                    {ROLES.find(r => r.value === member.role)?.label || member.role}
+                    {ROLES.find(r => r.value === member.role)?.label || (member.role === 'baggage_agent' || member.role === 'marketing_agent' ? 'Legacy Agent' : member.role)}
                   </span>
                   {!member.active && (
                     <span className="text-[8px] font-bold uppercase px-2 py-0.5 rounded font-mono text-[var(--color-error)] bg-[rgba(239,68,68,0.12)]">
@@ -523,10 +523,10 @@ export const StaffManagement = ({ user, onBack }: { user: User; onBack: () => vo
                     <option key={r.value} value={r.value}>{r.label} — {r.desc}</option>
                   ))}
                   {editingStaff.role === 'baggage_agent' && (
-                    <option value="baggage_agent" disabled>Baggage POS (Deprecated — Unassignable)</option>
+                    <option value="baggage_agent" disabled>Legacy Agent (Deprecated — Unassignable)</option>
                   )}
                   {editingStaff.role === 'marketing_agent' && (
-                    <option value="marketing_agent" disabled>Marketing Agent (Deprecated — Unassignable)</option>
+                    <option value="marketing_agent" disabled>Legacy Agent (Deprecated — Unassignable)</option>
                   )}
                 </select>
               </div>

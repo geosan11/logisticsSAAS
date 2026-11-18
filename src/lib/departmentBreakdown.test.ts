@@ -27,31 +27,24 @@ describe('Department Breakdown Legacy Stream Rules', () => {
       assert.strictEqual(grandTotal, 195000);
     });
 
-    test('non-zero legacy streams are kept with the (legacy) label', () => {
+    test('non-zero legacy streams are combined into ONE row with the Legacy label', () => {
       const streams: RawDepartmentStream[] = [
         { key: 'cargo', name: 'Cargo Station', amount: 100000, count: 8 },
         { key: 'package', name: 'Package Desk', amount: 20000, count: 2 },
-        { key: 'baggage', name: 'Excess Baggage', amount: 35000, count: 3 },
-        { key: 'marketing', name: 'Field Marketing', amount: 50000, count: 4 },
+        { key: 'baggage', amount: 35000, count: 3 },
+        { key: 'marketing', amount: 50000, count: 4 },
       ];
 
       const { rows, grandTotal } = buildDepartmentRows(streams);
 
-      assert.strictEqual(rows.length, 4);
+      assert.strictEqual(rows.length, 3);
 
-      const baggageRow = rows.find(r => r.key === 'baggage');
-      assert.ok(baggageRow, 'Non-zero baggage stream must be kept');
-      assert.strictEqual(baggageRow.name, 'Excess Baggage (legacy)');
-      assert.strictEqual(baggageRow.amount, 35000);
-      assert.strictEqual(baggageRow.count, 3);
-      assert.strictEqual(baggageRow.isLegacy, true);
-
-      const mktgRow = rows.find(r => r.key === 'marketing');
-      assert.ok(mktgRow, 'Non-zero marketing stream must be kept');
-      assert.strictEqual(mktgRow.name, 'Marketing (legacy)');
-      assert.strictEqual(mktgRow.amount, 50000);
-      assert.strictEqual(mktgRow.count, 4);
-      assert.strictEqual(mktgRow.isLegacy, true);
+      const legacyRow = rows.find(r => r.key === 'legacy');
+      assert.ok(legacyRow, 'Non-zero legacy stream must be kept under key "legacy"');
+      assert.strictEqual(legacyRow.name, 'Legacy');
+      assert.strictEqual(legacyRow.amount, 85000);
+      assert.strictEqual(legacyRow.count, 7);
+      assert.strictEqual(legacyRow.isLegacy, true);
 
       assert.strictEqual(grandTotal, 205000);
     });
@@ -81,8 +74,9 @@ describe('Department Breakdown Legacy Stream Rules', () => {
 
       const resultB = buildDepartmentRows(streamsMixed);
       assert.strictEqual(resultB.rows.length, 3);
-      assert.ok(resultB.rows.some(r => r.name === 'Marketing (legacy)'));
+      assert.ok(resultB.rows.some(r => r.name === 'Legacy'));
       assert.ok(!resultB.rows.some(r => r.key === 'baggage'));
+      assert.ok(!resultB.rows.some(r => r.key === 'marketing'));
       assert.strictEqual(resultB.grandTotal, 112000);
     });
 
@@ -127,7 +121,7 @@ describe('Department Breakdown Legacy Stream Rules', () => {
       assert.strictEqual(grandTotal, 30000);
     });
 
-    test('includes legacy transactions with (legacy) labels when present in period', () => {
+    test('includes legacy transactions under ONE Legacy row when present in period', () => {
       const txs = [
         { type: 'cargo', amount: 30000 },
         { type: 'package', amount: 10000 },
@@ -137,19 +131,13 @@ describe('Department Breakdown Legacy Stream Rules', () => {
 
       const { rows, grandTotal } = buildDepartmentRowsFromTransactions(txs);
 
-      assert.strictEqual(rows.length, 4);
+      assert.strictEqual(rows.length, 3);
 
-      const baggage = rows.find(r => r.key === 'baggage');
-      assert.ok(baggage);
-      assert.strictEqual(baggage.name, 'Excess Baggage (legacy)');
-      assert.strictEqual(baggage.amount, 8000);
-      assert.strictEqual(baggage.count, 1);
-
-      const marketing = rows.find(r => r.key === 'marketing');
-      assert.ok(marketing);
-      assert.strictEqual(marketing.name, 'Marketing (legacy)');
-      assert.strictEqual(marketing.amount, 12000);
-      assert.strictEqual(marketing.count, 1);
+      const legacy = rows.find(r => r.key === 'legacy');
+      assert.ok(legacy, 'Legacy stream row must exist');
+      assert.strictEqual(legacy.name, 'Legacy');
+      assert.strictEqual(legacy.amount, 20000);
+      assert.strictEqual(legacy.count, 2);
 
       assert.strictEqual(grandTotal, 60000);
     });

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
-import { Package, Plane, TrendingUp, Package2, QrCode, X, Clock, Radar } from "lucide-react";
+import { Package, Plane, TrendingUp, Package2, QrCode, X, Clock, Radar, Archive, Truck } from "lucide-react";
 import { User, Transaction } from "../../lib/types";
 import { fmt, lagosBusinessDate } from "../../lib/helpers";
 import { supabase } from "../../lib/supabase";
@@ -32,9 +32,9 @@ const TxRow = React.memo(
     const accent =
       t.type === "cargo"
         ? { color: "var(--color-accent-amber)", bg: "rgba(251,191,36,0.10)" }
-        : t.type === "marketing"
-          ? { color: "var(--color-success)", bg: "rgba(16,185,129,0.10)" }
-          : { color: "var(--color-accent-cobalt)", bg: "rgba(59,130,246,0.10)" };
+        : t.type === "package"
+          ? { color: "var(--color-purple)", bg: "rgba(168,85,247,0.10)" }
+          : { color: "var(--color-muted)", bg: "var(--color-surface-2)" };
 
     const modeStyle =
       t.mode === "Cash"
@@ -77,8 +77,8 @@ const TxRow = React.memo(
           color: accent.color,
         }}>
           {t.type === "cargo" ? <Package size={17} /> :
-           t.type === "marketing" ? <TrendingUp size={17} /> :
-           <Plane size={17} />}
+           t.type === "package" ? <Truck size={17} /> :
+           <Archive size={17} />}
         </div>
 
         {/* Name + detail */}
@@ -186,41 +186,37 @@ export const Dashboard = ({
     }, [transactions, today]);
 
     const cargoTx   = useMemo(() => todaysTx.filter(t => t.type === "cargo"),     [todaysTx]);
-    const mktgTx    = useMemo(() => todaysTx.filter(t => t.type === "marketing"), [todaysTx]);
-    const vjTx      = useMemo(() => todaysTx.filter(t => t.type === "baggage"),   [todaysTx]);
+    const legacyTx  = useMemo(() => todaysTx.filter(t => t.type === "marketing" || t.type === "baggage"), [todaysTx]);
     const packageTx = useMemo(() => todaysTx.filter(t => t.type === "package"),   [todaysTx]);
 
     const cargoTotal    = useMemo(() => cargoTx.reduce((s, t) => s + t.amount, 0),       [cargoTx]);
     const cargoKgTotal  = useMemo(() => cargoTx.reduce((s, t) => s + (t.kg || 0), 0),    [cargoTx]);
-    const mktgTotal     = useMemo(() => mktgTx.reduce((s, t) => s + t.amount, 0),        [mktgTx]);
-    const vjTotal       = useMemo(() => vjTx.reduce((s, t) => s + t.amount, 0),          [vjTx]);
-    const vjKgTotal     = useMemo(() => vjTx.reduce((s, t) => s + (t.kg || 0), 0),       [vjTx]);
+    const legacyTotal   = useMemo(() => legacyTx.reduce((s, t) => s + t.amount, 0),      [legacyTx]);
+    const legacyKgTotal = useMemo(() => legacyTx.reduce((s, t) => s + (t.kg || 0), 0),   [legacyTx]);
     const packageTotal  = useMemo(() => packageTx.reduce((s, t) => s + t.amount, 0),     [packageTx]);
     // Package Desk used to be silently missing from Gross Today -- this
     // screen never filtered for type "package" at all, even though the
     // transactions prop already carries package rows (EHIApp.tsx fetches
     // them), so any hub doing Package Desk business showed a lower "Gross
     // Today" here than the same day's EOD/Accounting Console figure.
-    const grossTotal    = cargoTotal + mktgTotal + vjTotal + packageTotal;
+    const grossTotal    = cargoTotal + legacyTotal + packageTotal;
 
     const isAdmin       = user.role === "admin" || user.role === "super_admin";
     const isAccountant  = user.role === "accountant" || user.role === "auditor";
-    // Accountant/auditor need to see all three streams to review financial activity —
+    // Accountant/auditor need to see all streams to review financial activity —
     // same visibility as admin, not the single-stream visibility of a field agent.
     const showCargo     = isAdmin || isAccountant || user.role === "cargo_agent";
-    const showVJ        = (isAdmin || isAccountant) && vjTx.length > 0;
-    const showMktg      = (isAdmin || isAccountant) && mktgTx.length > 0;
+    const showLegacy    = (isAdmin || isAccountant) && legacyTx.length > 0;
     const showPackage   = isAdmin || isAccountant || user.role === "cargo_agent";
     const showRevSummary = isAdmin || isAccountant;
 
     const allVisibleTx = useMemo(() =>
       todaysTx.filter(t =>
         (showCargo && t.type === "cargo") ||
-        (showMktg  && t.type === "marketing") ||
-        (showVJ    && t.type === "baggage") ||
+        (showLegacy && (t.type === "marketing" || t.type === "baggage")) ||
         (showPackage && t.type === "package")
       ),
-      [todaysTx, showCargo, showMktg, showVJ, showPackage]
+      [todaysTx, showCargo, showLegacy, showPackage]
     );
 
     const cashTotal     = useMemo(() => allVisibleTx.reduce((s, t) => s + (t.mode === "Cash"     ? t.amount : 0), 0), [allVisibleTx]);
@@ -276,7 +272,7 @@ export const Dashboard = ({
     });
 
     // How many score cards are visible — determines grid cols
-    const cardCount = [showCargo, showMktg, showVJ, showPackage].filter(Boolean).length;
+    const cardCount = [showCargo, showLegacy, showPackage].filter(Boolean).length;
     const gridCols = cardCount === 1 ? '1fr' : cardCount === 3 ? 'repeat(3, 1fr)' : 'repeat(2, 1fr)';
 
     return (
@@ -350,7 +346,7 @@ export const Dashboard = ({
         </div>
 
         {/* Score Cards */}
-        {(showCargo || showVJ || showMktg || showPackage) && (
+        {(showCargo || showLegacy || showPackage) && (
           <div className="grid gap-3 shrink-0" style={{ gridTemplateColumns: gridCols }}>
             {showCargo && (
               <ScoreCard
@@ -362,25 +358,6 @@ export const Dashboard = ({
                 sub2={`${cargoKgTotal.toLocaleString()} KG`}
               />
             )}
-            {showMktg && (
-              <ScoreCard
-                label="Marketing (legacy)" icon={TrendingUp}
-                color="var(--color-success)"
-                bg="rgba(16,185,129,0.07)" borderColor="rgba(16,185,129,0.22)"
-                total={mktgTotal}
-                sub1={`${mktgTx.length} ${mktgTx.length === 1 ? "customer" : "customers"}`}
-              />
-            )}
-            {showVJ && (
-              <ScoreCard
-                label="Excess Baggage (legacy)" icon={Plane}
-                color="var(--color-accent-cobalt)"
-                bg="rgba(59,130,246,0.07)" borderColor="rgba(59,130,246,0.22)"
-                total={vjTotal}
-                sub1={`${vjTx.length} ${vjTx.length === 1 ? "passenger" : "passengers"}`}
-                sub2={`${vjKgTotal.toLocaleString()} Excess KG`}
-              />
-            )}
             {showPackage && (
               <ScoreCard
                 label="Package Desk" icon={Package2}
@@ -388,6 +365,16 @@ export const Dashboard = ({
                 bg="rgba(139,92,246,0.07)" borderColor="rgba(139,92,246,0.22)"
                 total={packageTotal}
                 sub1={`${packageTx.length} ${packageTx.length === 1 ? "entry" : "entries"}`}
+              />
+            )}
+            {showLegacy && (
+              <ScoreCard
+                label="Legacy" icon={Archive}
+                color="var(--color-muted)"
+                bg="var(--color-surface-2)" borderColor="var(--color-border)"
+                total={legacyTotal}
+                sub1={`${legacyTx.length} ${legacyTx.length === 1 ? "entry" : "entries"}`}
+                sub2={legacyKgTotal > 0 ? `${legacyKgTotal.toLocaleString()} KG` : undefined}
               />
             )}
           </div>

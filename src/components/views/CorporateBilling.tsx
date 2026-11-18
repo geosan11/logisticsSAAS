@@ -42,7 +42,7 @@ function fmtNaira(n: number): string {
 // Cargo entries stay unprefixed (the historical/majority case, and the only
 // type with a real AWB/tag number); the other 3 departments get a bracketed
 // tag so a statement mixing departments doesn't read as cargo-only.
-const DEPT_LABEL: Record<BillEntryType, string> = { cargo: '', package: 'PKG', baggage: 'BAG', marketing: 'MKT' };
+const DEPT_LABEL: Record<BillEntryType, string> = { cargo: '', package: 'PKG', baggage: 'LEGACY', marketing: 'LEGACY' };
 function billEntryRef(e: BillEntry): string {
   const base = e.awb_tag_number || e.entry_ref;
   return DEPT_LABEL[e.type] ? `[${DEPT_LABEL[e.type]}] ${base}` : base;

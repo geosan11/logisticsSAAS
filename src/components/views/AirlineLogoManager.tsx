@@ -157,7 +157,7 @@ export const AirlineLogoManager = ({ user, onBack }: { user: User; onBack: () =>
               <div>• "Arik Air" → upload arik-air.png</div>
               <div>• "Green Africa Airways" → upload green-africa-airways.png</div>
               <div>• "United Nigeria Airlines" → upload united-nigeria-airlines.png</div>
-              <div>• "ValueJet" → upload valuejet.png</div>
+              <div>• "Air Peace" → upload air-peace.png</div>
               <div>• "Aero Contractors" → upload aero-contractors.png</div>
             </div>
           </div>

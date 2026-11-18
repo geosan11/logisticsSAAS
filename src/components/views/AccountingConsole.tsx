@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { User, Transaction, Expense } from '../../lib/types';
 import { fmt, parseLocalDateBoundary } from '../../lib/helpers';
 import { supabase } from '../../lib/supabase';
-import { Box, Plane, TrendingUp, Package, Lock, Unlock, AlertCircle, FileDown } from 'lucide-react';
+import { Box, Plane, TrendingUp, Package, Lock, Unlock, AlertCircle, FileDown, Archive } from 'lucide-react';
 import { PageHeader, Spinner } from '../ui';
 const DebtorsTab = lazy(() => import('./DebtorsTab').then(m => ({ default: m.DebtorsTab })));
 const ExpensesTab = lazy(() => import('./ExpensesTab').then(m => ({ default: m.ExpensesTab })));
@@ -161,16 +161,14 @@ export const AccountingConsole = ({ user, transactions, expenses, onBack, onAddE
   // entry, not a second sale -- without this guard, every cleared debt
   // double-counted here (original amount + shadow row's collected amount).
   const cargoTx = filteredTx.filter(t => t.type === 'cargo' && !t.is_debt_clearance);
-  const vjTx = filteredTx.filter(t => t.type === 'baggage' && !t.is_debt_clearance);
-  const mktgTx = filteredTx.filter(t => t.type === 'marketing' && !t.is_debt_clearance);
   const pkgTx = filteredTx.filter(t => t.type === 'package' && !t.is_debt_clearance);
+  const legacyTx = filteredTx.filter(t => (t.type === 'baggage' || t.type === 'marketing') && !t.is_debt_clearance);
 
   const cargoTotal = cargoTx.reduce((sum, t) => sum + t.amount, 0);
-  const vjTotal = vjTx.reduce((sum, t) => sum + t.amount, 0);
-  const mktgTotal = mktgTx.reduce((sum, t) => sum + t.amount, 0);
   const pkgTotal = pkgTx.reduce((sum, t) => sum + t.amount, 0);
+  const legacyTotal = legacyTx.reduce((sum, t) => sum + t.amount, 0);
 
-  const grandRevenue = cargoTotal + vjTotal + mktgTotal + pkgTotal;
+  const grandRevenue = cargoTotal + pkgTotal + legacyTotal;
   // Only approved spend counts as real outflow. Pending/rejected expenses
   // must not distort Net Revenue.
   const approvedExp = filteredExp.filter(e => (e.status || 'approved') === 'approved');
@@ -472,9 +470,8 @@ export const AccountingConsole = ({ user, transactions, expenses, onBack, onAddE
                   periodLabel: period === 'Custom' ? `Custom: ${customStart} to ${customEnd}` : period,
                   streams: [
                     { name: 'Cargo Station', amount: cargoTotal, count: cargoTx.length },
-                    ...(vjTx.length > 0 ? [{ name: 'Excess Baggage (legacy)', amount: vjTotal, count: vjTx.length }] : []),
-                    ...(mktgTx.length > 0 ? [{ name: 'Marketing (legacy)', amount: mktgTotal, count: mktgTx.length }] : []),
                     { name: 'Package Desk', amount: pkgTotal, count: pkgTx.length },
+                    ...(legacyTx.length > 0 ? [{ name: 'Legacy', amount: legacyTotal, count: legacyTx.length }] : []),
                   ],
                   grandRevenue,
                   totalExpenses,
@@ -503,27 +500,15 @@ export const AccountingConsole = ({ user, transactions, expenses, onBack, onAddE
                 <div className="text-[12px] font-sans text-[var(--color-light-muted)] ml-2 mb-3">{cargoTx.length} Entries</div>
              </div>
 
-             {vjTx.length > 0 && (
+             {legacyTx.length > 0 && (
                <div className="min-w-[200px] flex-1 bg-[var(--color-surface-card)] rounded-xl border border-[var(--color-border)] p-4 relative overflow-hidden snap-start">
-                  <div className="absolute left-0 top-0 bottom-0 w-[4px] bg-[var(--color-accent-cobalt)]" />
+                  <div className="absolute left-0 top-0 bottom-0 w-[4px] bg-[var(--color-muted)]" />
                   <div className="flex items-center space-x-2 mb-2 ml-2">
-                    <Plane size={16} className="text-[var(--color-accent-cobalt)]" />
-                    <span className="text-[13px] font-sans font-medium text-[var(--color-muted)]">Excess Baggage (legacy)</span>
+                    <Archive size={16} className="text-[var(--color-muted)]" />
+                    <span className="text-[13px] font-sans font-medium text-[var(--color-muted)]">Legacy</span>
                   </div>
-                  <div className="text-[20px] font-bold font-mono text-[var(--color-accent-cobalt)] ml-2 mb-1">{fmt(vjTotal)}</div>
-                  <div className="text-[12px] font-sans text-[var(--color-light-muted)] ml-2 mb-3">{vjTx.length} Passengers</div>
-               </div>
-             )}
-
-             {mktgTx.length > 0 && (
-               <div className="min-w-[200px] flex-1 bg-[var(--color-surface-card)] rounded-xl border border-[var(--color-border)] p-4 relative overflow-hidden snap-start">
-                  <div className="absolute left-0 top-0 bottom-0 w-[4px] bg-[var(--color-success)]" />
-                  <div className="flex items-center space-x-2 mb-2 ml-2">
-                    <TrendingUp size={16} className="text-[var(--color-success)]" />
-                    <span className="text-[13px] font-sans font-medium text-[var(--color-muted)]">Marketing (legacy)</span>
-                  </div>
-                  <div className="text-[20px] font-bold font-mono text-[var(--color-success)] ml-2 mb-1">{fmt(mktgTotal)}</div>
-                  <div className="text-[12px] font-sans text-[var(--color-light-muted)] ml-2 mb-3">{mktgTx.length} Customers</div>
+                  <div className="text-[20px] font-bold font-mono text-[var(--color-foreground)] ml-2 mb-1">{fmt(legacyTotal)}</div>
+                  <div className="text-[12px] font-sans text-[var(--color-light-muted)] ml-2 mb-3">{legacyTx.length} {legacyTx.length === 1 ? 'Entry' : 'Entries'}</div>
                </div>
              )}
 

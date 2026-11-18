@@ -25,53 +25,68 @@ export const Forecasting = ({
   const [peakDay, setPeakDay] = useState('');
 
   const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  const [historicalData, setHistoricalData] = useState([
-    { day: 'Mon', Cargo: 320000, Marketing: 140000, ExcessBaggage: 95000 },
-    { day: 'Tue', Cargo: 480000, Marketing: 185000, ExcessBaggage: 110000 },
-    { day: 'Wed', Cargo: 720000, Marketing: 340000, ExcessBaggage: 325000 },
-    { day: 'Thu', Cargo: 540000, Marketing: 210000, ExcessBaggage: 165000 },
-    { day: 'Fri', Cargo: 680000, Marketing: 290000, ExcessBaggage: 240000 },
-    { day: 'Sat', Cargo: 390000, Marketing: 125000, ExcessBaggage: 85000 },
-    { day: 'Sun', Cargo: 150000, Marketing: 80000, ExcessBaggage: 45000 }
-  ]);
+  const [historicalData, setHistoricalData] = useState<Array<{ day: string; Cargo: number; Packages: number; Legacy?: number }>>([]);
+  const [hasLegacy, setHasLegacy] = useState(false);
 
   useEffect(() => {
     const fetchRevenue = async () => {
       const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString();
       try {
-        const [cargoRes, vjRes, mktRes] = await Promise.all([
+        const [cargoRes, pkgRes, vjRes, mktRes] = await Promise.all([
           supabase.from('cargo_entries').select('created_at, amount').gte('created_at', sevenDaysAgo),
+          supabase.from('package_entries').select('created_at, amount').gte('created_at', sevenDaysAgo),
           supabase.from('manifests').select('created_at, amount').gte('created_at', sevenDaysAgo),
           supabase.from('marketing_entries').select('created_at, amount_paid').gte('created_at', sevenDaysAgo)
         ]);
 
-        const dayMap: Record<string, { Cargo: number; Marketing: number; ExcessBaggage: number }> = {};
-        DAYS.forEach(d => { dayMap[d] = { Cargo: 0, Marketing: 0, ExcessBaggage: 0 }; });
+        const dayMap: Record<string, { Cargo: number; Packages: number; Legacy: number }> = {};
+        DAYS.forEach(d => { dayMap[d] = { Cargo: 0, Packages: 0, Legacy: 0 }; });
 
-        const jsToEhi = (jsDay: number) => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][jsDay];
+        const jsToDay = (jsDay: number) => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][jsDay];
 
         if (cargoRes.data) {
           cargoRes.data.forEach((e: any) => {
-            const d = jsToEhi(new Date(e.created_at).getDay());
+            const d = jsToDay(new Date(e.created_at).getDay());
             if (dayMap[d]) dayMap[d].Cargo += Number(e.amount) || 0;
+          });
+        }
+        if (pkgRes.data) {
+          pkgRes.data.forEach((e: any) => {
+            const d = jsToDay(new Date(e.created_at).getDay());
+            if (dayMap[d]) dayMap[d].Packages += Number(e.amount) || 0;
           });
         }
         if (vjRes.data) {
           vjRes.data.forEach((e: any) => {
-            const d = jsToEhi(new Date(e.created_at).getDay());
-            if (dayMap[d]) dayMap[d].ExcessBaggage += Number(e.amount) || 0;
+            const d = jsToDay(new Date(e.created_at).getDay());
+            if (dayMap[d]) dayMap[d].Legacy += Number(e.amount) || 0;
           });
         }
         if (mktRes.data) {
           mktRes.data.forEach((e: any) => {
-            const d = jsToEhi(new Date(e.created_at).getDay());
-            if (dayMap[d]) dayMap[d].Marketing += Number(e.amount_paid) || 0;
+            const d = jsToDay(new Date(e.created_at).getDay());
+            if (dayMap[d]) dayMap[d].Legacy += Number(e.amount_paid) || 0;
           });
         }
 
-        const total = Object.values(dayMap).reduce((s, d) => s + d.Cargo + d.Marketing + d.ExcessBaggage, 0);
-        if (total > 0) {
-          setHistoricalData(DAYS.map(day => ({ day, ...dayMap[day] })));
+        const totalLegacy = Object.values(dayMap).reduce((s, d) => s + d.Legacy, 0);
+        const grandTotal = Object.values(dayMap).reduce((s, d) => s + d.Cargo + d.Packages + d.Legacy, 0);
+
+        setHasLegacy(totalLegacy > 0);
+        if (grandTotal > 0) {
+          setHistoricalData(DAYS.map(day => {
+            const entry: { day: string; Cargo: number; Packages: number; Legacy?: number } = {
+              day,
+              Cargo: dayMap[day].Cargo,
+              Packages: dayMap[day].Packages,
+            };
+            if (totalLegacy > 0) {
+              entry.Legacy = dayMap[day].Legacy;
+            }
+            return entry;
+          }));
+        } else {
+          setHistoricalData([]);
         }
       } catch (err) {
         console.error('Forecasting revenue fetch error:', err);
@@ -80,30 +95,15 @@ export const Forecasting = ({
     fetchRevenue();
   }, []);
 
-  // Forecasted dataset
-  const [forecastData] = useState<ForecastDay[]>(() => {
-    const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(Date.now() + (i + 1) * 86400000);
-      const dayName = DAYS_OF_WEEK[d.getDay()];
-      const dateStr = d.toISOString().split('T')[0];
-      const isWeekend = d.getDay() === 0 || d.getDay() === 6;
-      return {
-        date: dateStr,
-        day: dayName,
-        predictedCargo: isWeekend ? 200000 : 450000,
-        predictedPackages: isWeekend ? 100000 : 220000,
-        confidence: i < 3 ? 'High' : i < 5 ? 'Medium' : 'Low',
-      };
-    });
-  });
+  // Forecasted dataset — starts empty until generated
+  const [forecastData, setForecastData] = useState<ForecastDay[]>([]);
 
   // Heatmap route data representation
   const routesHeatmap = [
-    { route: 'LOS/Lagos - ABV/Abuja', Mon: 'low', Tue: 'medium', Wed: 'high', Thu: 'medium', Fri: 'high', Sat: 'medium' },
-    { route: 'LOS/Lagos - PHC/Port Harcourt', Mon: 'medium', Tue: 'low', Wed: 'high', Thu: 'medium', Fri: 'high', Sat: 'low' },
-    { route: 'LOS/Lagos - BNI/Benin City', Mon: 'low', Tue: 'medium', Wed: 'medium', Thu: 'low', Fri: 'medium', Sat: 'medium' },
-    { route: 'LOS/Lagos - KAN/Kano', Mon: 'low', Tue: 'low', Wed: 'medium', Thu: 'high', Fri: 'low', Sat: 'low' }
+    { route: 'LOS - ABV', Mon: 'low', Tue: 'medium', Wed: 'high', Thu: 'medium', Fri: 'high', Sat: 'medium' },
+    { route: 'LOS - PHC', Mon: 'medium', Tue: 'low', Wed: 'high', Thu: 'medium', Fri: 'high', Sat: 'low' },
+    { route: 'LOS - BNI', Mon: 'low', Tue: 'medium', Wed: 'medium', Thu: 'low', Fri: 'medium', Sat: 'medium' },
+    { route: 'LOS - KAN', Mon: 'low', Tue: 'low', Wed: 'medium', Thu: 'high', Fri: 'low', Sat: 'low' }
   ];
 
   const handleGenerateForecast = async () => {
@@ -140,6 +140,24 @@ export const Forecasting = ({
         setRiskNote('High operational bottleneck risk detected on Abuja route paths due to pre-holiday supply shipments.');
         setPeakDay('Wednesday');
       }
+      const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const avgCargo = historicalData.length > 0 ? Math.round(historicalData.reduce((acc, d) => acc + (d.Cargo || 0), 0) / historicalData.length) : 0;
+      const avgPackages = historicalData.length > 0 ? Math.round(historicalData.reduce((acc, d) => acc + (d.Packages || 0), 0) / historicalData.length) : 0;
+
+      const projected: ForecastDay[] = Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(Date.now() + (i + 1) * 86400000);
+        const dayName = DAYS_OF_WEEK[d.getDay()];
+        const dateStr = d.toISOString().split('T')[0];
+        const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+        return {
+          date: dateStr,
+          day: dayName,
+          predictedCargo: isWeekend ? Math.round(avgCargo * 0.7) : Math.round(avgCargo * 1.15),
+          predictedPackages: isWeekend ? Math.round(avgPackages * 0.6) : Math.round(avgPackages * 1.1),
+          confidence: (i < 3 ? 'High' : i < 5 ? 'Medium' : 'Low') as 'High' | 'Medium' | 'Low',
+        };
+      });
+      setForecastData(projected);
       setForecastGenerated(true);
     } catch (e) {
       console.error(e);
@@ -192,24 +210,34 @@ export const Forecasting = ({
               <span className="text-[9px] text-[var(--color-accent-cobalt)]">Actual data logs</span>
             </div>
             
-            <div className="h-[220px] w-full text-xs font-mono">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={historicalData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <XAxis dataKey="day" stroke="var(--color-chart-axis)" strokeWidth={1} tickLine={false} />
-                  <YAxis stroke="var(--color-chart-axis)" strokeWidth={0} tickLine={false} tickFormatter={(v) => `₦${v/1000}k`} />
-                  <Tooltip contentStyle={{ backgroundColor: 'var(--color-chart-tooltip-bg)', borderColor: 'var(--color-chart-tooltip-border)', borderRadius: '8px' }} />
-                  <defs>
-                    <linearGradient id="cargoGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--color-chart-1)" stopOpacity={0.2}/>
-                      <stop offset="95%" stopColor="var(--color-chart-1)" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <Area type="monotone" dataKey="Cargo" stroke="var(--color-chart-1)" fillOpacity={1} fill="url(#cargoGrad)" strokeWidth={2} />
-                  <Area type="monotone" dataKey="Marketing" stroke="var(--color-chart-3)" fillOpacity={0} strokeWidth={1.5} />
-                  <Area type="monotone" dataKey="ExcessBaggage" stroke="var(--color-chart-2)" fillOpacity={0} strokeWidth={1.5} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
+            {historicalData.length > 0 ? (
+              <div className="h-[220px] w-full text-xs font-mono">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={historicalData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <XAxis dataKey="day" stroke="var(--color-chart-axis)" strokeWidth={1} tickLine={false} />
+                    <YAxis stroke="var(--color-chart-axis)" strokeWidth={0} tickLine={false} tickFormatter={(v) => `₦${v/1000}k`} />
+                    <Tooltip contentStyle={{ backgroundColor: 'var(--color-chart-tooltip-bg)', borderColor: 'var(--color-chart-tooltip-border)', borderRadius: '8px' }} />
+                    <defs>
+                      <linearGradient id="cargoGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="var(--color-chart-1)" stopOpacity={0.2}/>
+                        <stop offset="95%" stopColor="var(--color-chart-1)" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <Area type="monotone" dataKey="Cargo" stroke="var(--color-chart-1)" fillOpacity={1} fill="url(#cargoGrad)" strokeWidth={2} />
+                    <Area type="monotone" dataKey="Packages" stroke="var(--color-chart-2)" fillOpacity={0} strokeWidth={1.5} />
+                    {hasLegacy && (
+                      <Area type="monotone" dataKey="Legacy" stroke="var(--color-chart-3)" fillOpacity={0} strokeWidth={1.5} />
+                    )}
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="h-[220px] w-full flex flex-col items-center justify-center border border-dashed border-[var(--color-border)] rounded-xl text-center px-4">
+                <TrendingUp size={24} className="text-[var(--color-muted)] mb-2 opacity-40" />
+                <div className="text-[12px] font-sans font-medium text-[var(--color-foreground)]">No Historical Data Recorded</div>
+                <div className="text-[10px] font-mono text-[var(--color-muted)] mt-1">No transaction records found in the last 7 days.</div>
+              </div>
+            )}
           </div>
 
           {/* Right Chart: AI Projected Bar Series */}
@@ -222,18 +250,26 @@ export const Forecasting = ({
               </span>
             </div>
 
-            <div className="h-[220px] w-full text-xs font-mono">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={forecastData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <XAxis dataKey="day" stroke="var(--color-chart-axis)" strokeWidth={1} tickLine={false} />
-                  <YAxis stroke="var(--color-chart-axis)" strokeWidth={0} tickLine={false} tickFormatter={(v) => `₦${v/1000}k`} />
-                  <Tooltip contentStyle={{ backgroundColor: 'var(--color-chart-tooltip-bg)', borderColor: 'var(--color-chart-tooltip-border)' }} />
-                  <Legend iconSize={8} />
-                  <Bar dataKey="predictedCargo" name="Cargo (₦)" fill="var(--color-chart-1)" stackId="stack" />
-                  <Bar dataKey="predictedPackages" name="Packages (₦)" fill="var(--color-chart-2)" stackId="stack" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            {forecastData.length > 0 ? (
+              <div className="h-[220px] w-full text-xs font-mono">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={forecastData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <XAxis dataKey="day" stroke="var(--color-chart-axis)" strokeWidth={1} tickLine={false} />
+                    <YAxis stroke="var(--color-chart-axis)" strokeWidth={0} tickLine={false} tickFormatter={(v) => `₦${v/1000}k`} />
+                    <Tooltip contentStyle={{ backgroundColor: 'var(--color-chart-tooltip-bg)', borderColor: 'var(--color-chart-tooltip-border)' }} />
+                    <Legend iconSize={8} />
+                    <Bar dataKey="predictedCargo" name="Cargo (₦)" fill="var(--color-chart-1)" stackId="stack" />
+                    <Bar dataKey="predictedPackages" name="Packages (₦)" fill="var(--color-chart-2)" stackId="stack" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="h-[220px] w-full flex flex-col items-center justify-center border border-dashed border-[var(--color-border)] rounded-xl text-center px-4">
+                <Sparkles size={24} className="text-[var(--color-muted)] mb-2 opacity-40" />
+                <div className="text-[12px] font-sans font-medium text-[var(--color-foreground)]">No Forecast Generated Yet</div>
+                <div className="text-[10px] font-mono text-[var(--color-muted)] mt-1">Click "Generate Projection" to predict next 7-day volume.</div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -247,7 +283,7 @@ export const Forecasting = ({
                 <span className="text-[12px] uppercase">Peak Operational Day</span>
               </div>
               <div className="text-xl font-bold font-mono tracking-tight text-[var(--color-foreground)]">{peakDay || 'Wednesday'}</div>
-              <p className="text-[11px] text-[var(--color-muted)] leading-relaxed font-mono">High-volume baggage bookings and marketing collections coincide, putting stress on local airport desks.</p>
+              <p className="text-[11px] text-[var(--color-muted)] leading-relaxed font-mono">High-volume cargo dispatches and package intake coincide, putting stress on local hub desks.</p>
             </div>
 
             {/* Staffing recommendation */}

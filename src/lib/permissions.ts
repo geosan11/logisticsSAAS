@@ -172,5 +172,9 @@ export function canAccessTab(
 ): boolean {
   if (tab.startsWith('Baggage:') || tab === 'More:ExcessBaggageAirlines' || tab === 'Marketing') return false;
   const mode: LogisticsMode | undefined = typeof modeOrAirlines === 'string' ? modeOrAirlines : maybeMode;
-  return getAllowedTabs(user, mode).includes(tab as TabView);
+  const allowed = getAllowedTabs(user, mode);
+  if (allowed.includes(tab as TabView)) return true;
+  if (tab === 'AirlinePerformance' && allowed.includes('More:AirlinePerformance')) return true;
+  if (tab.startsWith('More:') && allowed.includes(tab.slice('More:'.length) as TabView)) return true;
+  return false;
 }

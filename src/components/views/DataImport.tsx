@@ -5,7 +5,7 @@ import { supabase } from '../../lib/supabase';
 import { uid } from '../../lib/helpers';
 import { User } from '../../lib/types';
 
-type ImportType = 'cargo' | 'marketing';
+type ImportType = 'cargo' | 'package';
 type Stage = 'upload' | 'preview' | 'importing' | 'done';
 
 interface ParsedRow {
@@ -23,7 +23,7 @@ interface ImportResult {
 }
 
 const CARGO_COLUMNS = ['date', 'consignee_name', 'awb_tag_number', 'airline', 'route', 'total_pcs', 'total_kg', 'content_type', 'amount', 'receipt_mode', 'bank', 'remark'];
-const MARKETING_COLUMNS = ['date', 'customer_name', 'airline', 'route', 'big_bags', 'med_bags', 'small_bags', 'amount', 'payment_mode', 'bank'];
+const PACKAGE_COLUMNS = ['date', 'customer_name', 'destination', 'content_type', 'total_pcs', 'total_kg', 'contents', 'amount', 'payment_mode', 'bank'];
 // awb_tag_number is required (not just optional column) -- a row without a
 // real AWB used to get a randomly-generated placeholder, which meant the
 // imported entry's tag number never matched any physical tag and looked
@@ -31,8 +31,8 @@ const MARKETING_COLUMNS = ['date', 'customer_name', 'airline', 'route', 'big_bag
 // ledger, receipts, tracking). Better to reject the row and have staff
 // supply the real AWB than silently invent one.
 const CARGO_REQUIRED = ['date', 'consignee_name', 'awb_tag_number', 'route', 'amount'];
-const MARKETING_REQUIRED = ['date', 'customer_name', 'route', 'amount'];
-const ALL_KNOWN_COLUMNS = new Set([...CARGO_COLUMNS, ...MARKETING_COLUMNS]);
+const PACKAGE_REQUIRED = ['date', 'customer_name', 'destination', 'amount'];
+const ALL_KNOWN_COLUMNS = new Set([...CARGO_COLUMNS, ...PACKAGE_COLUMNS]);
 const CHUNK_SIZE = 25;
 
 const CARGO_TEMPLATE = [
@@ -41,10 +41,10 @@ const CARGO_TEMPLATE = [
   '2024-01-15,Jane Smith,AWB-123457,United Nigeria Airlines,LOS/PHC,1,5.0,Documents,8000,Transfer,GTBank,Urgent',
 ].join('\n');
 
-const MARKETING_TEMPLATE = [
-  MARKETING_COLUMNS.join(','),
-  '2024-01-15,Chukwuemeka Ltd,Green Africa Airways,LOS/ABJ,3,2,1,25000,Cash,',
-  '2024-01-15,Adaeze Travels,United Nigeria Airlines,LOS/PHC,0,5,3,18000,Transfer,Access Bank',
+const PACKAGE_TEMPLATE = [
+  PACKAGE_COLUMNS.join(','),
+  '2024-01-15,Chukwuemeka Ltd,ABV,Electronics,2,5.0,Phones & Tablets,25000,Cash,',
+  '2024-01-15,Adaeze Travels,PHC,Documents,1,1.0,Certificates,8000,Transfer,Access Bank',
 ].join('\n');
 
 function parseCsvLine(line: string): string[] {
@@ -95,7 +95,7 @@ function parseCSV(text: string): ParsedRow[] {
 }
 
 function validateRows(rows: ParsedRow[], type: ImportType): ValidationError[] {
-  const required = type === 'cargo' ? CARGO_REQUIRED : MARKETING_REQUIRED;
+  const required = type === 'cargo' ? CARGO_REQUIRED : PACKAGE_REQUIRED;
   const errors: ValidationError[] = [];
   rows.forEach((r, i) => {
     for (const field of required) {
@@ -114,12 +114,12 @@ function validateRows(rows: ParsedRow[], type: ImportType): ValidationError[] {
 }
 
 function downloadTemplate(type: ImportType) {
-  const csv = type === 'cargo' ? CARGO_TEMPLATE : MARKETING_TEMPLATE;
+  const csv = type === 'cargo' ? CARGO_TEMPLATE : PACKAGE_TEMPLATE;
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `ehi_${type}_import_template.csv`;
+  a.download = `haulwey_${type}_import_template.csv`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -137,7 +137,7 @@ export const DataImport = ({ user, onBack }: { user: User; onBack: () => void })
   const [result, setResult] = useState<ImportResult>({ imported: 0, skipped: 0 });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const columns = importType === 'cargo' ? CARGO_COLUMNS : MARKETING_COLUMNS;
+  const columns = importType === 'cargo' ? CARGO_COLUMNS : PACKAGE_COLUMNS;
 
   const resetWorkflow = useCallback(() => {
     setStage('upload');
@@ -221,26 +221,25 @@ export const DataImport = ({ user, onBack }: { user: User; onBack: () => void })
           };
         } else {
           return {
-            entry_ref: uid('MK'),
+            entry_ref: `PKG-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
             customer_name: r.customer_name,
-            airline: r.airline || null,
-            route: r.route,
-            big_bags: parseInt(r.big_bags) || 0,
-            med_bags: parseInt(r.med_bags) || 0,
-            small_bags: parseInt(r.small_bags) || 0,
+            destination: r.destination,
+            content_type: r.content_type || 'Package',
+            contents: r.contents || r.content_type || 'General Goods',
+            total_pcs: parseInt(r.total_pcs) || 1,
+            total_kg: parseFloat(r.total_kg) || 0,
             amount: parseFloat(r.amount),
             payment_mode: r.payment_mode || 'Cash',
             bank: r.bank || null,
             hub_id: user.hub_id || null,
-            hub: user.hub,
-            agent_name: user.name,
+            status: 'Intake',
             entered_by: user.id,
             created_at: new Date(r.date).toISOString(),
           };
         }
       });
 
-      const table = importType === 'cargo' ? 'cargo_entries' : 'marketing_entries';
+      const table = importType === 'cargo' ? 'cargo_entries' : 'package_entries';
       const { error } = await supabase.from(table).insert(records);
       if (error) {
         skipped += records.length;
@@ -276,14 +275,14 @@ export const DataImport = ({ user, onBack }: { user: User; onBack: () => void })
                 Cargo Entries
               </button>
               <button
-                onClick={() => { setImportType('marketing'); resetWorkflow(); }}
+                onClick={() => { setImportType('package'); resetWorkflow(); }}
                 className={`flex-1 py-2.5 rounded-lg text-[13px] font-sans font-semibold transition-colors ${
-                  importType === 'marketing'
+                  importType === 'package'
                     ? 'bg-[var(--color-accent-amber)] text-[var(--color-on-accent)]'
                     : 'border border-[var(--color-border)] text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
                 }`}
               >
-                Marketing Entries
+                Package Entries
               </button>
             </div>
           </div>
@@ -306,7 +305,7 @@ export const DataImport = ({ user, onBack }: { user: User; onBack: () => void })
                 <p className="text-[11px] font-sans text-[var(--color-muted)]">
                   Required:{' '}
                   <span className="text-[var(--color-foreground)]">
-                    {(importType === 'cargo' ? CARGO_REQUIRED : MARKETING_REQUIRED).join(', ')}
+                    {(importType === 'cargo' ? CARGO_REQUIRED : PACKAGE_REQUIRED).join(', ')}
                   </span>
                   {'. '}
                   Date format: <span className="font-mono text-[var(--color-foreground)]">YYYY-MM-DD</span>.

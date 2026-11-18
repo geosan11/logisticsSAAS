@@ -9,6 +9,7 @@ import {
   Package,
   Plane,
   Sparkles,
+  Archive,
   ChevronDown,
   AlertCircle,
   Loader2,
@@ -262,9 +263,8 @@ export const Analytics = ({
 
     const depts = {
       cargo: { label: 'Air Cargo', revenue: 0, count: 0, kg: 0 },
-      baggage: { label: 'Excess Baggage (legacy)', revenue: 0, count: 0, kg: 0 },
-      marketing: { label: 'Marketing (legacy)', revenue: 0, count: 0, kg: 0 },
       package: { label: 'Package Desk', revenue: 0, count: 0, kg: 0 },
+      legacy: { label: 'Legacy', revenue: 0, count: 0, kg: 0 },
     };
 
     const customerMap = new Map<
@@ -285,11 +285,9 @@ export const Analytics = ({
           dept:
             t.type === 'cargo'
               ? 'Cargo'
-              : t.type === 'baggage'
-                ? 'Baggage'
-                : t.type === 'marketing'
-                  ? 'Marketing'
-                  : 'Package',
+              : t.type === 'package'
+                ? 'Package'
+                : 'Legacy',
           shipments: 0,
           kg: 0,
           paid: 0,
@@ -307,7 +305,8 @@ export const Analytics = ({
         cust.shipments++;
         cust.kg += t.kg || 0;
 
-        const d = depts[t.type as keyof typeof depts];
+        const deptKey = (t.type === 'baggage' || t.type === 'marketing') ? 'legacy' : (t.type as 'cargo' | 'package');
+        const d = depts[deptKey];
         if (d) {
           d.count++;
           d.kg += t.kg || 0;
@@ -332,7 +331,8 @@ export const Analytics = ({
         collectedTotal += amt;
         cust.paid += amt;
 
-        const d = depts[t.type as keyof typeof depts];
+        const deptKey = (t.type === 'baggage' || t.type === 'marketing') ? 'legacy' : (t.type as 'cargo' | 'package');
+        const d = depts[deptKey];
         if (d) d.revenue += amt;
 
         if (t.mode === 'Cash') {
@@ -429,7 +429,7 @@ export const Analytics = ({
       XLSX.utils.book_append_sheet(wb, wsClients, 'Top Customers');
       XLSX.utils.book_append_sheet(wb, wsEntries, 'Transactions');
 
-      XLSX.writeFile(wb, `EHI_Summary_${period}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      XLSX.writeFile(wb, `Haulwey_Summary_${period}_${new Date().toISOString().slice(0, 10)}.xlsx`);
       showToast({ message: 'Excel report exported!', type: 'success' });
     } catch (err: any) {
       showToast({ message: 'Failed to export Excel: ' + err.message, type: 'error' });
@@ -826,12 +826,11 @@ export const Analytics = ({
               {([
                 { key: 'cargo', icon: Package },
                 { key: 'package', icon: Sparkles },
-                { key: 'baggage', icon: Plane },
-                { key: 'marketing', icon: TrendingUp },
+                { key: 'legacy', icon: Archive },
               ] as const)
                 .filter(({ key }) => {
-                  if (key === 'baggage' || key === 'marketing') {
-                    return summary.depts[key].count > 0;
+                  if (key === 'legacy') {
+                    return summary.depts.legacy.count > 0;
                   }
                   return true;
                 })
