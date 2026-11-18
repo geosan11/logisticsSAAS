@@ -27,10 +27,11 @@ import {
 } from '../../lib/scanLogic';
 import {
   formatScanModeLabel,
-  getScanModeDescription,
   getScanModeSublabel,
   getScanActionLabel,
   formatScanResultBadge,
+  getScannerDensityClasses,
+  truncateConsignee,
 } from '../../lib/scannerLogic';
 import { supabase } from '../../lib/supabase';
 import { useConfirm } from '../../lib/ConfirmContext';
@@ -231,6 +232,7 @@ export const Scanner = ({
 }) => {
   const confirm = useConfirm();
   const { isCompact } = useDensity();
+  const density = getScannerDensityClasses(isCompact);
   const [mode, setMode] = useState<ScanMode>('DEPART');
   const [isScanning, setIsScanning] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -925,7 +927,7 @@ export const Scanner = ({
                       <button
                         type="button"
                         onClick={() => handleResolveAlert(alert.id)}
-                        className="min-h-[44px] h-11 px-5 rounded-full text-[12px] font-sans font-semibold bg-white text-black hover:bg-neutral-200 dark:bg-white dark:text-black transition-colors cursor-pointer shadow-xs"
+                        className="min-h-[44px] h-11 px-5 rounded-full text-[12px] font-sans font-medium bg-[var(--color-surface-2)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] hover:border-[var(--color-border-strong)] text-[var(--color-foreground)] transition-colors cursor-pointer shadow-xs"
                       >
                         Mark resolved
                       </button>
@@ -960,27 +962,43 @@ export const Scanner = ({
 
         <div className="p-4 sm:p-6 space-y-4 max-w-4xl mx-auto w-full pb-28">
           {/* Search bar */}
-          <div className="flex gap-2">
-            <input
-              id="scanner-track-ref"
-              name="track-ref"
-              type="text"
-              value={trackRef}
-              onChange={e => setTrackRef(e.target.value.toUpperCase())}
-              onKeyDown={e => e.key === 'Enter' && handleTrackLookup()}
-              placeholder="Enter AWB or tag reference..."
-              aria-label="Enter AWB or tag reference"
-              className="w-full min-h-[44px] h-11 px-4 text-[13px] font-sans rounded-full bg-[var(--color-surface-1)] border border-[var(--color-border)] text-[var(--color-foreground)] placeholder:text-[var(--color-muted)] focus:outline-none focus:border-[var(--color-border-strong)] transition-colors"
-            />
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleTrackLookup();
+            }}
+            className="flex gap-2"
+          >
+            <div className="relative flex-1">
+              <input
+                id="scanner-track-ref"
+                name="track-ref"
+                type="text"
+                value={trackRef}
+                onChange={e => setTrackRef(e.target.value.toUpperCase())}
+                placeholder="Enter AWB or tag reference..."
+                aria-label="Enter AWB or tag reference"
+                className="w-full min-h-[44px] h-11 pl-4 pr-9 text-[13px] font-sans rounded-full bg-[var(--color-surface-1)] border border-[var(--color-border)] text-[var(--color-foreground)] placeholder:text-[var(--color-muted)] focus:outline-none focus:border-[var(--color-border-strong)] transition-colors"
+              />
+              {trackRef && (
+                <button
+                  type="button"
+                  onClick={() => setTrackRef('')}
+                  aria-label="Clear tracking reference"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
+                >
+                  <X size={13} />
+                </button>
+              )}
+            </div>
             <button
-              type="button"
-              onClick={() => handleTrackLookup()}
+              type="submit"
               disabled={!trackRef.trim() || trackLoading}
               className="min-h-[44px] h-11 px-6 rounded-full text-[13px] font-sans font-semibold bg-white text-black hover:bg-neutral-200 dark:bg-white dark:text-black transition-colors cursor-pointer shrink-0 disabled:opacity-50 shadow-xs"
             >
               {trackLoading ? 'Searching…' : 'Search'}
             </button>
-          </div>
+          </form>
 
           {trackLoading && (
             <div className="flex justify-center py-16">
@@ -1230,7 +1248,7 @@ export const Scanner = ({
       </header>
 
       {/* ── 2. Scanner Main Viewport ────────────────────────────────────── */}
-      <section aria-label="Scanner workspace" className="flex-1 p-4 sm:p-6 space-y-4 max-w-4xl mx-auto w-full" style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom))' }}>
+      <section aria-label="Scanner workspace" className={`flex-1 ${density.workspace} max-w-4xl mx-auto w-full`} style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom))' }}>
         {/* Mode Toggle Segment: Arrive / Depart / Deliver */}
         <div className="flex bg-[var(--color-surface-1)] p-1 rounded-2xl border border-[var(--color-border)] w-full gap-1">
           {(['DEPART', 'ARRIVE', 'DELIVER'] as ScanMode[]).map((m) => {
@@ -1241,14 +1259,14 @@ export const Scanner = ({
                 key={m}
                 type="button"
                 onClick={() => { setMode(m); dismissAlert(); }}
-                className={`flex-1 min-w-0 min-h-[48px] py-2 px-3 rounded-xl transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
+                className={`flex-1 min-w-0 ${density.modeButton} rounded-xl transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
                   active
-                    ? 'bg-[var(--color-surface-card)] text-[var(--color-foreground)] border border-[var(--color-border-strong)] shadow-xs font-semibold'
+                    ? 'bg-[var(--color-surface-2)] text-[var(--color-foreground)] border border-[var(--color-border-strong)] shadow-xs font-semibold'
                     : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)] border border-transparent hover:bg-[var(--color-surface-hover)]'
                 }`}
               >
                 <div className="flex items-center gap-2">
-                  <span className={`w-2 h-2 rounded-full ${active ? dotColor : 'bg-[var(--color-muted)]'} shrink-0`} />
+                  <span className={`w-2 h-2 rounded-full ${active ? dotColor : 'bg-[var(--color-muted)]/40'} shrink-0`} />
                   <span className="text-[13px] font-sans font-medium">
                     {formatScanModeLabel(m)}
                   </span>
@@ -1269,7 +1287,7 @@ export const Scanner = ({
               onClick={() => { setIsBatchQueueMode(false); dismissAlert(); }}
               className={`min-h-[44px] h-11 px-5 rounded-full text-[12px] font-sans transition-all cursor-pointer ${
                 !isBatchQueueMode
-                  ? 'bg-[var(--color-surface-card)] text-[var(--color-foreground)] border border-[var(--color-border-strong)] shadow-xs font-semibold'
+                  ? 'bg-[var(--color-surface-2)] text-[var(--color-foreground)] border border-[var(--color-border-strong)] shadow-xs font-semibold'
                   : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
               }`}
             >
@@ -1280,13 +1298,13 @@ export const Scanner = ({
               onClick={() => { setIsBatchQueueMode(true); dismissAlert(); }}
               className={`min-h-[44px] h-11 px-5 rounded-full text-[12px] font-sans transition-all cursor-pointer flex items-center gap-1.5 ${
                 isBatchQueueMode
-                  ? 'bg-[var(--color-surface-card)] text-[var(--color-foreground)] border border-[var(--color-border-strong)] shadow-xs font-semibold'
+                  ? 'bg-[var(--color-surface-2)] text-[var(--color-foreground)] border border-[var(--color-border-strong)] shadow-xs font-semibold'
                   : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
               }`}
             >
               <span>Batch queue</span>
               {batchQueue.length > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-white text-black font-bold">
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono bg-white text-black font-bold">
                   {batchQueue.length}
                 </span>
               )}
@@ -1351,7 +1369,7 @@ export const Scanner = ({
               <button
                 type="button"
                 onClick={() => setShowQueueSummary(true)}
-                className="text-[var(--color-foreground)] hover:underline font-medium cursor-pointer"
+                className="min-h-[44px] h-11 px-3.5 rounded-full text-[12px] font-sans font-medium text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] transition-colors cursor-pointer"
               >
                 Review
               </button>
@@ -1359,7 +1377,7 @@ export const Scanner = ({
                 type="button"
                 onClick={() => handleConfirmSubmitBatch()}
                 disabled={submittingBatch}
-                className="px-3 py-1 rounded-full bg-white text-black font-semibold text-[11px] cursor-pointer hover:bg-neutral-200 disabled:opacity-50"
+                className="min-h-[44px] h-11 px-4 rounded-full bg-white text-black hover:bg-neutral-200 font-semibold text-[12px] cursor-pointer disabled:opacity-50 transition-colors shadow-xs"
               >
                 Commit
               </button>
@@ -1370,6 +1388,13 @@ export const Scanner = ({
         {/* Camera Scanner View */}
         {isScanning ? (
           <div className="relative w-full rounded-2xl overflow-hidden border border-[var(--color-border)] bg-black">
+            {/* Mode indicator pill over camera */}
+            <div className="absolute top-3 left-3 z-10 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/70 backdrop-blur-md border border-white/10 text-white text-[12px] font-sans">
+              <span className={`w-2 h-2 rounded-full ${mode === 'ARRIVE' ? 'bg-[var(--color-success)]' : mode === 'DEPART' ? 'bg-[var(--color-info)]' : 'bg-[var(--color-success)]'}`} />
+              <span className="font-medium">{formatScanModeLabel(mode)} mode</span>
+              <span className="text-white/60">·</span>
+              <span className="text-white/70 text-[11px]">{getScanModeSublabel(mode)}</span>
+            </div>
             <div id="qr-reader-div" className="w-full min-h-[300px]" />
             {processing && (
               <div className="absolute inset-0 z-10 bg-black/60 backdrop-blur-xs flex items-center justify-center">
@@ -1391,7 +1416,7 @@ export const Scanner = ({
         ) : (
           <div
             onClick={startScanner}
-            className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] hover:border-[var(--color-border-strong)] transition-all p-6 sm:p-8 flex flex-col items-center justify-center gap-3 cursor-pointer min-h-[190px] sm:min-h-[220px] text-center group shadow-xs"
+            className={`rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] hover:border-[var(--color-border-strong)] transition-all ${density.cameraCard} flex flex-col items-center justify-center cursor-pointer text-center group shadow-xs`}
           >
             <div className="w-12 h-12 rounded-full bg-[var(--color-surface-1)] border border-[var(--color-border)] group-hover:border-[var(--color-border-strong)] flex items-center justify-center text-[var(--color-foreground)] transition-colors">
               <QrCode size={24} />
@@ -1432,15 +1457,25 @@ export const Scanner = ({
               onChange={e => setManualRef(e.target.value.toUpperCase())}
               placeholder="Enter waybill or package reference (e.g. AWB-LOS-9021)..."
               aria-label="Enter waybill or package reference"
-              className="w-full min-h-[44px] h-11 pl-10 pr-4 text-[13px] font-sans rounded-full bg-[var(--color-surface-1)] border border-[var(--color-border)] text-[var(--color-foreground)] placeholder:text-[var(--color-muted)] focus:outline-none focus:border-[var(--color-border-strong)] transition-colors"
+              className="w-full min-h-[44px] h-11 pl-10 pr-9 text-[13px] font-sans rounded-full bg-[var(--color-surface-1)] border border-[var(--color-border)] text-[var(--color-foreground)] placeholder:text-[var(--color-muted)] focus:outline-none focus:border-[var(--color-border-strong)] transition-colors"
             />
+            {manualRef && (
+              <button
+                type="button"
+                onClick={() => setManualRef('')}
+                aria-label="Clear reference"
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
+              >
+                <X size={13} />
+              </button>
+            )}
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <button
               type="submit"
               disabled={!manualRef.trim() || processing}
               aria-label={getScanActionLabel(mode)}
-              className="min-h-[44px] h-11 px-5 rounded-full text-[13px] font-sans font-semibold bg-white text-black hover:bg-neutral-200 dark:bg-white dark:text-black transition-colors cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
+              className="flex-1 sm:flex-initial min-h-[44px] h-11 px-5 rounded-full text-[13px] font-sans font-semibold bg-white text-black hover:bg-neutral-200 dark:bg-white dark:text-black transition-colors cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
             >
               {processing && <RefreshCw size={14} className="animate-spin text-black shrink-0" />}
               <span>{processing ? 'Logging…' : getScanActionLabel(mode)}</span>
@@ -1465,7 +1500,7 @@ export const Scanner = ({
         {/* Telemetry Counter Cards (when session or batch items exist) */}
         {sessionScansCount > 0 && (
           <div className="grid grid-cols-3 gap-3">
-            <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] p-3 sm:p-3.5 text-center shadow-xs">
+            <div className={`rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] ${density.telemetryCard} text-center shadow-xs`}>
               <div className="flex items-center justify-center gap-1.5 mb-0.5">
                 <span className="w-2 h-2 rounded-full bg-[var(--color-success)]" />
                 <span className="text-[11px] font-sans text-[var(--color-muted)]">Logged</span>
@@ -1474,7 +1509,7 @@ export const Scanner = ({
                 {sessionSuccessCount}
               </div>
             </div>
-            <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] p-3 sm:p-3.5 text-center shadow-xs">
+            <div className={`rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] ${density.telemetryCard} text-center shadow-xs`}>
               <div className="flex items-center justify-center gap-1.5 mb-0.5">
                 <span className={`w-2 h-2 rounded-full ${sessionAlertsCount > 0 ? 'bg-[var(--color-error)]' : 'bg-[var(--color-muted)]'}`} />
                 <span className="text-[11px] font-sans text-[var(--color-muted)]">Alerts</span>
@@ -1483,7 +1518,7 @@ export const Scanner = ({
                 {sessionAlertsCount}
               </div>
             </div>
-            <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] p-3 sm:p-3.5 text-center shadow-xs">
+            <div className={`rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] ${density.telemetryCard} text-center shadow-xs`}>
               <div className="text-[11px] font-sans text-[var(--color-muted)] mb-0.5">Total scans</div>
               <div className="text-[20px] font-sans font-bold text-[var(--color-foreground)] tabular-nums">
                 {sessionScansCount}
@@ -1493,7 +1528,7 @@ export const Scanner = ({
         )}
 
         {/* Recent Scans List Card */}
-        <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] p-4 shadow-xs">
+        <div className={`rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] ${density.recentCard} shadow-xs`}>
           <div className="flex items-center justify-between mb-3 border-b border-[var(--color-border)] pb-2.5">
             <div className="flex items-center gap-2">
               <h2 className="text-[14px] font-sans font-semibold text-[var(--color-foreground)]">
@@ -1520,14 +1555,22 @@ export const Scanner = ({
                   : 'text-[var(--color-error)] bg-[var(--color-error)]/10';
 
                 return (
-                  <div key={index} className="flex items-center justify-between py-2.5 min-h-[44px] text-[13px] gap-3">
+                  <div
+                    key={index}
+                    onClick={() => handleTrackLookup(item.ref)}
+                    title={`View tracking history for ${item.ref}`}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => e.key === 'Enter' && handleTrackLookup(item.ref)}
+                    className="flex items-center justify-between py-2.5 px-2 min-h-[44px] text-[13px] gap-3 rounded-xl hover:bg-[var(--color-surface-hover)] cursor-pointer transition-colors group focus:outline-none focus:ring-1 focus:ring-[var(--color-border-strong)]"
+                  >
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-8 h-8 rounded-lg bg-[var(--color-surface-1)] border border-[var(--color-border)] flex items-center justify-center shrink-0">
+                      <div className="w-8 h-8 rounded-lg bg-[var(--color-surface-1)] border border-[var(--color-border)] flex items-center justify-center shrink-0 group-hover:border-[var(--color-border-strong)] transition-colors">
                         <Package size={14} className="text-[var(--color-muted)]" />
                       </div>
                       <div className="min-w-0">
                         <div className="font-medium text-[var(--color-foreground)] truncate">
-                          {item.name}
+                          {truncateConsignee(item.name)}
                         </div>
                         <div className="font-mono text-[11px] text-[var(--color-muted)] truncate tabular-nums">
                           {item.ref}
@@ -1552,13 +1595,25 @@ export const Scanner = ({
 
       {/* ── 3. Delivery PIN Verification Modal ──────────────────────────── */}
       {pendingDelivery && createPortal(
-        <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-[var(--color-surface-card)] rounded-2xl border border-[var(--color-border-strong)] p-6 w-full max-w-sm shadow-2xl space-y-5 animate-in fade-in zoom-in duration-200">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delivery-pin-heading"
+          onKeyDown={(e) => e.key === 'Escape' && setPendingDelivery(null)}
+          className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4"
+        >
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleCommitDelivery();
+            }}
+            className="bg-[var(--color-surface-card)] rounded-2xl border border-[var(--color-border-strong)] p-6 w-full max-w-sm shadow-2xl space-y-5 animate-in fade-in zoom-in duration-200"
+          >
             <div className="flex flex-col items-center text-center space-y-2">
               <div className="w-12 h-12 rounded-full bg-[var(--color-surface-1)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-foreground)]">
                 <CheckCircle size={22} className="text-[var(--color-success)]" />
               </div>
-              <h2 className="text-[16px] font-sans font-semibold text-[var(--color-foreground)]">
+              <h2 id="delivery-pin-heading" className="text-[16px] font-sans font-semibold text-[var(--color-foreground)]">
                 Delivery verification
               </h2>
               <p className="text-[12px] font-sans text-[var(--color-muted)]">
@@ -1593,15 +1648,14 @@ export const Scanner = ({
                 Cancel
               </button>
               <button
-                type="button"
-                onClick={handleCommitDelivery}
+                type="submit"
                 disabled={!pinInput.trim()}
                 className="flex-1 min-h-[44px] h-11 px-5 rounded-full text-[13px] font-sans font-semibold bg-white text-black hover:bg-neutral-200 dark:bg-white dark:text-black transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
               >
                 Confirm delivery
               </button>
             </div>
-          </div>
+          </form>
         </div>,
         document.body
       )}
@@ -1609,14 +1663,20 @@ export const Scanner = ({
       {/* ── 4. Scan Result Popups & Alerts ──────────────────────────────── */}
       {/* WRONG_DESTINATION centered alert */}
       {popup.visible && popup.type === 'WRONG_DESTINATION' && createPortal(
-        <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <div
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="wrong-dest-heading"
+          onKeyDown={(e) => e.key === 'Escape' && dismissAlert()}
+          className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4"
+        >
           <div className="bg-[var(--color-surface-card)] rounded-2xl border-2 border-[var(--color-error)] p-6 max-w-sm w-full shadow-2xl space-y-4">
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-full bg-[var(--color-error)]/15 border border-[var(--color-error)]/30 flex items-center justify-center text-[var(--color-error)] shrink-0 font-bold text-lg">
                 ⚠
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-[15px] font-sans font-bold text-[var(--color-error)]">
+                <div id="wrong-dest-heading" className="text-[15px] font-sans font-bold text-[var(--color-error)]">
                   Wrong station alert
                 </div>
                 <div className="text-[12px] font-sans text-[var(--color-muted)] mt-0.5">

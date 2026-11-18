@@ -65,6 +65,37 @@ export function getScanActionLabel(mode: ScanMode): string {
 }
 
 /**
+ * Density-aware layout style classes for the scanner workspace and interactive components.
+ */
+export function getScannerDensityClasses(isCompact: boolean): {
+  workspace: string;
+  modeButton: string;
+  cameraCard: string;
+  telemetryCard: string;
+  recentCard: string;
+} {
+  return {
+    workspace: isCompact ? 'p-3 sm:p-4 space-y-3' : 'p-4 sm:p-6 space-y-4',
+    modeButton: isCompact ? 'min-h-[44px] py-1.5 px-2.5' : 'min-h-[48px] py-2 px-3',
+    cameraCard: isCompact
+      ? 'p-4 sm:p-5 min-h-[160px] sm:min-h-[180px] gap-2'
+      : 'p-6 sm:p-8 min-h-[190px] sm:min-h-[220px] gap-3',
+    telemetryCard: isCompact ? 'p-2.5 sm:p-3' : 'p-3 sm:p-3.5',
+    recentCard: isCompact ? 'p-3' : 'p-4',
+  };
+}
+
+/**
+ * Cleanly truncates long consignee names for compact table and list displays.
+ */
+export function truncateConsignee(name: string, maxLen = 30): string {
+  if (!name || typeof name !== 'string') return '';
+  const trimmed = name.trim();
+  if (trimmed.length <= maxLen) return trimmed;
+  return `${trimmed.slice(0, maxLen - 1)}…`;
+}
+
+/**
  * Normalizes and extracts reference code from raw scanner inputs,
  * handling URLs, JSON wrappers, or plain barcode strings.
  */

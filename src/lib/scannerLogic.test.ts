@@ -5,6 +5,8 @@ import {
   getScanModeDescription,
   getScanModeSublabel,
   getScanActionLabel,
+  getScannerDensityClasses,
+  truncateConsignee,
   parseScannedReference,
   formatScanResultBadge,
   calculateBatchMetrics,
@@ -47,6 +49,25 @@ describe('QR Scanner Logic & Formatting (Grok UI)', () => {
       assert.strictEqual(getScanActionLabel('DEPART'), 'Log departure');
       assert.strictEqual(getScanActionLabel('DELIVER'), 'Log delivery');
       assert.strictEqual(getScanActionLabel('' as any), 'Record scan');
+    });
+
+    test('returns density-aware classes for compact and spacious modes', () => {
+      const compact = getScannerDensityClasses(true);
+      const spacious = getScannerDensityClasses(false);
+
+      assert.ok(compact.workspace.includes('space-y-3'));
+      assert.ok(spacious.workspace.includes('space-y-4'));
+      assert.ok(compact.cameraCard.includes('min-h-[160px]'));
+      assert.ok(spacious.cameraCard.includes('min-h-[190px]'));
+      assert.ok(compact.modeButton.includes('py-1.5'));
+      assert.ok(spacious.modeButton.includes('py-2'));
+    });
+
+    test('truncates consignee names cleanly when exceeding maxLen', () => {
+      assert.strictEqual(truncateConsignee('Dangote Industries Ltd', 15), 'Dangote Indust…');
+      assert.strictEqual(truncateConsignee('Short Name', 20), 'Short Name');
+      assert.strictEqual(truncateConsignee(''), '');
+      assert.strictEqual(truncateConsignee(null as any), '');
     });
   });
 
