@@ -13,6 +13,10 @@ import {
   filterWalletTransactions,
   canArchiveWallet,
   formatWalletResultCount,
+  validateTopUpAmount,
+  validateCashPayoutAmount,
+  getWalletStatusBadge,
+  TOP_UP_PRESET_AMOUNTS,
 } from './walletLogic';
 import type { CustomerWallet, WalletTransaction } from '../components/views/CustomerWallets';
 
@@ -276,6 +280,96 @@ describe('walletLogic', () => {
 
     it('formats filtered count correctly', () => {
       assert.equal(formatWalletResultCount(2, 5, true), 'Showing 2 of 5 accounts');
+    });
+  });
+
+  describe('validateTopUpAmount', () => {
+    it('validates valid positive amounts', () => {
+      const res = validateTopUpAmount('50000');
+      assert.equal(res.valid, true);
+      assert.equal(res.amount, 50000);
+      assert.equal(res.error, undefined);
+    });
+
+    it('rejects empty or whitespace input', () => {
+      const res = validateTopUpAmount('   ');
+      assert.equal(res.valid, false);
+      assert.equal(res.amount, 0);
+      assert.ok(res.error?.includes('Please enter'));
+    });
+
+    it('rejects negative or zero amounts', () => {
+      const zero = validateTopUpAmount('0');
+      assert.equal(zero.valid, false);
+      assert.ok(zero.error?.includes('greater than ₦0'));
+
+      const neg = validateTopUpAmount('-500');
+      assert.equal(neg.valid, false);
+    });
+
+    it('rejects absurdly large or non-numeric inputs', () => {
+      const nan = validateTopUpAmount('abc');
+      assert.equal(nan.valid, false);
+
+      const huge = validateTopUpAmount('1000000000');
+      assert.equal(huge.valid, false);
+      assert.ok(huge.error?.includes('maximum allowed'));
+    });
+  });
+
+  describe('validateCashPayoutAmount', () => {
+    it('accepts valid payout up to available balance', () => {
+      const res = validateCashPayoutAmount('25000', 50000);
+      assert.equal(res.valid, true);
+      assert.equal(res.amount, 25000);
+    });
+
+    it('accepts exact full balance payout', () => {
+      const res = validateCashPayoutAmount('50000', 50000);
+      assert.equal(res.valid, true);
+      assert.equal(res.amount, 50000);
+    });
+
+    it('rejects payout exceeding available balance', () => {
+      const res = validateCashPayoutAmount('50001', 50000);
+      assert.equal(res.valid, false);
+      assert.ok(res.error?.includes('more than available balance'));
+    });
+
+    it('rejects zero or negative payout', () => {
+      const res = validateCashPayoutAmount('0', 50000);
+      assert.equal(res.valid, false);
+      assert.ok(res.error?.includes('greater than ₦0'));
+    });
+  });
+
+  describe('getWalletStatusBadge', () => {
+    it('returns Active badge when balance is positive', () => {
+      const badge = getWalletStatusBadge('active', 450000);
+      assert.equal(badge.label, 'Active');
+      assert.equal(badge.isPositive, true);
+      assert.ok(badge.dotClass.includes('color-success'));
+    });
+
+    it('returns Exhausted badge when balance is zero', () => {
+      const badge = getWalletStatusBadge('exhausted', 0);
+      assert.equal(badge.label, 'Exhausted');
+      assert.equal(badge.isPositive, false);
+      assert.ok(badge.dotClass.includes('color-muted'));
+    });
+
+    it('returns Frozen badge when status is frozen', () => {
+      const badge = getWalletStatusBadge('frozen', 100000);
+      assert.equal(badge.label, 'Frozen');
+      assert.equal(badge.isPositive, false);
+      assert.ok(badge.dotClass.includes('color-warning'));
+    });
+  });
+
+  describe('TOP_UP_PRESET_AMOUNTS', () => {
+    it('provides standard Panasonic CF-31 counter quick presets', () => {
+      assert.equal(TOP_UP_PRESET_AMOUNTS.length, 5);
+      assert.deepEqual([...TOP_UP_PRESET_AMOUNTS], [10000, 20000, 50000, 100000, 200000]);
     });
   });
 });

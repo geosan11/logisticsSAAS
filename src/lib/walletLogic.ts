@@ -185,6 +185,94 @@ export function formatWalletResultCount(
 }
 
 /**
+ * Validate customer top-up amount input.
+ */
+export function validateTopUpAmount(amountStr: string): {
+  valid: boolean;
+  amount: number;
+  error?: string;
+} {
+  const trimmed = amountStr.trim();
+  if (!trimmed) {
+    return { valid: false, amount: 0, error: 'Please enter a top-up amount' };
+  }
+  const parsed = parseFloat(trimmed);
+  if (isNaN(parsed) || parsed <= 0) {
+    return { valid: false, amount: 0, error: 'Top-up amount must be greater than ₦0' };
+  }
+  if (!Number.isFinite(parsed) || parsed > 100_000_000) {
+    return { valid: false, amount: 0, error: 'Top-up amount exceeds maximum allowed single transaction (₦100,000,000)' };
+  }
+  return { valid: true, amount: parsed };
+}
+
+/**
+ * Validate cash payout amount input against current wallet balance.
+ */
+export function validateCashPayoutAmount(
+  amountStr: string,
+  currentBalance: number
+): {
+  valid: boolean;
+  amount: number;
+  error?: string;
+} {
+  const trimmed = amountStr.trim();
+  if (!trimmed) {
+    return { valid: false, amount: 0, error: 'Enter a valid payout amount' };
+  }
+  const parsed = parseFloat(trimmed);
+  if (isNaN(parsed) || parsed <= 0) {
+    return { valid: false, amount: 0, error: 'Payout amount must be greater than ₦0' };
+  }
+  if (parsed > currentBalance) {
+    return {
+      valid: false,
+      amount: parsed,
+      error: `Cannot pay out more than available balance (₦${currentBalance.toLocaleString('en-NG')})`,
+    };
+  }
+  return { valid: true, amount: parsed };
+}
+
+/**
+ * Get status badge configuration for customer wallets following the Grok status-dot pattern.
+ */
+export function getWalletStatusBadge(
+  status: CustomerWallet['status'],
+  balance: number
+): {
+  label: string;
+  dotClass: string;
+  isPositive: boolean;
+} {
+  if (status === 'frozen') {
+    return {
+      label: 'Frozen',
+      dotClass: 'bg-[var(--color-warning)]',
+      isPositive: false,
+    };
+  }
+  if (balance > 0) {
+    return {
+      label: 'Active',
+      dotClass: 'bg-[var(--color-success)]',
+      isPositive: true,
+    };
+  }
+  return {
+    label: 'Exhausted',
+    dotClass: 'bg-[var(--color-muted)]',
+    isPositive: false,
+  };
+}
+
+/**
+ * Quick amount preset values for top-up operations on counter touchscreens.
+ */
+export const TOP_UP_PRESET_AMOUNTS = [10000, 20000, 50000, 100000, 200000] as const;
+
+/**
  * Density-aware Tailwind CSS classes for the Customer Wallets view.
  */
 export function getWalletDensityClasses(isCompact: boolean): {

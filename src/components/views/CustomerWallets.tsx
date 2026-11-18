@@ -30,6 +30,10 @@ import {
   getWalletDensityClasses,
   filterWalletTransactions,
   formatWalletResultCount,
+  validateTopUpAmount,
+  validateCashPayoutAmount,
+  getWalletStatusBadge,
+  TOP_UP_PRESET_AMOUNTS,
 } from '../../lib/walletLogic';
 import { BackButton } from '../BackButton';
 import { Button } from '../ui';
@@ -504,16 +508,16 @@ export const CustomerWallets = ({
   const handleSaveTopUp = async (e: React.FormEvent) => {
     e.preventDefault();
     const name = formName.trim();
-    const amt = parseFloat(formAmount);
-
     if (!name) {
       showToast({ message: 'Customer name is required', type: 'error' });
       return;
     }
-    if (isNaN(amt) || amt <= 0) {
-      showToast({ message: 'Please enter a valid top-up amount', type: 'error' });
+    const validated = validateTopUpAmount(formAmount);
+    if (!validated.valid) {
+      showToast({ message: validated.error || 'Please enter a valid top-up amount', type: 'error' });
       return;
     }
+    const amt = validated.amount;
 
     setSavingTopUp(true);
     try {
@@ -583,15 +587,12 @@ export const CustomerWallets = ({
   };
 
   const handleRequestPayout = async (wallet: CustomerWallet) => {
-    const amt = parseFloat(payoutAmount);
-    if (isNaN(amt) || amt <= 0) {
-      showToast({ message: 'Enter a valid payout amount', type: 'error' });
+    const validated = validateCashPayoutAmount(payoutAmount, wallet.balance);
+    if (!validated.valid) {
+      showToast({ message: validated.error || 'Enter a valid payout amount', type: 'error' });
       return;
     }
-    if (amt > wallet.balance) {
-      showToast({ message: `Cannot pay out more than the current balance (₦${fmt(wallet.balance)})`, type: 'error' });
-      return;
-    }
+    const amt = validated.amount;
     setSavingPayout(true);
     try {
       const result = await requestWalletCashPayout({
@@ -904,8 +905,8 @@ export const CustomerWallets = ({
       {/* Unified Toolbar: Active/Archived Selector & Search */}
       <section className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         {/* Segmented active/archived selector & result count */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="inline-flex items-center p-1 bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-xl shrink-0 self-start sm:self-auto">
+        <div className="flex items-center justify-between sm:justify-start gap-3 flex-wrap">
+          <div className="inline-flex items-center p-1 bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-xl shrink-0">
             <button
               onClick={() => setWalletView('active')}
               className={`min-h-[44px] h-11 px-4 text-xs font-medium rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 ${
@@ -930,7 +931,7 @@ export const CustomerWallets = ({
               <span>Archived</span>
             </button>
           </div>
-          <span className="text-xs text-[var(--color-muted)] hidden md:inline">
+          <span className="text-xs text-[var(--color-muted)]">
             {formatWalletResultCount(filteredWallets.length, wallets.length, Boolean(search.trim()))}
           </span>
         </div>
@@ -943,12 +944,12 @@ export const CustomerWallets = ({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search customer or phone..."
-            className="w-full h-11 min-h-[44px] pl-10 pr-10 text-sm font-sans rounded-xl bg-[var(--color-surface-card)] border border-[var(--color-border)] text-[var(--color-foreground)] placeholder:text-[var(--color-muted)] focus:outline-none focus:border-[var(--color-border-strong)] transition-colors"
+            className="w-full h-11 min-h-[44px] pl-10 pr-12 text-sm font-sans rounded-xl bg-[var(--color-surface-card)] border border-[var(--color-border)] text-[var(--color-foreground)] placeholder:text-[var(--color-muted)] focus:outline-none focus:border-[var(--color-border-strong)] transition-colors"
           />
           {search && (
             <button
               onClick={() => setSearch('')}
-              className="absolute right-1 top-1/2 -translate-y-1/2 min-w-[40px] min-h-[40px] w-10 h-10 flex items-center justify-center text-[var(--color-muted)] hover:text-[var(--color-foreground)] rounded-full cursor-pointer"
+              className="absolute right-1 top-1/2 -translate-y-1/2 min-w-[44px] min-h-[44px] w-11 h-11 flex items-center justify-center text-[var(--color-muted)] hover:text-[var(--color-foreground)] rounded-full cursor-pointer"
               title="Clear search"
             >
               <X size={15} />
@@ -1074,9 +1075,9 @@ ALTER TABLE cargo_entries ADD CONSTRAINT cargo_entries_receipt_mode_check CHECK 
         ) : (
           <div className="space-y-3">
             {filteredWallets.map((wallet) => {
-              const isActive = (wallet.balance || 0) > 0;
               const sourceLabel = getSourceTypeLabel(wallet.source_type);
               const isMenuOpen = menuWalletId === wallet.id;
+              const statusBadge = getWalletStatusBadge(wallet.status, wallet.balance);
 
               return (
                 <div
@@ -1092,15 +1093,10 @@ ALTER TABLE cargo_entries ADD CONSTRAINT cargo_entries_receipt_mode_check CHECK 
                       >
                         {wallet.customer_name}
                       </span>
-                      {isActive ? (
-                        <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-[var(--color-success)]/15 text-[var(--color-success)] border border-[var(--color-success)]/20">
-                          Active
-                        </span>
-                      ) : (
-                        <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-[var(--color-surface-2)] text-[var(--color-muted)] border border-[var(--color-border)]">
-                          Exhausted
-                        </span>
-                      )}
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-[var(--color-surface-1)] border border-[var(--color-border)] text-[var(--color-foreground)]">
+                        <span className={`w-1.5 h-1.5 rounded-full ${statusBadge.dotClass} shrink-0`} />
+                        <span>{statusBadge.label}</span>
+                      </span>
                     </div>
 
                     <div className="flex items-baseline sm:items-end justify-between sm:justify-end gap-2 shrink-0">
@@ -1147,8 +1143,8 @@ ALTER TABLE cargo_entries ADD CONSTRAINT cargo_entries_receipt_mode_check CHECK 
                   </div>
 
                   {/* Action row: Routine operations + More actions overflow menu */}
-                  <div className="flex items-center justify-between gap-2 pt-1 border-t border-[var(--color-border)]">
-                    <div className="flex items-center gap-2 flex-wrap">
+                  <div className="pt-2 border-t border-[var(--color-border)] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="grid grid-cols-2 sm:flex sm:items-center gap-2">
                       {canTopUp && (
                         <button
                           onClick={() => {
@@ -1156,7 +1152,7 @@ ALTER TABLE cargo_entries ADD CONSTRAINT cargo_entries_receipt_mode_check CHECK 
                             setFormPhone(wallet.customer_phone || '');
                             setShowTopUpModal(true);
                           }}
-                          className="h-11 min-h-[44px] px-3.5 rounded-xl text-xs font-medium bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] text-[var(--color-foreground)] inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+                          className="h-11 min-h-[44px] px-3.5 rounded-xl text-xs font-medium bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] text-[var(--color-foreground)] inline-flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
                           title="Top up wallet balance"
                         >
                           <Plus size={14} strokeWidth={2.5} />
@@ -1171,83 +1167,90 @@ ALTER TABLE cargo_entries ADD CONSTRAINT cargo_entries_receipt_mode_check CHECK 
                             setPayoutAmount('');
                             setPayoutNote('');
                           }}
-                          className="h-11 min-h-[44px] px-3.5 rounded-xl text-xs font-medium bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] text-[var(--color-foreground)] inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+                          className="h-11 min-h-[44px] px-3.5 rounded-xl text-xs font-medium bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] text-[var(--color-foreground)] inline-flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
                           title="Request cash payout out of wallet balance"
                         >
                           <HandCoins size={14} />
                           <span>Pay cash</span>
                         </button>
                       )}
+                    </div>
 
+                    <div className="flex items-center justify-end gap-2">
                       <button
                         onClick={() => handleOpenHistory(wallet)}
-                        className="h-11 min-h-[44px] px-3.5 rounded-xl text-xs font-medium bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] text-[var(--color-foreground)] inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+                        className="flex-1 sm:flex-initial h-11 min-h-[44px] px-3.5 rounded-xl text-xs font-medium bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] text-[var(--color-foreground)] inline-flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
                         title="View transaction audit trail"
                       >
                         <History size={14} />
                         <span>History</span>
                       </button>
-                    </div>
 
-                    <div className="flex items-center gap-1.5 relative" data-wallet-menu>
                       <button
                         onClick={() => printWalletReceipt(wallet)}
-                        className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] text-[var(--color-muted)] hover:text-[var(--color-foreground)] inline-flex items-center justify-center cursor-pointer transition-colors"
+                        className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] text-[var(--color-muted)] hover:text-[var(--color-foreground)] inline-flex items-center justify-center cursor-pointer transition-colors shrink-0"
                         title="Print wallet statement receipt"
                       >
                         <Printer size={15} />
                       </button>
 
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setMenuWalletId(isMenuOpen ? null : wallet.id);
-                        }}
-                        className={`w-11 h-11 min-w-[44px] min-h-[44px] rounded-xl border border-[var(--color-border)] inline-flex items-center justify-center cursor-pointer transition-colors ${
-                          isMenuOpen
-                            ? 'bg-[var(--color-surface-hover)] text-[var(--color-foreground)]'
-                            : 'bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
-                        }`}
-                        title="More actions"
-                      >
-                        <MoreVertical size={16} />
-                      </button>
-
-                      {/* Accessible dropdown menu for administrative actions */}
-                      {isMenuOpen && (
-                        <div
-                          className="absolute right-0 bottom-full mb-2 z-30 w-52 bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-xl shadow-xl py-1.5 overflow-hidden animate-in fade-in zoom-in-95 duration-100"
-                          style={{ boxShadow: 'var(--shadow-modal)' }}
+                      <div className="flex items-center relative shrink-0" data-wallet-menu>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setMenuWalletId(isMenuOpen ? null : wallet.id);
+                          }}
+                          aria-expanded={isMenuOpen}
+                          aria-haspopup="menu"
+                          className={`w-11 h-11 min-w-[44px] min-h-[44px] rounded-xl border border-[var(--color-border)] inline-flex items-center justify-center cursor-pointer transition-colors ${
+                            isMenuOpen
+                              ? 'bg-[var(--color-surface-hover)] text-[var(--color-foreground)]'
+                              : 'bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
+                          }`}
+                          title="More actions"
                         >
-                          <button
-                            onClick={() => {
-                              setMenuWalletId(null);
-                              handleRemoveWallet(wallet);
-                            }}
-                            className="w-full min-h-[44px] px-3.5 text-left text-xs font-medium text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)] flex items-center gap-2 cursor-pointer transition-colors"
-                          >
-                            <Archive size={14} className="text-[var(--color-muted)]" />
-                            <span>{wallet.balance === 0 && wallet.total_topped_up === 0 ? 'Delete empty wallet' : 'Archive account'}</span>
-                          </button>
+                          <MoreVertical size={16} />
+                        </button>
 
-                          {canForceDelete && (
-                            <>
-                              <div className="h-px bg-[var(--color-border)] my-1" />
-                              <button
-                                onClick={() => {
-                                  setMenuWalletId(null);
-                                  handleForceDelete(wallet);
-                                }}
-                                disabled={forceDeletingId === wallet.id}
-                                className="w-full min-h-[44px] px-3.5 text-left text-xs font-medium text-[var(--color-error)] hover:bg-[var(--color-error)]/10 flex items-center gap-2 cursor-pointer disabled:opacity-50 transition-colors"
-                              >
-                                <Trash2 size={14} />
-                                <span>Force delete (Purge)</span>
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      )}
+                        {/* Accessible dropdown menu for administrative actions */}
+                        {isMenuOpen && (
+                          <div
+                            className="absolute right-0 bottom-full mb-2 z-40 w-52 bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-xl shadow-xl py-1.5 overflow-hidden animate-in fade-in zoom-in-95 duration-100"
+                            style={{ boxShadow: 'var(--shadow-modal)' }}
+                            role="menu"
+                          >
+                            <button
+                              onClick={() => {
+                                setMenuWalletId(null);
+                                handleRemoveWallet(wallet);
+                              }}
+                              className="w-full min-h-[44px] px-3.5 text-left text-xs font-medium text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)] flex items-center gap-2 cursor-pointer transition-colors"
+                              role="menuitem"
+                            >
+                              <Archive size={14} className="text-[var(--color-muted)]" />
+                              <span>{wallet.balance === 0 && wallet.total_topped_up === 0 ? 'Delete empty wallet' : 'Archive account'}</span>
+                            </button>
+
+                            {canForceDelete && (
+                              <>
+                                <div className="h-px bg-[var(--color-border)] my-1" />
+                                <button
+                                  onClick={() => {
+                                    setMenuWalletId(null);
+                                    handleForceDelete(wallet);
+                                  }}
+                                  disabled={forceDeletingId === wallet.id}
+                                  className="w-full min-h-[44px] px-3.5 text-left text-xs font-medium text-[var(--color-error)] hover:bg-[var(--color-error)]/10 flex items-center gap-2 cursor-pointer disabled:opacity-50 transition-colors"
+                                  role="menuitem"
+                                >
+                                  <Trash2 size={14} />
+                                  <span>Force delete (Purge)</span>
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1329,17 +1332,17 @@ ALTER TABLE cargo_entries ADD CONSTRAINT cargo_entries_receipt_mode_check CHECK 
                     onChange={(e) => setFormAmount(e.target.value)}
                     className="w-full h-11 min-h-[44px] px-3.5 text-base font-semibold tabular-nums rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border)] text-[var(--color-foreground)] placeholder:text-[var(--color-muted)] focus:outline-none focus:border-[var(--color-border-strong)] transition-colors"
                   />
-                  {/* Touchscreen quick preset pills for Panasonic CF-31 */}
-                  <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                    {[10000, 20000, 50000, 100000, 200000].map((preset) => (
+                  {/* Touchscreen quick preset buttons for Panasonic CF-31 (44px min touch target) */}
+                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-2">
+                    {TOP_UP_PRESET_AMOUNTS.map((preset) => (
                       <button
                         key={preset}
                         type="button"
                         onClick={() => setFormAmount(String(preset))}
-                        className={`h-8 min-h-[32px] px-2.5 rounded-lg text-xs tabular-nums font-medium transition-colors cursor-pointer border ${
+                        className={`h-11 min-h-[44px] px-2 rounded-xl text-xs tabular-nums font-medium transition-colors cursor-pointer border flex items-center justify-center ${
                           formAmount === String(preset)
-                            ? 'bg-[var(--color-surface-hover)] border-[var(--color-border-strong)] text-[var(--color-foreground)]'
-                            : 'bg-[var(--color-surface-1)] border-[var(--color-border)] text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
+                            ? 'bg-[var(--color-surface-hover)] border-[var(--color-border-strong)] text-[var(--color-foreground)] font-semibold shadow-xs'
+                            : 'bg-[var(--color-surface-1)] border-[var(--color-border)] text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)]'
                         }`}
                       >
                         ₦{fmt(preset)}
@@ -1469,22 +1472,23 @@ ALTER TABLE cargo_entries ADD CONSTRAINT cargo_entries_receipt_mode_check CHECK 
                 </button>
               </div>
 
-              {/* History filter tabs */}
+              {/* History filter tabs with 44px tap targets */}
               <div className="flex items-center justify-between gap-2 pt-2 shrink-0">
-                <div className="inline-flex items-center p-0.5 bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-lg">
+                <div className="inline-flex items-center p-1 bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-xl w-full sm:w-auto">
                   <button
                     onClick={() => setHistoryFilter('all')}
-                    className={`h-8 px-2.5 text-xs font-medium rounded-md transition-colors cursor-pointer ${
+                    className={`flex-1 sm:flex-initial min-h-[44px] h-11 px-4 text-xs font-medium rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
                       historyFilter === 'all'
                         ? 'bg-[var(--color-surface-hover)] text-[var(--color-foreground)] shadow-xs'
                         : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
                     }`}
                   >
-                    All ({walletHistory.length})
+                    <span>All</span>
+                    <span className="text-[11px] text-[var(--color-muted)]">({walletHistory.length})</span>
                   </button>
                   <button
                     onClick={() => setHistoryFilter('credits')}
-                    className={`h-8 px-2.5 text-xs font-medium rounded-md transition-colors cursor-pointer ${
+                    className={`flex-1 sm:flex-initial min-h-[44px] h-11 px-4 text-xs font-medium rounded-lg transition-colors cursor-pointer flex items-center justify-center ${
                       historyFilter === 'credits'
                         ? 'bg-[var(--color-surface-hover)] text-[var(--color-foreground)] shadow-xs'
                         : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
@@ -1494,7 +1498,7 @@ ALTER TABLE cargo_entries ADD CONSTRAINT cargo_entries_receipt_mode_check CHECK 
                   </button>
                   <button
                     onClick={() => setHistoryFilter('debits')}
-                    className={`h-8 px-2.5 text-xs font-medium rounded-md transition-colors cursor-pointer ${
+                    className={`flex-1 sm:flex-initial min-h-[44px] h-11 px-4 text-xs font-medium rounded-lg transition-colors cursor-pointer flex items-center justify-center ${
                       historyFilter === 'debits'
                         ? 'bg-[var(--color-surface-hover)] text-[var(--color-foreground)] shadow-xs'
                         : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
@@ -1663,14 +1667,15 @@ ALTER TABLE cargo_entries ADD CONSTRAINT cargo_entries_receipt_mode_check CHECK 
 
                   <div className="space-y-3.5">
                     <div>
-                      <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center justify-between mb-2">
                         <label className="text-xs font-medium text-[var(--color-muted)]">
                           Amount ₦ (max ₦{fmt(wallet.balance)}) *
                         </label>
                         <button
                           type="button"
                           onClick={() => setPayoutAmount(String(wallet.balance))}
-                          className="text-[11px] font-medium text-[var(--color-foreground)] underline hover:text-[var(--color-muted)] cursor-pointer"
+                          className="min-h-[36px] h-9 px-3 rounded-lg text-xs font-medium bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] text-[var(--color-foreground)] transition-colors cursor-pointer flex items-center gap-1"
+                          title="Set full available balance"
                         >
                           Pay full ₦{fmt(wallet.balance)}
                         </button>
