@@ -203,6 +203,35 @@ describe('Outbound Arrivals Pure Logic & Helpers', () => {
       assert.strictEqual(res[0].customerName, 'Zenith Tech');
     });
 
+    it('supports multi-token searching across different fields (e.g. customer + route)', () => {
+      const res = filterOutboundArrivals(mockItems, 'dangote kano', 'all');
+      assert.strictEqual(res.length, 1);
+      assert.strictEqual(res[0].entryRef, 'EHI-CRG-001');
+    });
+
+    it('supports multi-token searching for airline + destination', () => {
+      const res = filterOutboundArrivals(mockItems, 'air peace kano', 'all');
+      assert.strictEqual(res.length, 1);
+      assert.strictEqual(res[0].entryRef, 'EHI-CRG-001');
+    });
+
+    it('supports multi-token searching for customer + content type', () => {
+      const res = filterOutboundArrivals(mockItems, 'zenith telecom spares', 'all');
+      assert.strictEqual(res.length, 1);
+      assert.strictEqual(res[0].entryRef, 'EHI-CRG-003');
+    });
+
+    it('handles excess whitespace in multi-token queries safely', () => {
+      const res = filterOutboundArrivals(mockItems, '   adeola    chambers   abuja   ', 'all');
+      assert.strictEqual(res.length, 1);
+      assert.strictEqual(res[0].entryRef, 'EHI-PKG-002');
+    });
+
+    it('returns empty array when one of the tokens fails to match', () => {
+      const res = filterOutboundArrivals(mockItems, 'dangote calabar', 'all');
+      assert.strictEqual(res.length, 0);
+    });
+
     it('combines source filter and search query', () => {
       const res = filterOutboundArrivals(mockItems, 'chambers', 'cargo');
       assert.strictEqual(res.length, 0); // Chambers is Package, not Cargo

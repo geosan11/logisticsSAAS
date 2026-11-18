@@ -84,6 +84,7 @@ export function formatRouteDisplay(route: string | null | undefined): string {
 
 /**
  * Filters outbound arrivals in-memory across search query and source filter.
+ * Supports multi-token searching so queries like "Dangote Kano" or "Air Peace Cargo" match across fields.
  */
 export function filterOutboundArrivals(
   items: OutboundArrivalItem[],
@@ -98,25 +99,25 @@ export function filterOutboundArrivals(
     list = list.filter((item) => item.source === 'Package');
   }
 
-  const q = query.trim().toLowerCase();
-  if (!q) return list;
+  const raw = query.trim().toLowerCase();
+  if (!raw) return list;
+
+  const tokens = raw.split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) return list;
 
   return list.filter((item) => {
-    const customer = (item.customerName || '').toLowerCase();
-    const ref = (item.entryRef || '').toLowerCase();
-    const awb = (item.awb || '').toLowerCase();
-    const dest = (item.destinationLabel || '').toLowerCase();
-    const airline = (item.airline || '').toLowerCase();
-    const content = (item.contentType || '').toLowerCase();
+    const haystack = [
+      item.customerName || '',
+      item.entryRef || '',
+      item.awb || '',
+      item.destinationLabel || '',
+      item.airline || '',
+      item.contentType || '',
+    ]
+      .join(' ')
+      .toLowerCase();
 
-    return (
-      customer.includes(q) ||
-      ref.includes(q) ||
-      awb.includes(q) ||
-      dest.includes(q) ||
-      airline.includes(q) ||
-      content.includes(q)
-    );
+    return tokens.every((token) => haystack.includes(token));
   });
 }
 

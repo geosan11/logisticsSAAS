@@ -283,7 +283,7 @@ export const OutboundArrivals = ({ user, onBack }: { user: User; onBack?: () => 
       </header>
 
       {/* ── 2. KPI Summary Telemetry Bar (No Duplication) ─────────────── */}
-      <div className={`bg-[var(--color-surface-1)] border-b border-[var(--color-border)] px-4 sm:px-6 flex items-center justify-between text-[12px] font-sans text-[var(--color-muted)] flex-wrap gap-2 shrink-0 ${isCompact ? 'py-2' : 'py-2.5'}`}>
+      <div className={`bg-[var(--color-surface-1)] border-b border-[var(--color-border)] px-4 sm:px-6 flex flex-col md:flex-row md:items-center justify-between text-[12px] font-sans text-[var(--color-muted)] gap-3 shrink-0 ${isCompact ? 'py-2' : 'py-2.5'}`}>
         <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
           <span className="inline-flex items-center gap-1.5 font-medium text-[var(--color-foreground)]">
             <span className="w-2 h-2 rounded-full bg-[var(--color-success)]"></span>
@@ -302,40 +302,43 @@ export const OutboundArrivals = ({ user, onBack }: { user: User; onBack?: () => 
           </div>
         </div>
 
-        {/* Source Segmented Filters (strict touch targets) */}
-        <div className="flex items-center gap-1">
+        {/* Source Segmented Filters (strict 44px touch targets, mobile scroll-safe) */}
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
           <button
             type="button"
             onClick={() => setSourceFilter('all')}
-            className={`min-h-[36px] px-3 rounded-full text-[12px] font-sans transition-colors cursor-pointer ${
+            className={`min-h-[44px] h-11 px-4 rounded-full text-[13px] font-sans transition-colors cursor-pointer shrink-0 flex items-center gap-1.5 ${
               sourceFilter === 'all'
-                ? 'bg-[var(--color-foreground)] text-[var(--color-canvas)] font-semibold'
-                : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)]'
+                ? 'bg-[var(--color-foreground)] text-[var(--color-canvas)] font-semibold shadow-xs'
+                : 'bg-[var(--color-surface-2)] text-[var(--color-muted)] border border-[var(--color-border)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)]'
             }`}
           >
-            All <span className="tabular-nums font-mono text-[11px]">({metrics.totalCount})</span>
+            <span>All</span>
+            <span className="tabular-nums font-mono text-[12px] opacity-80">({metrics.totalCount})</span>
           </button>
           <button
             type="button"
             onClick={() => setSourceFilter('cargo')}
-            className={`min-h-[36px] px-3 rounded-full text-[12px] font-sans transition-colors cursor-pointer ${
+            className={`min-h-[44px] h-11 px-4 rounded-full text-[13px] font-sans transition-colors cursor-pointer shrink-0 flex items-center gap-1.5 ${
               sourceFilter === 'cargo'
-                ? 'bg-[var(--color-foreground)] text-[var(--color-canvas)] font-semibold'
-                : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)]'
+                ? 'bg-[var(--color-foreground)] text-[var(--color-canvas)] font-semibold shadow-xs'
+                : 'bg-[var(--color-surface-2)] text-[var(--color-muted)] border border-[var(--color-border)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)]'
             }`}
           >
-            Air Cargo <span className="tabular-nums font-mono text-[11px]">({metrics.cargoCount})</span>
+            <span>Air Cargo</span>
+            <span className="tabular-nums font-mono text-[12px] opacity-80">({metrics.cargoCount})</span>
           </button>
           <button
             type="button"
             onClick={() => setSourceFilter('package')}
-            className={`min-h-[36px] px-3 rounded-full text-[12px] font-sans transition-colors cursor-pointer ${
+            className={`min-h-[44px] h-11 px-4 rounded-full text-[13px] font-sans transition-colors cursor-pointer shrink-0 flex items-center gap-1.5 ${
               sourceFilter === 'package'
-                ? 'bg-[var(--color-foreground)] text-[var(--color-canvas)] font-semibold'
-                : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)]'
+                ? 'bg-[var(--color-foreground)] text-[var(--color-canvas)] font-semibold shadow-xs'
+                : 'bg-[var(--color-surface-2)] text-[var(--color-muted)] border border-[var(--color-border)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)]'
             }`}
           >
-            Packages <span className="tabular-nums font-mono text-[11px]">({metrics.packageCount})</span>
+            <span>Packages</span>
+            <span className="tabular-nums font-mono text-[12px] opacity-80">({metrics.packageCount})</span>
           </button>
         </div>
       </div>
@@ -403,89 +406,114 @@ export const OutboundArrivals = ({ user, onBack }: { user: User; onBack?: () => 
               const specs = formatOutboundSpecs(r.pcs, r.kg);
               const awbFormatted = formatAwbDisplay(r.awb);
               const routeFormatted = formatRouteDisplay(r.destinationLabel);
-              const isCopied = copiedId === r.key;
+              const isRefCopied = copiedId === `${r.key}-ref`;
+              const isAwbCopied = copiedId === `${r.key}-awb`;
 
               return (
                 <div
                   key={r.key}
-                  className="border border-[var(--color-border)] rounded-2xl bg-[var(--color-surface-card)] hover:border-[var(--color-border-strong)] transition-colors p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"
+                  className={`border border-[var(--color-border)] rounded-2xl bg-[var(--color-surface-card)] hover:border-[var(--color-border-strong)] transition-colors flex flex-col sm:flex-row justify-between items-start sm:items-center ${
+                    isCompact ? 'p-3.5 sm:p-4 gap-3' : 'p-4 sm:p-5 gap-4'
+                  }`}
                 >
-                  <div className="space-y-1.5 min-w-0 flex-1">
-                    {/* Consignee / Customer Name */}
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[15px] font-semibold text-[var(--color-foreground)] font-sans tracking-tight">
-                        {r.customerName}
-                      </span>
-                      <span className="px-2 py-0.5 rounded-full text-[11px] font-sans font-medium bg-[var(--color-surface-2)] text-[var(--color-muted)] border border-[var(--color-border)]">
-                        {r.source === 'Cargo' ? 'Air Cargo' : r.source === 'Package' ? 'Package' : 'Legacy'}
-                      </span>
+                  <div className="space-y-2 min-w-0 flex-1 w-full">
+                    {/* Primary Header Row: Customer Name, Source Badge, and Route */}
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-2 flex-wrap min-w-0">
+                        <span className="text-[15px] sm:text-[16px] font-semibold text-[var(--color-foreground)] font-sans tracking-tight truncate">
+                          {r.customerName}
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full text-[11px] font-sans font-medium bg-[var(--color-surface-2)] text-[var(--color-muted)] border border-[var(--color-border)]">
+                          {r.source === 'Cargo' ? 'Air Cargo' : r.source === 'Package' ? 'Package' : 'Legacy'}
+                        </span>
+                      </div>
+                      <div className="text-[13px] font-sans font-medium text-[var(--color-foreground)] flex items-center gap-1.5">
+                        <span className="text-[var(--color-muted)] text-[12px]">Route:</span>
+                        <span>{routeFormatted}</span>
+                      </div>
                     </div>
 
-                    {/* Metadata line: Entry Ref, AWB, Airline */}
-                    <div className="flex items-center gap-2 text-[12px] font-sans text-[var(--color-muted)] flex-wrap">
+                    {/* Identifiers & Tactile Copy Row: Entry Ref (44px) + AWB Tag (44px) + Airline */}
+                    <div className="flex items-center gap-2 flex-wrap text-[12px] font-sans text-[var(--color-muted)]">
+                      {/* Entry Ref with 44px hit target */}
                       <button
                         type="button"
-                        onClick={() => handleCopyIdentifier(r.entryRef, r.key)}
+                        onClick={() => handleCopyIdentifier(r.entryRef, `${r.key}-ref`)}
                         title="Click to copy entry ref"
                         aria-label={`Copy entry reference ${r.entryRef}`}
-                        className="inline-flex items-center gap-1 font-mono tabular-nums text-[var(--color-foreground)] font-medium hover:text-[var(--color-foreground)] cursor-pointer py-0.5 rounded transition-colors group"
+                        className="min-h-[44px] h-11 inline-flex items-center gap-2 px-3 rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] transition-colors cursor-pointer group"
                       >
-                        <span>{r.entryRef}</span>
-                        {isCopied ? (
-                          <Check size={12} className="text-[var(--color-success)] shrink-0" />
+                        <span className="text-[11px] font-sans text-[var(--color-muted)]">Ref:</span>
+                        <span className="font-mono tabular-nums font-medium text-[13px]">{r.entryRef}</span>
+                        {isRefCopied ? (
+                          <Check size={14} className="text-[var(--color-success)] shrink-0" />
                         ) : (
-                          <Copy size={12} className="text-[var(--color-muted)] opacity-60 group-hover:opacity-100 shrink-0" />
+                          <Copy size={13} className="text-[var(--color-muted)] opacity-60 group-hover:opacity-100 shrink-0" />
                         )}
                       </button>
 
-                      {awbFormatted && (
-                        <>
-                          <span className="text-[var(--color-border-strong)]">·</span>
-                          <span className="font-mono tabular-nums text-[var(--color-muted)]">
-                            {awbFormatted}
-                          </span>
-                        </>
-                      )}
+                      {/* AWB Tag with 44px hit target if available */}
+                      {awbFormatted ? (
+                        <button
+                          type="button"
+                          onClick={() => handleCopyIdentifier(r.awb || '', `${r.key}-awb`)}
+                          title="Click to copy AWB tag"
+                          aria-label={`Copy AWB tag ${awbFormatted}`}
+                          className="min-h-[44px] h-11 inline-flex items-center gap-2 px-3 rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] transition-colors cursor-pointer group"
+                        >
+                          <span className="text-[11px] font-sans text-[var(--color-muted)]">AWB:</span>
+                          <span className="font-mono tabular-nums font-medium text-[13px]">{awbFormatted}</span>
+                          {isAwbCopied ? (
+                            <Check size={14} className="text-[var(--color-success)] shrink-0" />
+                          ) : (
+                            <Copy size={13} className="text-[var(--color-muted)] opacity-60 group-hover:opacity-100 shrink-0" />
+                          )}
+                        </button>
+                      ) : null}
 
                       {r.airline && (
-                        <>
-                          <span className="text-[var(--color-border-strong)]">·</span>
-                          <span className="text-[var(--color-muted)]">{r.airline}</span>
-                        </>
+                        <span className="px-2.5 py-1 rounded-full text-[12px] font-sans bg-[var(--color-surface-2)] text-[var(--color-muted)] border border-[var(--color-border)]">
+                          {r.airline}
+                        </span>
                       )}
                     </div>
 
-                    {/* Specs Line: Route, Pieces, Weight, Content Type */}
-                    <div className="text-[12px] font-sans text-[var(--color-muted)] flex items-center gap-2 flex-wrap">
-                      <span className="text-[var(--color-foreground)] font-medium">
-                        {routeFormatted}
-                      </span>
-                      <span className="text-[var(--color-border-strong)]">·</span>
-                      <span className="tabular-nums font-mono font-medium text-[var(--color-foreground)]">
-                        {specs.pcsStr}
-                      </span>
+                    {/* Cargo Physical Specs Row: Pieces, Weight, Content Type */}
+                    <div className="flex items-center gap-3 text-[12px] font-sans text-[var(--color-muted)] flex-wrap pt-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <span>Pieces:</span>
+                        <span className="tabular-nums font-mono font-medium text-[var(--color-foreground)]">
+                          {specs.pcsStr}
+                        </span>
+                      </div>
                       {r.kg ? (
                         <>
                           <span className="text-[var(--color-border-strong)]">·</span>
-                          <span className="tabular-nums font-mono font-medium text-[var(--color-foreground)]">
-                            {specs.kgStr}
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span>Weight:</span>
+                            <span className="tabular-nums font-mono font-medium text-[var(--color-foreground)]">
+                              {specs.kgStr}
+                            </span>
+                          </div>
                         </>
                       ) : null}
                       <span className="text-[var(--color-border-strong)]">·</span>
-                      <span className="text-[var(--color-muted)]">
-                        {r.contentType || 'General Goods'}
-                      </span>
+                      <div className="flex items-center gap-1.5 truncate">
+                        <span>Contents:</span>
+                        <span className="text-[var(--color-foreground)] font-medium truncate">
+                          {r.contentType || 'General Goods'}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Status telemetry: Arrived dot + relative timestamp */}
-                  <div className="shrink-0 flex flex-col items-start sm:items-end gap-1">
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--color-surface-2)] border border-[var(--color-border)] text-[var(--color-success)] text-[12px] font-sans font-medium">
-                      <CheckCircle2 size={13} className="shrink-0" />
+                  {/* Status telemetry: High-contrast Arrived badge + relative timestamp */}
+                  <div className="shrink-0 flex flex-row sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-2 sm:gap-1.5 pt-2 sm:pt-0 border-t sm:border-t-0 border-[var(--color-border)]">
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-600 dark:text-emerald-400 text-[12px] font-sans font-semibold">
+                      <CheckCircle2 size={14} className="shrink-0" />
                       <span>Arrived</span>
                     </div>
-                    <div className="text-[11px] font-sans text-[var(--color-muted)] tabular-nums">
+                    <div className="text-[12px] font-sans text-[var(--color-muted)] tabular-nums">
                       {timeSince(r.createdAt)}
                     </div>
                   </div>
