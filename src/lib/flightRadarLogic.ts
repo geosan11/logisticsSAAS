@@ -372,3 +372,91 @@ export function formatRouteDisplay(route: string | null | undefined): string {
   if (!route) return '';
   return route.replace(/->/g, '→').replace(/\s+/g, ' ').trim();
 }
+
+/**
+ * Rate limiting & calm backoff helpers for Flight Radar.
+ */
+export interface RateLimitState {
+  isRateLimited: boolean;
+  retryAfterSec: number;
+  rateLimitedUntil: number; // unix timestamp ms
+  message: string;
+}
+
+export class RateLimitError extends Error {
+  status: number = 429;
+  retryAfter: number;
+
+  constructor(message: string = 'Rate limit exceeded', retryAfter: number = 60) {
+    super(message);
+    this.name = 'RateLimitError';
+    this.retryAfter = retryAfter;
+  }
+}
+
+/**
+ * Parses the HTTP Retry-After header (either seconds or an HTTP-date),
+ * returning integer seconds, with a safe positive fallback.
+ */
+export function parseRetryAfter(headerValue?: string | null, defaultSec: number = 60): number {
+  if (!headerValue) return defaultSec;
+  const trimmed = headerValue.trim();
+  const parsed = parseInt(trimmed, 10);
+  if (Number.isFinite(parsed) && parsed > 0) {
+    return parsed;
+  }
+  const dateMs = Date.parse(trimmed);
+  if (!Number.isNaN(dateMs)) {
+    const diffSec = Math.ceil((dateMs - Date.now()) / 1000);
+    return diffSec > 0 ? diffSec : defaultSec;
+  }
+  return defaultSec;
+}
+
+/**
+ * Calculates calm backoff state given retry-after seconds.
+ */
+export function calculateBackoff(
+  retryAfterSeconds: number,
+  now: number = Date.now()
+): RateLimitState {
+  const retryAfterSec = Math.max(1, retryAfterSeconds);
+  const rateLimitedUntil = now + retryAfterSec * 1000;
+  return {
+    isRateLimited: true,
+    retryAfterSec,
+    rateLimitedUntil,
+    message: `Rate limit reached. Showing last cached data. Backing off for ${retryAfterSec}s.`,
+  };
+}
+
+/**
+ * Determines whether a backoff period is still active.
+ */
+export function isBackingOff(state: RateLimitState | null | undefined, now: number = Date.now()): boolean {
+  if (!state || !state.isRateLimited) return false;
+  return now < state.rateLimitedUntil;
+}
+
+/**
+ * Computes remaining seconds of backoff.
+ */
+export function remainingBackoffSeconds(state: RateLimitState | null | undefined, now: number = Date.now()): number {
+  if (!state || !state.isRateLimited) return 0;
+  const remaining = Math.ceil((state.rateLimitedUntil - now) / 1000);
+  return remaining > 0 ? remaining : 0;
+}
+
+/**
+ * Checks if an error is a 429 / RateLimitError.
+ */
+export function isRateLimitError(err: any): boolean {
+  if (!err) return false;
+  if (err.status === 429 || err.statusCode === 429 || err.name === 'RateLimitError') return true;
+  if (typeof err.message === 'string') {
+    const lower = err.message.toLowerCase();
+    return lower.includes('429') || lower.includes('too many requests') || lower.includes('rate limit');
+  }
+  return false;
+}
+

@@ -11,6 +11,7 @@ import qzRoutes from './qz.js';
 import flightRadarRoutes, { cronRouter as flightRadarCronRouter } from './flightRadar.js';
 import aiChatRoutes from './aiChat.js';
 import { parseBankAlert } from './emailParser.js';
+import { createRateLimiter, rateLimiter } from './rateLimiter.js';
 
 // Same DSN as the client (VITE_SENTRY_DSN reads fine server-side too --
 // the VITE_ prefix only controls client bundling, same pattern already
@@ -24,54 +25,7 @@ if (process.env.VITE_SENTRY_DSN) {
   });
 }
 
-// Distributed rate limiter — see supabase/migrations/20260702_rate_limiting.sql
-// for why this replaced the old in-memory Map version: on Vercel, concurrent
-// serverless invocations each get their own process memory, so an in-memory
-// counter doesn't actually enforce a shared limit. This checks a shared table
-// instead via a single atomic INSERT ... ON CONFLICT DO UPDATE (see the
-// migration for why that replaced an earlier FOR UPDATE draft). Costs a
-// network round trip per check (~120ms, Supabase is EU West) — only wire
-// this onto low-frequency, deliberate actions, not hot-path UI calls.
-const rateLimiter = (name: string, maxReqs: number, windowMs: number) => {
-  return async (req: any, res: any, next: any) => {
-    try {
-      const supabaseUrl = process.env.VITE_SUPABASE_URL;
-      const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-      if (!supabaseUrl || !serviceKey) {
-        // Not configured — fail open, same philosophy as before.
-        return next();
-      }
-
-      const { createClient } = await import('@supabase/supabase-js');
-      const admin = createClient(supabaseUrl, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
-
-      const ip = req.ip || 'unknown';
-      const key = `${name}:${ip}`;
-
-      const { data: allowed, error } = await admin.rpc('check_rate_limit', {
-        p_key: key,
-        p_max: maxReqs,
-        p_window_ms: windowMs,
-      });
-
-      if (error) {
-        // Fail open — a broken rate limiter should never block a legitimate request
-        console.error('Rate limiter check failed (failing open):', error);
-        return next();
-      }
-
-      if (allowed === false) {
-        return res.status(429).json({ error: 'Too many requests' });
-      }
-
-      next();
-    } catch (err) {
-      // Fail open — a broken rate limiter should never block a legitimate request
-      console.error('Rate limiter error (failing open):', err);
-      next();
-    }
-  };
-};
+// Rate limiting: see server/rateLimiter.ts and supabase/migrations/20260702_rate_limiting.sql
 
 // Cryptographically random temp password for bulk-created accounts — CSV
 // input should never carry plaintext passwords, so one is generated per
@@ -142,6 +96,8 @@ export async function requireAuthenticatedUser(req: any, res: any, next: any) {
     const { data: { user }, error } = await client.auth.getUser(token);
     if (error || !user) { res.status(401).json({ error: 'Invalid session' }); return; }
 
+    req.user = user;
+    req.userId = user.id;
     next();
   } catch (err: any) {
     console.error('requireAuthenticatedUser error:', err);
@@ -192,6 +148,12 @@ export function createApp() {
 
   const notifyLimiter = rateLimiter('notify', 30, 60_000);
   const adminLimiter = rateLimiter('admin', 10, 60_000);
+  const flightRadarLimiter = createRateLimiter({
+    name: 'flight-radar',
+    maxReqs: 30,
+    windowMs: 60_000,
+    perUser: true,
+  });
 
   app.get('/api/config', (req, res) => {
     const supabaseUrl = process.env.VITE_SUPABASE_URL;
@@ -208,11 +170,8 @@ export function createApp() {
   app.use('/api/eod', requireAuthenticatedUser, eodRoutes);
   app.use('/api/gemini', notifyLimiter, requireAuthenticatedUser, geminiRoutes);
   app.use('/api/qz', requireAuthenticatedUser, qzRoutes);
-  // No dedicated rate limiter -- getOrRefresh's own CACHE_TTL_MS is what
-  // bounds AeroDataBox usage (at most one live call per flight+date per
-  // window, shared across every viewer via flight_status_cache), same
-  // reasoning flightRadar.ts's own header comment lays out.
-  app.use('/api/flight-radar', requireAuthenticatedUser, flightRadarRoutes);
+  // Rate limited per-IP and per-user (30 req/min) returning 429 with Retry-After
+  app.use('/api/flight-radar', requireAuthenticatedUser, flightRadarLimiter, flightRadarRoutes);
   // No requireAuthenticatedUser -- Vercel Cron's own request carries no user
   // session. Authenticated instead by CRON_SECRET, checked inside the route
   // itself (flightRadar.ts's cronRouter), same shared-secret pattern as the

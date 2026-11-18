@@ -155,21 +155,84 @@ function normalizeStatus(raw: any): {
   };
 }
 
+// In-memory cache for upstream AeroDataBox responses (15-30s TTL).
+// Prevents multiple concurrent clients from hammering the external API.
+interface UpstreamCacheEntry<T> {
+  data: T;
+  timestamp: number;
+  ttlMs?: number;
+}
+
+const upstreamCache = new Map<string, UpstreamCacheEntry<any>>();
+const inFlightUpstream = new Map<string, Promise<any>>();
+export const UPSTREAM_CACHE_TTL_MS = 30_000; // 30 seconds (15-30s requirement)
+
+export function getUpstreamCache<T = any>(key: string): T | undefined {
+  const entry = upstreamCache.get(key);
+  if (!entry) return undefined;
+  const ttl = entry.ttlMs ?? UPSTREAM_CACHE_TTL_MS;
+  if (Date.now() - entry.timestamp > ttl) {
+    upstreamCache.delete(key);
+    return undefined;
+  }
+  return entry.data;
+}
+
+export function setUpstreamCache<T = any>(key: string, data: T, ttlMs: number = UPSTREAM_CACHE_TTL_MS): void {
+  if (upstreamCache.size > 500) {
+    const now = Date.now();
+    for (const [k, v] of upstreamCache.entries()) {
+      const ttl = v.ttlMs ?? UPSTREAM_CACHE_TTL_MS;
+      if (now - v.timestamp > ttl) {
+        upstreamCache.delete(k);
+      }
+    }
+  }
+  upstreamCache.set(key, { data, timestamp: Date.now(), ttlMs });
+}
+
+export function clearUpstreamCache(): void {
+  upstreamCache.clear();
+  inFlightUpstream.clear();
+}
+
 async function fetchFromAeroDataBox(flightNumber: string, date: string) {
   const apiKey = process.env.AERODATABOX_API_KEY;
   if (!apiKey) return null;
-  const url = `https://aerodatabox.p.rapidapi.com/flights/number/${encodeURIComponent(flightNumber)}/${encodeURIComponent(date)}`;
-  const response = await axios.get(url, {
-    headers: {
-      'X-RapidAPI-Key': apiKey,
-      'X-RapidAPI-Host': 'aerodatabox.p.rapidapi.com',
-    },
-    timeout: 10_000,
-  });
-  // AeroDataBox returns an array (a flight number can have multiple legs/
-  // codeshares on the same date) -- the first entry is the primary leg.
-  const first = Array.isArray(response.data) ? response.data[0] : response.data;
-  return first || null;
+
+  const cacheKey = `flight:${flightNumber.toUpperCase().trim()}:${date.trim()}`;
+  const cached = getUpstreamCache(cacheKey);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  if (inFlightUpstream.has(cacheKey)) {
+    return inFlightUpstream.get(cacheKey);
+  }
+
+  const fetchPromise = (async () => {
+    try {
+      const url = `https://aerodatabox.p.rapidapi.com/flights/number/${encodeURIComponent(flightNumber)}/${encodeURIComponent(date)}`;
+      const response = await axios.get(url, {
+        headers: {
+          'X-RapidAPI-Key': apiKey,
+          'X-RapidAPI-Host': 'aerodatabox.p.rapidapi.com',
+        },
+        timeout: 10_000,
+      });
+      // AeroDataBox returns an array (a flight number can have multiple legs/
+      // codeshares on the same date) -- the first entry is the primary leg.
+      const first = Array.isArray(response.data) ? response.data[0] : response.data;
+      const result = first || null;
+      setUpstreamCache(cacheKey, result);
+      return result;
+    } finally {
+      inFlightUpstream.delete(cacheKey);
+    }
+  })();
+
+  inFlightUpstream.set(cacheKey, fetchPromise);
+  return fetchPromise;
 }
 
 async function getOrRefresh(flightNumber: string, date: string, forceRefresh: boolean) {
@@ -295,42 +358,65 @@ function normalizeDepartureEntry(raw: any): { flightNumber: string | null; airli
 async function fetchDeparturesFromAeroDataBox(originIata: string, date: string): Promise<any[]> {
   const apiKey = process.env.AERODATABOX_API_KEY;
   if (!apiKey) return [];
-  // AeroDataBox's airport FIDS endpoint caps each request window at 12
-  // hours, so the full day is split into two half-day calls and merged.
-  const windows: [string, string][] = [
-    [`${date}T00:00`, `${date}T11:59`],
-    [`${date}T12:00`, `${date}T23:59`],
-  ];
-  const results = await Promise.all(windows.map(async ([from, to]) => {
-    const url = `https://aerodatabox.p.rapidapi.com/flights/airports/iata/${encodeURIComponent(originIata)}/${from}/${to}`;
-    const response = await axios.get(url, {
-      params: { direction: 'Departure', withLeg: false },
-      headers: {
-        'X-RapidAPI-Key': apiKey,
-        'X-RapidAPI-Host': 'aerodatabox.p.rapidapi.com',
-      },
-      timeout: 10_000,
-    });
-    return response.data?.departures || [];
-  }));
-  const merged = results.flat();
-  // Server-only diagnostic (Vercel function logs, never sent to the
-  // client) -- the field-mapping bug fixed just above was guessed from
-  // documentation fragments, never an actual live response, so this stays
-  // until someone's confirmed a real payload matches normalizeDepartureEntry's
-  // assumptions. Safe to remove once that's verified.
-  if (merged[0]) console.log('[flightRadar] sample raw departure entry:', JSON.stringify(merged[0]));
-  // Domestic-only -- EHI never ships internationally (every CARGO_ROUTES
-  // destination is a Nigerian city), so an international departure from a
-  // shared hub airport like Lagos is never relevant to Cargo Entry's
-  // auto-fill (this function's other caller) and just clutters "Nigeria
-  // Today" with routes no shipment will ever be on. isDomestic itself is
-  // dropped afterward -- it's always true past this filter, so keeping it
-  // in the cached/shipped payload would just be dead weight.
-  return merged
-    .map(normalizeDepartureEntry)
-    .filter(f => f.flightNumber && f.isDomestic)
-    .map(({ isDomestic, ...f }) => f);
+
+  const cacheKey = `departures:${originIata.toUpperCase().trim()}:${date.trim()}`;
+  const cached = getUpstreamCache(cacheKey);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  if (inFlightUpstream.has(cacheKey)) {
+    return inFlightUpstream.get(cacheKey);
+  }
+
+  const fetchPromise = (async () => {
+    try {
+      // AeroDataBox's airport FIDS endpoint caps each request window at 12
+      // hours, so the full day is split into two half-day calls and merged.
+      const windows: [string, string][] = [
+        [`${date}T00:00`, `${date}T11:59`],
+        [`${date}T12:00`, `${date}T23:59`],
+      ];
+      const results = await Promise.all(windows.map(async ([from, to]) => {
+        const url = `https://aerodatabox.p.rapidapi.com/flights/airports/iata/${encodeURIComponent(originIata)}/${from}/${to}`;
+        const response = await axios.get(url, {
+          params: { direction: 'Departure', withLeg: false },
+          headers: {
+            'X-RapidAPI-Key': apiKey,
+            'X-RapidAPI-Host': 'aerodatabox.p.rapidapi.com',
+          },
+          timeout: 10_000,
+        });
+        return response.data?.departures || [];
+      }));
+      const merged = results.flat();
+      // Server-only diagnostic (Vercel function logs, never sent to the
+      // client) -- the field-mapping bug fixed just above was guessed from
+      // documentation fragments, never an actual live response, so this stays
+      // until someone's confirmed a real payload matches normalizeDepartureEntry's
+      // assumptions. Safe to remove once that's verified.
+      if (merged[0]) console.log('[flightRadar] sample raw departure entry:', JSON.stringify(merged[0]));
+      // Domestic-only -- EHI never ships internationally (every CARGO_ROUTES
+      // destination is a Nigerian city), so an international departure from a
+      // shared hub airport like Lagos is never relevant to Cargo Entry's
+      // auto-fill (this function's other caller) and just clutters "Nigeria
+      // Today" with routes no shipment will ever be on. isDomestic itself is
+      // dropped afterward -- it's always true past this filter, so keeping it
+      // in the cached/shipped payload would just be dead weight.
+      const normalized = merged
+        .map(normalizeDepartureEntry)
+        .filter(f => f.flightNumber && f.isDomestic)
+        .map(({ isDomestic, ...f }) => f);
+
+      setUpstreamCache(cacheKey, normalized);
+      return normalized;
+    } finally {
+      inFlightUpstream.delete(cacheKey);
+    }
+  })();
+
+  inFlightUpstream.set(cacheKey, fetchPromise);
+  return fetchPromise;
 }
 
 // Cache-or-fetch the whole day's departures board for one airport -- shared

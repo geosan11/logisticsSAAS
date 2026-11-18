@@ -13,6 +13,12 @@ import {
   timelineStepIndex,
   isStatusInterrupted,
   formatRouteDisplay,
+  parseRetryAfter,
+  calculateBackoff,
+  isBackingOff,
+  remainingBackoffSeconds,
+  isRateLimitError,
+  RateLimitError,
   BoardFlight,
   NationalFlight,
   CachedStatus,
@@ -487,6 +493,76 @@ describe('Flight Radar Logic & Formatting (Grok UI)', () => {
     test('driver role can access Flight Radar in air and intermodal modes', () => {
       assert.strictEqual(canAccessTab(driverUser, 'FlightRadar', [], 'air'), true);
       assert.strictEqual(canAccessTab(driverUser, 'FlightRadar', [], 'intermodal'), true);
+    });
+  });
+
+  describe('Rate Limiting & Calm Backoff Handling (Client side)', () => {
+    test('parseRetryAfter parses numeric seconds and defaults correctly', () => {
+      assert.strictEqual(parseRetryAfter('30'), 30);
+      assert.strictEqual(parseRetryAfter('60'), 60);
+      assert.strictEqual(parseRetryAfter('  45  '), 45);
+      assert.strictEqual(parseRetryAfter(null), 60);
+      assert.strictEqual(parseRetryAfter(undefined), 60);
+      assert.strictEqual(parseRetryAfter('invalid', 45), 45);
+      assert.strictEqual(parseRetryAfter('-10', 60), 60);
+    });
+
+    test('parseRetryAfter parses valid future HTTP dates', () => {
+      const futureDate = new Date(Date.now() + 25_000).toUTCString();
+      const parsed = parseRetryAfter(futureDate, 60);
+      assert.ok(parsed >= 20 && parsed <= 30);
+    });
+
+    test('calculateBackoff returns structured rate limit state with message and timestamp', () => {
+      const now = 1000000;
+      const backoff = calculateBackoff(30, now);
+      assert.strictEqual(backoff.isRateLimited, true);
+      assert.strictEqual(backoff.retryAfterSec, 30);
+      assert.strictEqual(backoff.rateLimitedUntil, 1000000 + 30_000);
+      assert.ok(backoff.message.includes('30s'));
+      assert.ok(backoff.message.includes('last cached data'));
+    });
+
+    test('isBackingOff accurately tracks backoff expiration', () => {
+      const now = 1000000;
+      const state = calculateBackoff(15, now);
+      assert.strictEqual(isBackingOff(state, now), true);
+      assert.strictEqual(isBackingOff(state, now + 14_999), true);
+      assert.strictEqual(isBackingOff(state, now + 15_000), false);
+      assert.strictEqual(isBackingOff(state, now + 20_000), false);
+      assert.strictEqual(isBackingOff(null), false);
+      assert.strictEqual(isBackingOff({ isRateLimited: false, retryAfterSec: 0, rateLimitedUntil: 0, message: '' }), false);
+    });
+
+    test('remainingBackoffSeconds accurately counts down and floors at 0', () => {
+      const now = 1000000;
+      const state = calculateBackoff(30, now);
+      assert.strictEqual(remainingBackoffSeconds(state, now), 30);
+      assert.strictEqual(remainingBackoffSeconds(state, now + 10_000), 20);
+      assert.strictEqual(remainingBackoffSeconds(state, now + 29_500), 1);
+      assert.strictEqual(remainingBackoffSeconds(state, now + 30_000), 0);
+      assert.strictEqual(remainingBackoffSeconds(state, now + 40_000), 0);
+      assert.strictEqual(remainingBackoffSeconds(null), 0);
+    });
+
+    test('isRateLimitError detects 429 status codes, RateLimitError instances, and messages', () => {
+      assert.strictEqual(isRateLimitError(new RateLimitError('Rate limit', 30)), true);
+      assert.strictEqual(isRateLimitError({ status: 429 }), true);
+      assert.strictEqual(isRateLimitError({ statusCode: 429 }), true);
+      assert.strictEqual(isRateLimitError(new Error('Request failed (429)')), true);
+      assert.strictEqual(isRateLimitError(new Error('Too many requests, please slow down')), true);
+      assert.strictEqual(isRateLimitError(new Error('Rate limit exceeded')), true);
+      assert.strictEqual(isRateLimitError(new Error('Internal server error (500)')), false);
+      assert.strictEqual(isRateLimitError(null), false);
+      assert.strictEqual(isRateLimitError(undefined), false);
+    });
+
+    test('RateLimitError carries retryAfter and status 429', () => {
+      const err = new RateLimitError('Too many calls', 45);
+      assert.strictEqual(err.name, 'RateLimitError');
+      assert.strictEqual(err.status, 429);
+      assert.strictEqual(err.retryAfter, 45);
+      assert.strictEqual(err.message, 'Too many calls');
     });
   });
 });

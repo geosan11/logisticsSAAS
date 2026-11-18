@@ -29,6 +29,13 @@ import {
   timelineStepIndex,
   isStatusInterrupted,
   formatRouteDisplay,
+  RateLimitState,
+  RateLimitError,
+  parseRetryAfter,
+  calculateBackoff,
+  isBackingOff,
+  remainingBackoffSeconds,
+  isRateLimitError,
 } from '../../lib/flightRadarLogic';
 
 // Leaflet default marker icons fix for Vite
@@ -50,6 +57,14 @@ async function authedFetch(path: string, init?: RequestInit) {
       ...(init?.headers || {}),
     },
   });
+  if (res.status === 429) {
+    const retryAfterHeader = res.headers.get('Retry-After');
+    const body = await res.json().catch(() => ({}));
+    const retryAfter = parseRetryAfter(
+      retryAfterHeader || (body?.retryAfter != null ? String(body.retryAfter) : null)
+    );
+    throw new RateLimitError(body?.error || 'Rate limit reached', retryAfter);
+  }
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body?.error || `Request failed (${res.status})`);
   return body;
@@ -329,6 +344,21 @@ export const FlightRadar = ({ user, onBack }: { user: User; onBack: () => void }
   const { showToast } = useToast();
   const canRefreshNational = user.role === 'super_admin' || user.role === 'admin';
   const [search, setSearch] = useState('');
+  const [rateLimit, setRateLimit] = useState<RateLimitState | null>(null);
+  const [, setTick] = useState(0);
+
+  // Active countdown timer for calm backoff state
+  useEffect(() => {
+    if (!rateLimit || !rateLimit.isRateLimited) return;
+    const interval = setInterval(() => {
+      if (!isBackingOff(rateLimit)) {
+        setRateLimit(null);
+      } else {
+        setTick(t => t + 1);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [rateLimit]);
 
   const [nationalFlights, setNationalFlights] = useState<NationalFlight[]>([]);
   const [nationalLoading, setNationalLoading] = useState(false);
@@ -340,8 +370,18 @@ export const FlightRadar = ({ user, onBack }: { user: User; onBack: () => void }
     try {
       const body = await authedFetch(`/api/flight-radar/board?date=${encodeURIComponent(date)}`);
       setFlights(body.flights || []);
+      setRateLimit(null);
     } catch (err: any) {
-      showToast({ message: `Failed to load Flight Radar: ${err.message}`, type: 'error' });
+      if (isRateLimitError(err)) {
+        const backoff = calculateBackoff(err.retryAfter || 60);
+        setRateLimit(backoff);
+        showToast({
+          message: `Rate limit active. Showing last known flight data. Backing off for ${backoff.retryAfterSec}s.`,
+          type: 'warning',
+        });
+      } else {
+        showToast({ message: `Failed to load Flight Radar: ${err.message}`, type: 'error' });
+      }
     }
     setLoading(false);
   }, [date, showToast]);
@@ -356,8 +396,18 @@ export const FlightRadar = ({ user, onBack }: { user: User; onBack: () => void }
       const body = await authedFetch(`/api/flight-radar/national-board?date=${encodeURIComponent(date)}`);
       setNationalFlights(body.flights || []);
       setNationalCoverage({ total: body.airportsTotal || 0, cached: body.airportsCached || 0 });
+      setRateLimit(null);
     } catch (err: any) {
-      showToast({ message: `Failed to load Nigeria Today: ${err.message}`, type: 'error' });
+      if (isRateLimitError(err)) {
+        const backoff = calculateBackoff(err.retryAfter || 60);
+        setRateLimit(backoff);
+        showToast({
+          message: `Rate limit active. Showing last cached Nigeria Today board. Backing off for ${backoff.retryAfterSec}s.`,
+          type: 'warning',
+        });
+      } else {
+        showToast({ message: `Failed to load Nigeria Today: ${err.message}`, type: 'error' });
+      }
     }
     setNationalLoading(false);
   }, [date, showToast]);
@@ -367,6 +417,13 @@ export const FlightRadar = ({ user, onBack }: { user: User; onBack: () => void }
   }, [tab, fetchNationalBoard]);
 
   const refreshAllAirports = async () => {
+    if (isBackingOff(rateLimit)) {
+      showToast({
+        message: `Rate limit backoff active. Please wait ${remainingBackoffSeconds(rateLimit)}s before refreshing all airports.`,
+        type: 'warning',
+      });
+      return;
+    }
     setNationalRefreshing(true);
     try {
       await authedFetch('/api/flight-radar/national-board/refresh', {
@@ -376,7 +433,16 @@ export const FlightRadar = ({ user, onBack }: { user: User; onBack: () => void }
       await fetchNationalBoard();
       showToast({ message: 'All airports refreshed.', type: 'success' });
     } catch (err: any) {
-      showToast({ message: `Refresh failed: ${err.message}`, type: 'error' });
+      if (isRateLimitError(err)) {
+        const backoff = calculateBackoff(err.retryAfter || 60);
+        setRateLimit(backoff);
+        showToast({
+          message: `Rate limit reached. Showing last cached board. Backing off for ${backoff.retryAfterSec}s.`,
+          type: 'warning',
+        });
+      } else {
+        showToast({ message: `Refresh failed: ${err.message}`, type: 'error' });
+      }
     }
     setNationalRefreshing(false);
   };
@@ -391,7 +457,16 @@ export const FlightRadar = ({ user, onBack }: { user: User; onBack: () => void }
       setSelected(prev => (prev && prev.flightNumber === flight.flightNumber ? { ...prev, status } : prev));
       setFlights(prev => prev.map(f => (f.flightNumber === flight.flightNumber ? { ...f, status } : f)));
     } catch (err: any) {
-      showToast({ message: `Couldn't fetch live status: ${err.message}`, type: 'warning' });
+      if (isRateLimitError(err)) {
+        const backoff = calculateBackoff(err.retryAfter || 60);
+        setRateLimit(backoff);
+        showToast({
+          message: `Rate limit reached. Showing last known status for ${flight.flightNumber}. Backing off for ${backoff.retryAfterSec}s.`,
+          type: 'warning',
+        });
+      } else {
+        showToast({ message: `Couldn't fetch live status: ${err.message}`, type: 'warning' });
+      }
     }
     setDetailLoading(false);
   };
@@ -409,6 +484,13 @@ export const FlightRadar = ({ user, onBack }: { user: User; onBack: () => void }
 
   const refreshSelected = async () => {
     if (!selected) return;
+    if (isBackingOff(rateLimit)) {
+      showToast({
+        message: `Rate limit backoff active. Please wait ${remainingBackoffSeconds(rateLimit)}s before refreshing.`,
+        type: 'warning',
+      });
+      return;
+    }
     setRefreshing(true);
     try {
       const status = await authedFetch('/api/flight-radar/refresh', {
@@ -419,7 +501,16 @@ export const FlightRadar = ({ user, onBack }: { user: User; onBack: () => void }
       setFlights(prev => prev.map(f => (f.flightNumber === selected.flightNumber ? { ...f, status } : f)));
       showToast({ message: 'Flight status refreshed.', type: 'success' });
     } catch (err: any) {
-      showToast({ message: `Refresh failed: ${err.message}`, type: 'error' });
+      if (isRateLimitError(err)) {
+        const backoff = calculateBackoff(err.retryAfter || 60);
+        setRateLimit(backoff);
+        showToast({
+          message: `Rate limit reached. Keeping current flight details. Backing off for ${backoff.retryAfterSec}s.`,
+          type: 'warning',
+        });
+      } else {
+        showToast({ message: `Refresh failed: ${err.message}`, type: 'error' });
+      }
     }
     setRefreshing(false);
   };
@@ -466,10 +557,27 @@ export const FlightRadar = ({ user, onBack }: { user: User; onBack: () => void }
                 className="min-h-[44px] h-11 px-3.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-1)] text-[13px] font-sans text-[var(--color-foreground)] tabular-nums focus:outline-none focus:ring-1 focus:ring-white/20"
               />
               <button
-                onClick={tab === 'mine' ? fetchBoard : fetchNationalBoard}
+                onClick={() => {
+                  if (isBackingOff(rateLimit)) {
+                    showToast({
+                      message: `Rate limit active. Showing last cached data (resumes in ${remainingBackoffSeconds(rateLimit)}s).`,
+                      type: 'warning',
+                    });
+                    return;
+                  }
+                  if (tab === 'mine') fetchBoard();
+                  else fetchNationalBoard();
+                }}
+                disabled={isBackingOff(rateLimit)}
                 aria-label="Refresh flights"
-                title="Refresh flights"
-                className="min-h-[44px] min-w-[44px] h-11 w-11 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] text-[var(--color-muted)] hover:text-[var(--color-foreground)] flex items-center justify-center transition-colors shrink-0"
+                title={
+                  isBackingOff(rateLimit)
+                    ? `Rate limit active (${remainingBackoffSeconds(rateLimit)}s remaining)`
+                    : 'Refresh flights'
+                }
+                className={`min-h-[44px] min-w-[44px] h-11 w-11 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] text-[var(--color-muted)] hover:text-[var(--color-foreground)] flex items-center justify-center transition-colors shrink-0 ${
+                  isBackingOff(rateLimit) ? 'opacity-40 cursor-not-allowed' : ''
+                }`}
               >
                 <RefreshCw
                   size={15}
@@ -555,6 +663,21 @@ export const FlightRadar = ({ user, onBack }: { user: User; onBack: () => void }
             )}
           </div>
         </div>
+
+        {/* Calm Rate Limit Backoff Banner */}
+        {isBackingOff(rateLimit) && (
+          <div className="border-t border-amber-500/20 bg-amber-500/10 px-4 sm:px-6 py-2 flex items-center justify-between gap-3 text-amber-300 text-[12px] font-sans">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0 animate-pulse" />
+              <span className="truncate">
+                Rate limit reached — showing last known data. Live updates backing off ({remainingBackoffSeconds(rateLimit)}s).
+              </span>
+            </div>
+            <span className="text-[11px] text-amber-400/80 font-mono shrink-0">
+              {remainingBackoffSeconds(rateLimit)}s
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Main Content Area */}
@@ -815,11 +938,17 @@ export const FlightRadar = ({ user, onBack }: { user: User; onBack: () => void }
             <div className="p-4 sm:p-5 border-t border-[var(--color-border)] shrink-0 bg-[var(--color-surface-1)]">
               <button
                 onClick={refreshSelected}
-                disabled={refreshing}
+                disabled={refreshing || isBackingOff(rateLimit)}
                 className="w-full min-h-[44px] h-11 rounded-full bg-white text-black dark:bg-white dark:text-black font-semibold text-[13px] font-sans hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2 shadow-xs disabled:opacity-50"
               >
                 <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
-                <span>{refreshing ? 'Refreshing…' : 'Refresh live status'}</span>
+                <span>
+                  {refreshing
+                    ? 'Refreshing…'
+                    : isBackingOff(rateLimit)
+                    ? `Rate limit active (${remainingBackoffSeconds(rateLimit)}s)`
+                    : 'Refresh live status'}
+                </span>
               </button>
             </div>
           </div>
