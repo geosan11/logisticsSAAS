@@ -6,9 +6,10 @@ import { useToast } from '../../lib/ToastContext';
 import { useDensity } from '../../lib/useDensity';
 import { EmptyState } from './EmptyState';
 import { Modal } from '../Modal';
+import { BackButton } from '../BackButton';
 import { Spinner } from '../ui';
 import { getAirportCoordinate } from '../../lib/airportCoordinates';
-import { Radar, RefreshCw, Plane, Package2, Search, X, ArrowLeft } from 'lucide-react';
+import { Radar, RefreshCw, Plane, Package2, Search, X, Check } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Polyline, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -109,8 +110,8 @@ function FlightTimeline({ status }: { status: FlightStatus }) {
                 }`}
               >
                 {isReached && !isCurrent && (
-                  <span className={`w-full h-full rounded-full flex items-center justify-center text-white text-[10px] font-bold ${dotColorClass}`}>
-                    ✓
+                  <span className={`w-full h-full rounded-full flex items-center justify-center text-white ${dotColorClass}`}>
+                    <Check size={11} strokeWidth={3} />
                   </span>
                 )}
                 {isCurrent && (
@@ -176,12 +177,13 @@ function FlightRouteMap({
   const lineColor = status === 'landed' ? '#22c55e' : isStatusInterrupted(status) ? '#ef4444' : '#38bdf8';
 
   return (
-    <div className="h-44 rounded-xl overflow-hidden border border-[var(--color-border)]">
+    <div className="h-44 rounded-xl overflow-hidden border border-[var(--color-border)] relative">
       <MapContainer
         bounds={bounds}
         boundsOptions={{ padding: [28, 28] }}
         style={{ height: '100%', width: '100%' }}
         scrollWheelZoom={false}
+        className="dark:[&_.leaflet-tile-pane]:invert dark:[&_.leaflet-tile-pane]:brightness-75 dark:[&_.leaflet-tile-pane]:hue-rotate-180 dark:[&_.leaflet-tile-pane]:contrast-90"
       >
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -221,39 +223,45 @@ function FlightCard({
   return (
     <button
       onClick={onOpen}
-      className={`w-full text-left rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] hover:bg-[var(--color-surface-hover)] transition-all min-h-[44px] flex items-center gap-3.5 sm:gap-4 ${
+      className={`w-full text-left rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] hover:bg-[var(--color-surface-hover)] hover:border-[var(--color-border-strong)] transition-all min-h-[44px] flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 ${
         isCompact ? 'p-3 sm:p-3.5' : 'p-4 sm:p-4.5'
       }`}
     >
-      <div className="w-10 h-10 rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border)] text-[var(--color-foreground)] flex items-center justify-center shrink-0">
-        <Plane size={18} className="text-[var(--color-muted)]" />
-      </div>
+      <div className="flex items-start sm:items-center gap-3.5 min-w-0 flex-1">
+        <div className="w-10 h-10 rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border)] text-[var(--color-foreground)] flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
+          <Plane size={18} className="text-[var(--color-muted)]" />
+        </div>
 
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[14px] sm:text-[15px] font-sans font-semibold text-[var(--color-foreground)] tracking-tight">
-            {flight.flightNumber}
-          </span>
-          {flight.airline && (
-            <span className="text-[13px] font-sans font-normal text-[var(--color-muted)]">
-              {flight.airline}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[15px] font-sans font-semibold text-[var(--color-foreground)] tracking-tight">
+              {flight.flightNumber}
             </span>
-          )}
-        </div>
+            {flight.airline && (
+              <span className="text-[13px] font-sans font-normal text-[var(--color-muted)] truncate">
+                {flight.airline}
+              </span>
+            )}
+          </div>
 
-        <div className="text-[12px] font-sans text-[var(--color-muted)] mt-0.5 flex items-center gap-2 flex-wrap tabular-nums">
-          {routeStr && <span>{routeStr}</span>}
-          <span>· {flight.entries.length} {flight.entries.length === 1 ? 'shipment' : 'shipments'}</span>
-          {flight.status?.scheduled_departure && (
-            <span>· {fmtFlightDateTime(flight.status.scheduled_departure)}</span>
-          )}
-          {delayStr && (
-            <span className="text-amber-600 dark:text-amber-400 font-medium">· {delayStr}</span>
-          )}
+          <div className="text-[12px] font-sans text-[var(--color-muted)] mt-1 flex items-center gap-2 flex-wrap tabular-nums">
+            {routeStr && (
+              <span className="font-medium text-[var(--color-foreground)]">{routeStr}</span>
+            )}
+            <span>· {flight.entries.length} {flight.entries.length === 1 ? 'shipment' : 'shipments'}</span>
+            {flight.status?.scheduled_departure && (
+              <span>· {fmtFlightDateTime(flight.status.scheduled_departure)}</span>
+            )}
+            {delayStr && (
+              <span className="text-amber-600 dark:text-amber-400 font-semibold">· {delayStr}</span>
+            )}
+          </div>
         </div>
       </div>
 
-      <FlightStatusBadge status={es} />
+      <div className="self-end sm:self-center shrink-0">
+        <FlightStatusBadge status={es} />
+      </div>
     </button>
   );
 }
@@ -270,35 +278,41 @@ function NationalFlightCard({
   return (
     <button
       onClick={onOpen}
-      className={`w-full text-left rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] hover:bg-[var(--color-surface-hover)] transition-all min-h-[44px] flex items-center gap-3.5 sm:gap-4 ${
+      className={`w-full text-left rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] hover:bg-[var(--color-surface-hover)] hover:border-[var(--color-border-strong)] transition-all min-h-[44px] flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 ${
         isCompact ? 'p-3 sm:p-3.5' : 'p-4 sm:p-4.5'
       }`}
     >
-      <div className="w-10 h-10 rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border)] text-[var(--color-foreground)] flex items-center justify-center shrink-0">
-        <Plane size={18} className="text-[var(--color-muted)]" />
-      </div>
+      <div className="flex items-start sm:items-center gap-3.5 min-w-0 flex-1">
+        <div className="w-10 h-10 rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border)] text-[var(--color-foreground)] flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
+          <Plane size={18} className="text-[var(--color-muted)]" />
+        </div>
 
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[14px] sm:text-[15px] font-sans font-semibold text-[var(--color-foreground)] tracking-tight">
-            {flight.flightNumber || '—'}
-          </span>
-          {flight.airline && (
-            <span className="text-[13px] font-sans font-normal text-[var(--color-muted)]">
-              {flight.airline}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[15px] font-sans font-semibold text-[var(--color-foreground)] tracking-tight">
+              {flight.flightNumber || '—'}
             </span>
-          )}
-        </div>
+            {flight.airline && (
+              <span className="text-[13px] font-sans font-normal text-[var(--color-muted)] truncate">
+                {flight.airline}
+              </span>
+            )}
+          </div>
 
-        <div className="text-[12px] font-sans text-[var(--color-muted)] mt-0.5 flex items-center gap-2 flex-wrap tabular-nums">
-          <span>{flight.originIata} → {flight.destinationIata || '?'}</span>
-          {flight.scheduledDeparture && (
-            <span>· {fmtFlightDateTime(flight.scheduledDeparture)}</span>
-          )}
+          <div className="text-[12px] font-sans text-[var(--color-muted)] mt-1 flex items-center gap-2 flex-wrap tabular-nums">
+            <span className="font-medium text-[var(--color-foreground)]">
+              {flight.originIata} → {flight.destinationIata || '?'}
+            </span>
+            {flight.scheduledDeparture && (
+              <span>· {fmtFlightDateTime(flight.scheduledDeparture)}</span>
+            )}
+          </div>
         </div>
       </div>
 
-      <FlightStatusBadge status={flight.status} />
+      <div className="self-end sm:self-center shrink-0">
+        <FlightStatusBadge status={flight.status} />
+      </div>
     </button>
   );
 }
@@ -416,26 +430,18 @@ export const FlightRadar = ({ user, onBack }: { user: User; onBack: () => void }
   const selectedStatus = effectiveStatus(selected?.status);
 
   return (
-    <div className="flex flex-col h-full bg-[var(--color-canvas)] text-[var(--color-foreground)] overflow-hidden">
-      {/* Top Header & Quiet Toolbar */}
-      <header className={`border-b border-[var(--color-border)] px-4 sm:px-6 shrink-0 bg-[var(--color-canvas)] ${isCompact ? 'py-2.5' : 'py-3'}`}>
+    <div className="flex flex-col min-h-full bg-[var(--color-canvas)] text-[var(--color-foreground)] select-none">
+      {/* Top Header & Quiet Toolbar (Sticky) */}
+      <header className={`sticky top-0 z-20 border-b border-[var(--color-border)] px-4 sm:px-6 shrink-0 bg-[var(--color-canvas)]/95 backdrop-blur-md ${isCompact ? 'py-2.5' : 'py-3'}`}>
         <div className="flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
-          <div className="flex items-center gap-3">
-            {onBack && (
-              <button
-                onClick={onBack}
-                aria-label="Back"
-                className="min-h-[44px] min-w-[44px] h-11 w-11 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] text-[var(--color-muted)] hover:text-[var(--color-foreground)] flex items-center justify-center transition-colors"
-              >
-                <ArrowLeft size={16} />
-              </button>
-            )}
-            <div>
-              <h1 className="text-lg sm:text-xl font-bold font-sans tracking-tight text-[var(--color-foreground)]">
+          <div className="flex items-center gap-3 min-w-0">
+            {onBack && <BackButton onClick={onBack} />}
+            <div className="min-w-0">
+              <h1 className="text-[18px] sm:text-[20px] font-sans font-semibold text-[var(--color-foreground)] tracking-tight truncate">
                 Flight Radar
               </h1>
-              <p className="text-[12px] font-sans text-[var(--color-muted)]">
-                Real-time commercial flight telemetry and cargo tracking
+              <p className="text-[12px] font-sans text-[var(--color-muted)] truncate">
+                Live flight telemetry and cargo tracking
               </p>
             </div>
           </div>
@@ -463,13 +469,13 @@ export const FlightRadar = ({ user, onBack }: { user: User; onBack: () => void }
         </div>
       </header>
 
-      {/* Sub-bar: Segmented Tabs & Instant Search */}
-      <div className={`bg-[var(--color-surface-1)] border-b border-[var(--color-border)] px-4 sm:px-6 flex flex-col md:flex-row md:items-center justify-between gap-3 shrink-0 ${isCompact ? 'py-2' : 'py-2.5'}`}>
+      {/* Sub-bar: Segmented Tabs & Instant Search (Sticky) */}
+      <div className={`sticky top-[69px] sm:top-[73px] z-10 bg-[var(--color-surface-1)]/95 backdrop-blur-md border-b border-[var(--color-border)] px-4 sm:px-6 flex flex-col md:flex-row md:items-center justify-between gap-3 shrink-0 ${isCompact ? 'py-2' : 'py-2.5'}`}>
         <div className="flex items-center gap-3 flex-wrap">
-          <div className="min-h-[44px] p-1 rounded-full bg-[var(--color-surface-2)] border border-[var(--color-border)] inline-flex items-center gap-1 shrink-0">
+          <div className="min-h-[48px] p-1 rounded-full bg-[var(--color-surface-2)] border border-[var(--color-border)] inline-flex items-center gap-1 shrink-0">
             <button
               onClick={() => setTab('mine')}
-              className={`min-h-[38px] px-4 rounded-full text-[13px] font-sans font-medium transition-colors ${
+              className={`min-h-[44px] h-11 px-5 rounded-full text-[13px] font-sans font-medium transition-colors ${
                 tab === 'mine'
                   ? 'bg-white text-black dark:bg-white dark:text-black shadow-xs font-semibold'
                   : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
@@ -479,7 +485,7 @@ export const FlightRadar = ({ user, onBack }: { user: User; onBack: () => void }
             </button>
             <button
               onClick={() => setTab('national')}
-              className={`min-h-[38px] px-4 rounded-full text-[13px] font-sans font-medium transition-colors ${
+              className={`min-h-[44px] h-11 px-5 rounded-full text-[13px] font-sans font-medium transition-colors ${
                 tab === 'national'
                   ? 'bg-white text-black dark:bg-white dark:text-black shadow-xs font-semibold'
                   : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
@@ -518,15 +524,15 @@ export const FlightRadar = ({ user, onBack }: { user: User; onBack: () => void }
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search flights or airlines..."
-            className="w-full min-h-[44px] h-11 pl-10 pr-9 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-2)] text-[13px] font-sans text-[var(--color-foreground)] placeholder:text-[var(--color-muted)] focus:outline-none focus:ring-1 focus:ring-white/20"
+            className="w-full min-h-[44px] h-11 pl-10 pr-10 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-2)] text-[13px] font-sans text-[var(--color-foreground)] placeholder:text-[var(--color-muted)] focus:outline-none focus:ring-1 focus:ring-white/20"
           />
           {search && (
             <button
               onClick={() => setSearch('')}
               aria-label="Clear search"
-              className="absolute right-1 top-1/2 -translate-y-1/2 min-w-[40px] min-h-[40px] w-10 h-10 rounded-full flex items-center justify-center text-[var(--color-muted)] hover:text-[var(--color-foreground)]"
+              className="absolute right-0.5 top-1/2 -translate-y-1/2 min-w-[44px] min-h-[44px] w-11 h-11 rounded-full flex items-center justify-center text-[var(--color-muted)] hover:text-[var(--color-foreground)] transition-colors"
             >
-              <X size={14} />
+              <X size={15} />
             </button>
           )}
         </div>
@@ -534,7 +540,7 @@ export const FlightRadar = ({ user, onBack }: { user: User; onBack: () => void }
 
       {/* Main Content Area */}
       {tab === 'mine' ? (
-        <div className={`flex-1 overflow-y-auto ${isCompact ? 'p-3 sm:p-4 space-y-4' : 'p-4 sm:p-6 space-y-5'}`}>
+        <div className={`flex-1 ${isCompact ? 'p-3 sm:p-4 space-y-4' : 'p-4 sm:p-6 space-y-5'}`}>
           <div className="max-w-5xl mx-auto space-y-5">
             {loading ? (
               <div className="flex justify-center py-16">
@@ -584,7 +590,7 @@ export const FlightRadar = ({ user, onBack }: { user: User; onBack: () => void }
           </div>
         </div>
       ) : (
-        <div className={`flex-1 overflow-y-auto ${isCompact ? 'p-3 sm:p-4 space-y-4' : 'p-4 sm:p-6 space-y-5'}`}>
+        <div className={`flex-1 ${isCompact ? 'p-3 sm:p-4 space-y-4' : 'p-4 sm:p-6 space-y-5'}`}>
           <div className="max-w-5xl mx-auto space-y-5">
             {nationalLoading ? (
               <div className="flex justify-center py-16">
@@ -691,7 +697,7 @@ export const FlightRadar = ({ user, onBack }: { user: User; onBack: () => void }
                       </div>
                     </div>
 
-                    <div className="flex justify-between items-center text-[12px] font-sans text-[var(--color-muted)] mt-3 pt-3 border-t border-[var(--color-border)] tabular-nums">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center text-[12px] font-sans text-[var(--color-muted)] mt-3 pt-3 border-t border-[var(--color-border)] gap-1.5 tabular-nums">
                       <div>
                         Sched {fmtFlightTime(selected.status?.scheduled_departure)}
                         {selected.status?.actual_departure && (
@@ -700,7 +706,7 @@ export const FlightRadar = ({ user, onBack }: { user: User; onBack: () => void }
                           </span>
                         )}
                       </div>
-                      <div className="text-right">
+                      <div className="text-left sm:text-right">
                         Sched {fmtFlightTime(selected.status?.scheduled_arrival)}
                         {selected.status?.actual_arrival && (
                           <span className="ml-1.5 font-medium text-[var(--color-foreground)]">

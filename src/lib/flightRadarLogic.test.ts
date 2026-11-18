@@ -357,12 +357,55 @@ describe('Flight Radar Logic & Formatting (Grok UI)', () => {
     test('cleans route arrows and extra spaces', () => {
       assert.strictEqual(formatRouteDisplay('LOS -> ABV'), 'LOS → ABV');
       assert.strictEqual(formatRouteDisplay('LOS  ->   KAN'), 'LOS → KAN');
+      assert.strictEqual(formatRouteDisplay('LOS → ABV'), 'LOS → ABV');
+      assert.strictEqual(formatRouteDisplay('ABV -> ENU -> PHC'), 'ABV → ENU → PHC');
+      assert.strictEqual(formatRouteDisplay('   LOS -> QUO   '), 'LOS → QUO');
       assert.strictEqual(formatRouteDisplay(''), '');
       assert.strictEqual(formatRouteDisplay(null), '');
+      assert.strictEqual(formatRouteDisplay(undefined), '');
+    });
+  });
+
+  describe('Extended Flight Radar Status & Badge Integrity', () => {
+    test('every status label is clean sentence case without uppercase shouting', () => {
+      const statuses = [
+        'landed',
+        'departed',
+        'boarding',
+        'delayed',
+        'returned',
+        'diverted',
+        'cancelled',
+        'scheduled',
+        'unknown',
+      ];
+      for (const st of statuses) {
+        const meta = getFlightStatusMeta(st);
+        assert.ok(meta.label.length > 0);
+        // Verify sentence case: First char uppercase, following letters not all uppercase
+        assert.strictEqual(meta.label[0], meta.label[0].toUpperCase());
+        assert.notStrictEqual(meta.label, meta.label.toUpperCase(), `Label "${meta.label}" should not be all uppercase`);
+      }
+    });
+
+    test('effectiveStatus handles case insensitivity', () => {
+      assert.strictEqual(effectiveStatus({ status: 'LANDED' } as any), 'landed');
+      assert.strictEqual(effectiveStatus({ status: '  Boarding  ' } as any), 'boarding');
+      assert.strictEqual(effectiveStatus({ status: 'DELAYED' } as any), 'delayed');
     });
   });
 
   describe('Role & Mode Permissions for Flight Radar', () => {
+    const superAdmin: User = {
+      id: 'super-1',
+      email: 'boss@ehi.ng',
+      name: 'Super Admin',
+      role: 'super_admin',
+      hub: 'Lagos Hub',
+      hubType: 'Cargo Station',
+      hub_id: 'hub-los',
+    };
+
     const adminUser: User = {
       id: 'admin-1',
       email: 'admin@ehi.ng',
@@ -383,16 +426,35 @@ describe('Flight Radar Logic & Formatting (Grok UI)', () => {
       hub_id: 'hub-los',
     };
 
+    const driverUser: User = {
+      id: 'driver-1',
+      email: 'driver@ehi.ng',
+      name: 'Dispatch Driver',
+      role: 'driver',
+      hub: 'Lagos Hub',
+      hubType: 'Field Office',
+      hub_id: 'hub-los',
+    };
+
     test('canAccessTab permits FlightRadar in air and intermodal modes', () => {
+      assert.strictEqual(canAccessTab(superAdmin, 'FlightRadar', [], 'air'), true);
+      assert.strictEqual(canAccessTab(superAdmin, 'FlightRadar', [], 'intermodal'), true);
       assert.strictEqual(canAccessTab(adminUser, 'FlightRadar', [], 'air'), true);
       assert.strictEqual(canAccessTab(adminUser, 'FlightRadar', [], 'intermodal'), true);
       assert.strictEqual(canAccessTab(cargoAgent, 'FlightRadar', [], 'air'), true);
       assert.strictEqual(canAccessTab(cargoAgent, 'FlightRadar', [], 'intermodal'), true);
     });
 
-    test('canAccessTab forbids FlightRadar in road mode', () => {
+    test('canAccessTab forbids FlightRadar in road mode across roles', () => {
+      assert.strictEqual(canAccessTab(superAdmin, 'FlightRadar', [], 'road'), false);
       assert.strictEqual(canAccessTab(adminUser, 'FlightRadar', [], 'road'), false);
       assert.strictEqual(canAccessTab(cargoAgent, 'FlightRadar', [], 'road'), false);
+      assert.strictEqual(canAccessTab(driverUser, 'FlightRadar', [], 'road'), false);
+    });
+
+    test('driver role can access Flight Radar in air and intermodal modes', () => {
+      assert.strictEqual(canAccessTab(driverUser, 'FlightRadar', [], 'air'), true);
+      assert.strictEqual(canAccessTab(driverUser, 'FlightRadar', [], 'intermodal'), true);
     });
   });
 });
