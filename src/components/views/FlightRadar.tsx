@@ -3,108 +3,40 @@ import { supabase } from '../../lib/supabase';
 import { User } from '../../lib/types';
 import { lagosBusinessDate } from '../../lib/helpers';
 import { useToast } from '../../lib/ToastContext';
+import { useDensity } from '../../lib/useDensity';
 import { EmptyState } from './EmptyState';
 import { Modal } from '../Modal';
-import { PageHeader, Spinner } from '../ui';
-import { StatusBadge, flightStatusMeta, FlightStatus } from '../ui/StatusBadge';
+import { Spinner } from '../ui';
 import { getAirportCoordinate } from '../../lib/airportCoordinates';
-import { Radar, RefreshCw, Plane, Package2, Search, X } from 'lucide-react';
+import { Radar, RefreshCw, Plane, Package2, Search, X, ArrowLeft } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Polyline, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import {
+  FlightStatus,
+  BoardEntry,
+  CachedStatus,
+  BoardFlight,
+  NationalFlight,
+  effectiveStatus,
+  fmtFlightTime,
+  fmtFlightDateTime,
+  formatDelayMinutes,
+  getFlightStatusMeta,
+  groupFlights,
+  groupNationalFlights,
+  timelineStepIndex,
+  isStatusInterrupted,
+  formatRouteDisplay,
+} from '../../lib/flightRadarLogic';
 
-// Same fix Dispatch.tsx already applies -- react-leaflet's default marker
-// icon paths break under Vite's bundling, so this points them at a CDN
-// instead. Harmless to repeat if both modules happen to load (idempotent,
-// just resets the same static config).
+// Leaflet default marker icons fix for Vite
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
   iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
-
-interface BoardEntry { type: string; id: string; awb?: string; name?: string }
-interface CachedStatus {
-  status: string;
-  scheduled_departure: string | null;
-  actual_departure: string | null;
-  scheduled_arrival: string | null;
-  actual_arrival: string | null;
-  delay_minutes: number | null;
-  departure_airport: string | null;
-  arrival_airport: string | null;
-  diverted_airport: string | null;
-  fetched_at?: string;
-}
-interface BoardFlight {
-  flightNumber: string;
-  airline: string | null;
-  route: string | null;
-  entries: BoardEntry[];
-  status: CachedStatus | null;
-}
-interface NationalFlight {
-  flightNumber: string | null;
-  airline: string | null;
-  destinationIata: string | null;
-  originIata: string;
-  scheduledDeparture: string | null;
-  status: string;
-}
-
-// A diversion whose landing airport matches the departure airport is, in
-// plain terms, "the flight turned back" -- exactly the "returned mid-way
-// due to bad weather" scenario this feature exists for. AeroDataBox has no
-// distinct status for that (it's still just "Diverted" with a diversion
-// airport), so the relabeling happens here rather than in the server's
-// normalizeStatus, which has no reason to know about display copy.
-function effectiveStatus(s: CachedStatus | null | undefined): FlightStatus {
-  if (!s) return 'unknown';
-  if (s.status === 'diverted' && s.diverted_airport && s.departure_airport && s.diverted_airport === s.departure_airport) {
-    return 'returned';
-  }
-  return (s.status as FlightStatus) || 'unknown';
-}
-
-const ATTENTION: FlightStatus[] = ['cancelled', 'returned', 'diverted', 'delayed'];
-const ENROUTE: FlightStatus[] = ['departed', 'boarding'];
-
-function fmtTime(iso: string | null): string {
-  if (!iso) return '—';
-  try {
-    return new Date(iso).toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Lagos' });
-  } catch { return '—'; }
-}
-
-function fmtDateTime(iso: string | null): string {
-  if (!iso) return '—';
-  try {
-    const d = new Date(iso);
-    const date = d.toLocaleDateString('en-NG', { day: '2-digit', month: 'short', timeZone: 'Africa/Lagos' });
-    const time = d.toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Lagos' });
-    return `${date}, ${time}`;
-  } catch { return '—'; }
-}
-
-// Strips everything but letters/digits before comparing -- a plain
-// lowercase substring match failed real searches like "ibomair" (no space)
-// against the stored airline name "Ibom Air" (with one), or "valuejet"
-// against "Value Jet"/"ValueJet Airlines". Punctuation/spacing in either
-// the typed query or AeroDataBox's own airline-name string is exactly the
-// kind of variation staff shouldn't have to type around.
-function normalizeSearchToken(s: string): string {
-  return s.toLowerCase().replace(/[^a-z0-9]/g, '');
-}
-
-// Search matches either the flight number or the airline name -- "united
-// nigeria" should find "UN 123 · United Nigeria Airlines" whether staff
-// type the airline or the flight code.
-function matchesFlightSearch(query: string, flightNumber: string | null, airline: string | null): boolean {
-  const q = normalizeSearchToken(query);
-  if (!q) return true;
-  return normalizeSearchToken(flightNumber || '').includes(q) || normalizeSearchToken(airline || '').includes(q);
-}
 
 async function authedFetch(path: string, init?: RequestInit) {
   const { data: sess } = await supabase.auth.getSession();
@@ -128,64 +60,93 @@ const TIMELINE_STEPS: { key: FlightStatus; label: string }[] = [
   { key: 'departed', label: 'Departed' },
   { key: 'landed', label: 'Landed' },
 ];
-// Where each status sits on the linear Scheduled->Boarding->Departed->
-// Landed timeline. Delayed sits at Boarding (still pre-departure);
-// Diverted/Returned sit at Departed (the flight did leave, then turned
-// back or went elsewhere); Cancelled sits at Scheduled (never departed).
-// The banner above the timeline is what actually communicates the
-// interrupted state -- this only decides how much of the bar to fill.
-const STEP_ORDER: Record<string, number> = {
-  scheduled: 0, delayed: 1, boarding: 1, departed: 2,
-  diverted: 2, returned: 2, cancelled: 0, landed: 3,
-};
+
+function FlightStatusBadge({ status }: { status: FlightStatus | string }) {
+  const meta = getFlightStatusMeta(status);
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-sans font-medium whitespace-nowrap shrink-0 ${meta.bgClass} ${meta.borderClass} ${meta.textClass}`}
+    >
+      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${meta.dotClass}`} />
+      <span>{meta.label}</span>
+    </span>
+  );
+}
 
 function FlightTimeline({ status }: { status: FlightStatus }) {
-  const interrupted = status === 'cancelled' || status === 'diverted' || status === 'returned' || status === 'delayed';
-  const meta = flightStatusMeta(status);
-  const stepIndex = STEP_ORDER[status];
+  const interrupted = isStatusInterrupted(status);
+  const meta = getFlightStatusMeta(status);
+  const stepIndex = timelineStepIndex(status);
   const known = status !== 'unknown';
+
   return (
-    <div>
+    <div className="space-y-3">
       {interrupted && (
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px',
-          borderRadius: 10, background: meta.bg, color: meta.color,
-          fontSize: 12, fontWeight: 600, marginBottom: 14,
-        }}>
-          <span style={{ width: 7, height: 7, borderRadius: '50%', background: meta.color }} />
-          {meta.label}
+        <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-[12px] font-sans font-medium ${meta.bgClass} ${meta.borderClass} ${meta.textClass}`}>
+          <span className={`w-2 h-2 rounded-full shrink-0 ${meta.dotClass}`} />
+          <span>{meta.label}</span>
         </div>
       )}
-      <div style={{ display: 'flex', alignItems: 'center' }}>
+      <div className="flex items-center pt-1">
         {TIMELINE_STEPS.map((step, i) => {
           const isReached = known && i <= stepIndex;
           const isCurrent = known && i === stepIndex;
-          const color = interrupted ? meta.color : 'var(--color-success)';
+          const dotColorClass = interrupted
+            ? meta.dotClass
+            : isReached
+            ? 'bg-emerald-500'
+            : 'bg-zinc-300 dark:bg-zinc-700';
+
           return (
-            <div key={step.key} style={{ display: 'flex', alignItems: 'center', flex: i < TIMELINE_STEPS.length - 1 ? 1 : 'none' }}>
-              <div style={{
-                width: 18, height: 18, borderRadius: '50%',
-                background: isReached ? color : 'var(--color-border-strong)',
-                border: isCurrent ? `2px solid ${color}` : 'none',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-              }}>
-                {isReached && !isCurrent && <span style={{ color: '#fff', fontSize: 8, fontWeight: 700 }}>✓</span>}
-                {isCurrent && <div style={{ width: 7, height: 7, borderRadius: '50%', background: color }} />}
+            <div key={step.key} className={`flex items-center ${i < TIMELINE_STEPS.length - 1 ? 'flex-1' : 'shrink-0'}`}>
+              <div
+                className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 border transition-colors ${
+                  isCurrent
+                    ? 'ring-2 ring-white/20 dark:ring-white/30 ' + (interrupted ? meta.borderClass : 'border-emerald-500')
+                    : isReached
+                    ? 'border-transparent'
+                    : 'border-[var(--color-border)] bg-[var(--color-surface-2)]'
+                }`}
+              >
+                {isReached && !isCurrent && (
+                  <span className={`w-full h-full rounded-full flex items-center justify-center text-white text-[10px] font-bold ${dotColorClass}`}>
+                    ✓
+                  </span>
+                )}
+                {isCurrent && (
+                  <div className={`w-2.5 h-2.5 rounded-full ${dotColorClass}`} />
+                )}
+                {!isReached && (
+                  <div className="w-1.5 h-1.5 rounded-full bg-zinc-400 dark:bg-zinc-600" />
+                )}
               </div>
               {i < TIMELINE_STEPS.length - 1 && (
-                <div style={{ flex: 1, height: 2, background: i < stepIndex ? color : 'var(--color-border-strong)' }} />
+                <div
+                  className={`flex-1 h-0.5 mx-1 transition-colors ${
+                    i < stepIndex
+                      ? interrupted
+                        ? meta.dotClass
+                        : 'bg-emerald-500'
+                      : 'bg-zinc-200 dark:bg-zinc-800'
+                  }`}
+                />
               )}
             </div>
           );
         })}
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
+      <div className="flex justify-between text-[11px] font-sans">
         {TIMELINE_STEPS.map((step, i) => (
-          <div key={step.key} style={{
-            fontSize: 9, textAlign: 'center', flex: 1,
-            color: i === stepIndex ? (interrupted ? meta.color : 'var(--color-success)') : 'var(--color-muted)',
-            fontWeight: i === stepIndex ? 600 : 400,
-          }}>
+          <div
+            key={step.key}
+            className={`text-center flex-1 ${
+              i === stepIndex
+                ? interrupted
+                  ? meta.textClass + ' font-semibold'
+                  : 'text-emerald-600 dark:text-emerald-400 font-semibold'
+                : 'text-[var(--color-muted)] font-normal'
+            }`}
+          >
             {step.label}
           </div>
         ))}
@@ -194,46 +155,49 @@ function FlightTimeline({ status }: { status: FlightStatus }) {
   );
 }
 
-// Real geographic map complementing the abstract route-line card below it
-// -- origin/destination markers plus a straight line between them, colored
-// to match the flight's current status. AeroDataBox gives back IATA codes,
-// not coordinates, so this leans on the static AIRPORT_COORDINATES table
-// (src/lib/airportCoordinates.ts); an airport missing from that table (an
-// international destination this app doesn't yet know about) just skips
-// the map entirely rather than erroring -- the text departure/arrival
-// card right below it still has the airport codes either way.
-function FlightRouteMap({ departureIata, arrivalIata, color }: { departureIata: string | null; arrivalIata: string | null; color: string }) {
+function FlightRouteMap({
+  departureIata,
+  arrivalIata,
+  status,
+}: {
+  departureIata: string | null;
+  arrivalIata: string | null;
+  status: FlightStatus;
+}) {
   const origin = getAirportCoordinate(departureIata);
   const dest = getAirportCoordinate(arrivalIata);
   if (!origin || !dest) return null;
 
-  const bounds: [number, number][] = [[origin.lat, origin.lng], [dest.lat, dest.lng]];
+  const bounds: [number, number][] = [
+    [origin.lat, origin.lng],
+    [dest.lat, dest.lng],
+  ];
+
+  const lineColor = status === 'landed' ? '#22c55e' : isStatusInterrupted(status) ? '#ef4444' : '#38bdf8';
+
   return (
-    <div style={{
-      height: 180, borderRadius: 'var(--radius-lg)', overflow: 'hidden',
-      border: '1px solid var(--color-border)',
-    }}>
+    <div className="h-44 rounded-xl overflow-hidden border border-[var(--color-border)]">
       <MapContainer
         bounds={bounds}
-        boundsOptions={{ padding: [32, 32] }}
+        boundsOptions={{ padding: [28, 28] }}
         style={{ height: '100%', width: '100%' }}
         scrollWheelZoom={false}
       >
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         />
-        <Polyline positions={bounds} color={color} weight={3} opacity={0.85} dashArray="6 6" />
+        <Polyline positions={bounds} color={lineColor} weight={3} opacity={0.85} dashArray="6 6" />
         <Marker position={[origin.lat, origin.lng]}>
           <Popup>
-            <div className="text-[12px] font-bold">{departureIata}</div>
-            <div className="text-[10px] text-gray-500">{origin.name}</div>
+            <div className="text-[12px] font-bold font-sans">{departureIata}</div>
+            <div className="text-[10px] text-zinc-500">{origin.name}</div>
           </Popup>
         </Marker>
         <Marker position={[dest.lat, dest.lng]}>
           <Popup>
-            <div className="text-[12px] font-bold">{arrivalIata}</div>
-            <div className="text-[10px] text-gray-500">{dest.name}</div>
+            <div className="text-[12px] font-bold font-sans">{arrivalIata}</div>
+            <div className="text-[10px] text-zinc-500">{dest.name}</div>
           </Popup>
         </Marker>
       </MapContainer>
@@ -241,88 +205,106 @@ function FlightRouteMap({ departureIata, arrivalIata, color }: { departureIata: 
   );
 }
 
-function FlightCard({ flight, onOpen }: { flight: BoardFlight; onOpen: () => void }) {
+function FlightCard({
+  flight,
+  onOpen,
+  isCompact,
+}: {
+  flight: BoardFlight;
+  onOpen: () => void;
+  isCompact: boolean;
+}) {
   const es = effectiveStatus(flight.status);
-  const meta = flightStatusMeta(es);
+  const delayStr = formatDelayMinutes(flight.status?.delay_minutes);
+  const routeStr = formatRouteDisplay(flight.route);
+
   return (
     <button
       onClick={onOpen}
-      className="w-full text-left"
-      style={{
-        background: 'var(--color-surface-card)', border: '1px solid var(--color-border)',
-        borderRadius: 'var(--radius-lg)', padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12,
-      }}
+      className={`w-full text-left rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] hover:bg-[var(--color-surface-hover)] transition-all min-h-[44px] flex items-center gap-3.5 sm:gap-4 ${
+        isCompact ? 'p-3 sm:p-3.5' : 'p-4 sm:p-4.5'
+      }`}
     >
-      <div style={{
-        width: 36, height: 36, borderRadius: 10, background: meta.bg, color: meta.color,
-        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-      }}>
-        <Plane size={17} />
+      <div className="w-10 h-10 rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border)] text-[var(--color-foreground)] flex items-center justify-center shrink-0">
+        <Plane size={18} className="text-[var(--color-muted)]" />
       </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-foreground)', fontFamily: 'monospace' }}>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[14px] sm:text-[15px] font-sans font-semibold text-[var(--color-foreground)] tracking-tight">
             {flight.flightNumber}
           </span>
           {flight.airline && (
-            <span style={{ fontSize: 11, color: 'var(--color-muted)' }}>{flight.airline}</span>
+            <span className="text-[13px] font-sans font-normal text-[var(--color-muted)]">
+              {flight.airline}
+            </span>
           )}
         </div>
-        <div style={{ fontSize: 11, color: 'var(--color-muted)', marginTop: 2, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          {flight.route && <span>{flight.route}</span>}
-          <span>· {flight.entries.length} shipment{flight.entries.length === 1 ? '' : 's'}</span>
-          {flight.status?.scheduled_departure && <span>· {fmtDateTime(flight.status.scheduled_departure)}</span>}
-          {flight.status?.delay_minutes ? <span style={{ color: 'var(--color-accent-amber)' }}>· +{flight.status.delay_minutes}m</span> : null}
+
+        <div className="text-[12px] font-sans text-[var(--color-muted)] mt-0.5 flex items-center gap-2 flex-wrap tabular-nums">
+          {routeStr && <span>{routeStr}</span>}
+          <span>· {flight.entries.length} {flight.entries.length === 1 ? 'shipment' : 'shipments'}</span>
+          {flight.status?.scheduled_departure && (
+            <span>· {fmtFlightDateTime(flight.status.scheduled_departure)}</span>
+          )}
+          {delayStr && (
+            <span className="text-amber-600 dark:text-amber-400 font-medium">· {delayStr}</span>
+          )}
         </div>
       </div>
-      <StatusBadge status={es} size="sm" />
+
+      <FlightStatusBadge status={es} />
     </button>
   );
 }
 
-// "Nigeria Today" cards -- board-level data only (no shipment count, no
-// diversion detail), so status comes straight off the departures-board
-// entry's own coarse status string rather than effectiveStatus's
-// diverted-airport comparison. Tapping still opens the same detail modal,
-// which fetches the fuller per-flight status (including the "Returned to
-// Origin" special case) on demand.
-function NationalFlightCard({ flight, onOpen }: { flight: NationalFlight; onOpen: () => void }) {
-  const meta = flightStatusMeta(flight.status);
+function NationalFlightCard({
+  flight,
+  onOpen,
+  isCompact,
+}: {
+  flight: NationalFlight;
+  onOpen: () => void;
+  isCompact: boolean;
+}) {
   return (
     <button
       onClick={onOpen}
-      className="w-full text-left"
-      style={{
-        background: 'var(--color-surface-card)', border: '1px solid var(--color-border)',
-        borderRadius: 'var(--radius-lg)', padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12,
-      }}
+      className={`w-full text-left rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] hover:bg-[var(--color-surface-hover)] transition-all min-h-[44px] flex items-center gap-3.5 sm:gap-4 ${
+        isCompact ? 'p-3 sm:p-3.5' : 'p-4 sm:p-4.5'
+      }`}
     >
-      <div style={{
-        width: 36, height: 36, borderRadius: 10, background: meta.bg, color: meta.color,
-        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-      }}>
-        <Plane size={17} />
+      <div className="w-10 h-10 rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border)] text-[var(--color-foreground)] flex items-center justify-center shrink-0">
+        <Plane size={18} className="text-[var(--color-muted)]" />
       </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-foreground)', fontFamily: 'monospace' }}>
-            {flight.flightNumber}
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[14px] sm:text-[15px] font-sans font-semibold text-[var(--color-foreground)] tracking-tight">
+            {flight.flightNumber || '—'}
           </span>
           {flight.airline && (
-            <span style={{ fontSize: 11, color: 'var(--color-muted)' }}>{flight.airline}</span>
+            <span className="text-[13px] font-sans font-normal text-[var(--color-muted)]">
+              {flight.airline}
+            </span>
           )}
         </div>
-        <div style={{ fontSize: 11, color: 'var(--color-muted)', marginTop: 2, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <span style={{ fontFamily: 'monospace' }}>{flight.originIata} → {flight.destinationIata || '?'}</span>
-          {flight.scheduledDeparture && <span>· {fmtDateTime(flight.scheduledDeparture)}</span>}
+
+        <div className="text-[12px] font-sans text-[var(--color-muted)] mt-0.5 flex items-center gap-2 flex-wrap tabular-nums">
+          <span>{flight.originIata} → {flight.destinationIata || '?'}</span>
+          {flight.scheduledDeparture && (
+            <span>· {fmtFlightDateTime(flight.scheduledDeparture)}</span>
+          )}
         </div>
       </div>
-      <StatusBadge status={flight.status} size="sm" />
+
+      <FlightStatusBadge status={flight.status} />
     </button>
   );
 }
 
 export const FlightRadar = ({ user, onBack }: { user: User; onBack: () => void }) => {
+  const { isCompact } = useDensity();
   const [date, setDate] = useState(lagosBusinessDate());
   const [tab, setTab] = useState<'mine' | 'national'>('mine');
   const [flights, setFlights] = useState<BoardFlight[]>([]);
@@ -332,15 +314,8 @@ export const FlightRadar = ({ user, onBack }: { user: User; onBack: () => void }
   const [refreshing, setRefreshing] = useState(false);
   const { showToast } = useToast();
   const canRefreshNational = user.role === 'super_admin' || user.role === 'admin';
-  // Searches whichever tab is active, by flight number or airline name --
-  // shared across both tabs rather than two separate fields, since staff
-  // switching tabs almost always want the same query to carry over.
   const [search, setSearch] = useState('');
 
-  // "Nigeria Today" (Part C) -- every EHI-route airport's departures board,
-  // cache-only by default (see server/flightRadar.ts's GET /national-board:
-  // it never calls AeroDataBox itself, only reads whatever's already
-  // cached). Fetched lazily, only once this tab is actually opened.
   const [nationalFlights, setNationalFlights] = useState<NationalFlight[]>([]);
   const [nationalLoading, setNationalLoading] = useState(false);
   const [nationalCoverage, setNationalCoverage] = useState<{ total: number; cached: number } | null>(null);
@@ -357,7 +332,9 @@ export const FlightRadar = ({ user, onBack }: { user: User; onBack: () => void }
     setLoading(false);
   }, [date, showToast]);
 
-  useEffect(() => { fetchBoard(); }, [fetchBoard]);
+  useEffect(() => {
+    fetchBoard();
+  }, [fetchBoard]);
 
   const fetchNationalBoard = useCallback(async () => {
     setNationalLoading(true);
@@ -378,7 +355,10 @@ export const FlightRadar = ({ user, onBack }: { user: User; onBack: () => void }
   const refreshAllAirports = async () => {
     setNationalRefreshing(true);
     try {
-      await authedFetch('/api/flight-radar/national-board/refresh', { method: 'POST', body: JSON.stringify({ date }) });
+      await authedFetch('/api/flight-radar/national-board/refresh', {
+        method: 'POST',
+        body: JSON.stringify({ date }),
+      });
       await fetchNationalBoard();
       showToast({ message: 'All airports refreshed.', type: 'success' });
     } catch (err: any) {
@@ -387,28 +367,30 @@ export const FlightRadar = ({ user, onBack }: { user: User; onBack: () => void }
     setNationalRefreshing(false);
   };
 
+  const openFlight = async (flight: BoardFlight) => {
+    setSelected(flight);
+    setDetailLoading(true);
+    try {
+      const status = await authedFetch(
+        `/api/flight-radar/status?flightNumber=${encodeURIComponent(flight.flightNumber)}&date=${encodeURIComponent(date)}`
+      );
+      setSelected(prev => (prev && prev.flightNumber === flight.flightNumber ? { ...prev, status } : prev));
+      setFlights(prev => prev.map(f => (f.flightNumber === flight.flightNumber ? { ...f, status } : f)));
+    } catch (err: any) {
+      showToast({ message: `Couldn't fetch live status: ${err.message}`, type: 'warning' });
+    }
+    setDetailLoading(false);
+  };
+
   const openNationalFlight = (nf: NationalFlight) => {
     if (!nf.flightNumber) return;
     openFlight({
       flightNumber: nf.flightNumber,
       airline: nf.airline,
-      route: nf.destinationIata ? `${nf.originIata}/${nf.destinationIata}` : nf.originIata,
+      route: nf.destinationIata ? `${nf.originIata} → ${nf.destinationIata}` : nf.originIata,
       entries: [],
       status: null,
     });
-  };
-
-  const openFlight = async (flight: BoardFlight) => {
-    setSelected(flight);
-    setDetailLoading(true);
-    try {
-      const status = await authedFetch(`/api/flight-radar/status?flightNumber=${encodeURIComponent(flight.flightNumber)}&date=${encodeURIComponent(date)}`);
-      setSelected(prev => prev && prev.flightNumber === flight.flightNumber ? { ...prev, status } : prev);
-      setFlights(prev => prev.map(f => f.flightNumber === flight.flightNumber ? { ...f, status } : f));
-    } catch (err: any) {
-      showToast({ message: `Couldn't fetch live status: ${err.message}`, type: 'warning' });
-    }
-    setDetailLoading(false);
   };
 
   const refreshSelected = async () => {
@@ -419,8 +401,8 @@ export const FlightRadar = ({ user, onBack }: { user: User; onBack: () => void }
         method: 'POST',
         body: JSON.stringify({ flightNumber: selected.flightNumber, date }),
       });
-      setSelected(prev => prev ? { ...prev, status } : prev);
-      setFlights(prev => prev.map(f => f.flightNumber === selected.flightNumber ? { ...f, status } : f));
+      setSelected(prev => (prev ? { ...prev, status } : prev));
+      setFlights(prev => prev.map(f => (f.flightNumber === selected.flightNumber ? { ...f, status } : f)));
       showToast({ message: 'Flight status refreshed.', type: 'success' });
     } catch (err: any) {
       showToast({ message: `Refresh failed: ${err.message}`, type: 'error' });
@@ -428,109 +410,121 @@ export const FlightRadar = ({ user, onBack }: { user: User; onBack: () => void }
     setRefreshing(false);
   };
 
-  const searchedFlights = flights.filter(f => matchesFlightSearch(search, f.flightNumber, f.airline));
-  const attention = searchedFlights.filter(f => ATTENTION.includes(effectiveStatus(f.status)));
-  const enroute = searchedFlights.filter(f => ENROUTE.includes(effectiveStatus(f.status)));
-  const scheduled = searchedFlights.filter(f => effectiveStatus(f.status) === 'scheduled' || effectiveStatus(f.status) === 'unknown');
-  const landed = searchedFlights.filter(f => effectiveStatus(f.status) === 'landed');
-
-  const groups: { title: string; items: BoardFlight[] }[] = [
-    { title: 'Needs Attention', items: attention },
-    { title: 'En Route', items: enroute },
-    { title: 'Scheduled', items: scheduled },
-    { title: 'Landed', items: landed },
-  ];
+  const groups = groupFlights(flights, search);
+  const nationalGroups = groupNationalFlights(nationalFlights, search);
 
   const selectedStatus = effectiveStatus(selected?.status);
-  const selectedMeta = flightStatusMeta(selectedStatus);
-
-  const searchedNationalFlights = nationalFlights.filter(f => matchesFlightSearch(search, f.flightNumber, f.airline));
-  const nationalAttention = searchedNationalFlights.filter(f => ATTENTION.includes(f.status as FlightStatus));
-  const nationalEnroute = searchedNationalFlights.filter(f => ENROUTE.includes(f.status as FlightStatus));
-  const nationalScheduled = searchedNationalFlights.filter(f => f.status === 'scheduled' || f.status === 'unknown');
-  const nationalLanded = searchedNationalFlights.filter(f => f.status === 'landed');
-  const nationalGroups: { title: string; items: NationalFlight[] }[] = [
-    { title: 'Needs Attention', items: nationalAttention },
-    { title: 'En Route', items: nationalEnroute },
-    { title: 'Scheduled', items: nationalScheduled },
-    { title: 'Landed', items: nationalLanded },
-  ];
 
   return (
     <div className="flex flex-col h-full bg-[var(--color-canvas)] text-[var(--color-foreground)] overflow-hidden">
-      <PageHeader
-        title="Flight Radar"
-        onBack={onBack}
-        actions={
-          <>
+      {/* Top Header & Quiet Toolbar */}
+      <header className={`border-b border-[var(--color-border)] px-4 sm:px-6 shrink-0 bg-[var(--color-canvas)] ${isCompact ? 'py-2.5' : 'py-3'}`}>
+        <div className="flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
+          <div className="flex items-center gap-3">
+            {onBack && (
+              <button
+                onClick={onBack}
+                aria-label="Back"
+                className="min-h-[44px] min-w-[44px] h-11 w-11 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] text-[var(--color-muted)] hover:text-[var(--color-foreground)] flex items-center justify-center transition-colors"
+              >
+                <ArrowLeft size={16} />
+              </button>
+            )}
+            <div>
+              <h1 className="text-lg sm:text-xl font-bold font-sans tracking-tight text-[var(--color-foreground)]">
+                Flight Radar
+              </h1>
+              <p className="text-[12px] font-sans text-[var(--color-muted)]">
+                Real-time commercial flight telemetry and cargo tracking
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
             <input
               type="date"
               value={date}
               onChange={e => setDate(e.target.value)}
-              className="h-8 px-2 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded text-[11px] font-mono text-[var(--color-foreground)] focus:outline-none focus:border-[var(--color-accent-amber)]"
+              aria-label="Select date"
+              className="min-h-[44px] h-11 px-3.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-1)] text-[13px] font-sans text-[var(--color-foreground)] tabular-nums focus:outline-none focus:ring-1 focus:ring-white/20"
             />
             <button
               onClick={tab === 'mine' ? fetchBoard : fetchNationalBoard}
-              aria-label="Refresh"
-              className="h-8 w-8 flex items-center justify-center bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded text-[var(--color-muted)] hover:text-[var(--color-accent-amber)]"
+              aria-label="Refresh flights"
+              title="Refresh flights"
+              className="min-h-[44px] min-w-[44px] h-11 w-11 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] text-[var(--color-muted)] hover:text-[var(--color-foreground)] flex items-center justify-center transition-colors"
             >
-              <RefreshCw size={13} className={(tab === 'mine' ? loading : nationalLoading) ? 'animate-spin' : ''} />
+              <RefreshCw
+                size={15}
+                className={(tab === 'mine' ? loading : nationalLoading) ? 'animate-spin' : ''}
+              />
             </button>
-          </>
-        }
-      />
+          </div>
+        </div>
+      </header>
 
-      <div className="px-4 pt-3 flex items-center gap-2 shrink-0">
-        <button
-          onClick={() => setTab('mine')}
-          className="px-3 py-1.5 rounded-lg text-[11px] font-mono font-bold uppercase tracking-wide"
-          style={tab === 'mine'
-            ? { background: 'var(--color-accent-amber)', color: 'var(--color-on-accent)' }
-            : { background: 'var(--color-surface-2)', color: 'var(--color-muted)', border: '1px solid var(--color-border)' }}
-        >
-          My Shipments
-        </button>
-        <button
-          onClick={() => setTab('national')}
-          className="px-3 py-1.5 rounded-lg text-[11px] font-mono font-bold uppercase tracking-wide"
-          style={tab === 'national'
-            ? { background: 'var(--color-accent-amber)', color: 'var(--color-on-accent)' }
-            : { background: 'var(--color-surface-2)', color: 'var(--color-muted)', border: '1px solid var(--color-border)' }}
-        >
-          Nigeria Today
-        </button>
-        {tab === 'national' && nationalCoverage && (
-          <span className="text-[10px] font-mono text-[var(--color-muted)]">
-            {nationalCoverage.cached}/{nationalCoverage.total} airports cached
-          </span>
-        )}
-        {tab === 'national' && canRefreshNational && (
-          <button
-            onClick={refreshAllAirports}
-            disabled={nationalRefreshing}
-            className="ml-auto px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wide bg-[rgba(59,130,246,0.1)] border border-[rgba(59,130,246,0.3)] text-[var(--color-accent-cobalt)] disabled:opacity-50 flex items-center gap-1.5"
-          >
-            <RefreshCw size={11} className={nationalRefreshing ? 'animate-spin' : ''} />
-            {nationalRefreshing ? 'Refreshing…' : 'Refresh All Airports'}
-          </button>
-        )}
-      </div>
+      {/* Sub-bar: Segmented Tabs & Instant Search */}
+      <div className={`bg-[var(--color-surface-1)] border-b border-[var(--color-border)] px-4 sm:px-6 flex flex-col md:flex-row md:items-center justify-between gap-3 shrink-0 ${isCompact ? 'py-2' : 'py-2.5'}`}>
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="min-h-[44px] p-1 rounded-full bg-[var(--color-surface-2)] border border-[var(--color-border)] inline-flex items-center gap-1 shrink-0">
+            <button
+              onClick={() => setTab('mine')}
+              className={`min-h-[38px] px-4 rounded-full text-[13px] font-sans font-medium transition-colors ${
+                tab === 'mine'
+                  ? 'bg-white text-black dark:bg-white dark:text-black shadow-xs font-semibold'
+                  : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
+              }`}
+            >
+              My shipments
+            </button>
+            <button
+              onClick={() => setTab('national')}
+              className={`min-h-[38px] px-4 rounded-full text-[13px] font-sans font-medium transition-colors ${
+                tab === 'national'
+                  ? 'bg-white text-black dark:bg-white dark:text-black shadow-xs font-semibold'
+                  : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
+              }`}
+            >
+              Nigeria today
+            </button>
+          </div>
 
-      <div className="px-4 pt-3 shrink-0">
-        <div className="relative">
-          <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-muted)' }} />
+          {tab === 'national' && nationalCoverage && (
+            <span className="text-[12px] font-sans text-[var(--color-muted)] tabular-nums">
+              {nationalCoverage.cached} of {nationalCoverage.total} airports cached
+            </span>
+          )}
+
+          {tab === 'national' && canRefreshNational && (
+            <button
+              onClick={refreshAllAirports}
+              disabled={nationalRefreshing}
+              className="min-h-[44px] h-11 px-4 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-hover)] text-[12px] font-sans font-medium text-[var(--color-foreground)] flex items-center gap-2 disabled:opacity-50 transition-colors"
+            >
+              <RefreshCw size={13} className={nationalRefreshing ? 'animate-spin' : ''} />
+              <span>{nationalRefreshing ? 'Refreshing…' : 'Refresh all airports'}</span>
+            </button>
+          )}
+        </div>
+
+        {/* Search */}
+        <div className="relative flex-1 md:max-w-xs min-w-[200px]">
+          <Search
+            size={15}
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-muted)] pointer-events-none"
+          />
           <input
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search by airline or flight no. -- e.g. United Nigeria, Green Africa, Air Peace, W3 331"
-            className="w-full h-9 pl-8 pr-8 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg text-[12px] font-sans text-[var(--color-foreground)] focus:outline-none focus:border-[var(--color-accent-amber)]"
+            placeholder="Search flights or airlines..."
+            className="w-full min-h-[44px] h-11 pl-10 pr-9 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-2)] text-[13px] font-sans text-[var(--color-foreground)] placeholder:text-[var(--color-muted)] focus:outline-none focus:ring-1 focus:ring-white/20"
           />
           {search && (
             <button
               onClick={() => setSearch('')}
-              style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)' }}
-              className="text-[var(--color-muted)] hover:text-[var(--color-foreground)]"
+              aria-label="Clear search"
+              className="absolute right-1 top-1/2 -translate-y-1/2 min-w-[40px] min-h-[40px] w-10 h-10 rounded-full flex items-center justify-center text-[var(--color-muted)] hover:text-[var(--color-foreground)]"
             >
               <X size={14} />
             </button>
@@ -538,177 +532,236 @@ export const FlightRadar = ({ user, onBack }: { user: User; onBack: () => void }
         </div>
       </div>
 
+      {/* Main Content Area */}
       {tab === 'mine' ? (
-        <div className="flex-1 overflow-y-auto p-4 space-y-5">
-          {loading ? (
-            <div className="flex justify-center py-12">
-              <Spinner size={22} />
-            </div>
-          ) : flights.length === 0 ? (
-            <EmptyState
-              icon={<Radar size={36} strokeWidth={1.5} />}
-              title="No flights tracked for this date"
-              subtext="Add a flight number to a Cargo Entry to start tracking it here."
-              actions={[{ label: '+ Cargo Entry', onClick: () => window.dispatchEvent(new CustomEvent('ehi-nav', { detail: 'Cargo' })) }]}
-            />
-          ) : searchedFlights.length === 0 ? (
-            <EmptyState
-              icon={<Search size={36} strokeWidth={1.5} />}
-              title="No matching flights"
-              subtext={`Nothing matches "${search}" for this date.`}
-              actions={[{ label: 'Clear search', onClick: () => setSearch('') }]}
-            />
-          ) : (
-            groups.filter(g => g.items.length > 0).map(g => (
-              <div key={g.title}>
-                <div className="text-[10px] font-mono text-[var(--color-muted)] uppercase tracking-widest mb-2">
-                  {g.title} <span className="opacity-60">({g.items.length})</span>
-                </div>
-                <div className="space-y-2">
-                  {g.items.map(f => (
-                    <FlightCard key={f.flightNumber} flight={f} onOpen={() => openFlight(f)} />
-                  ))}
-                </div>
+        <div className={`flex-1 overflow-y-auto ${isCompact ? 'p-3 sm:p-4 space-y-4' : 'p-4 sm:p-6 space-y-5'}`}>
+          <div className="max-w-5xl mx-auto space-y-5">
+            {loading ? (
+              <div className="flex justify-center py-16">
+                <Spinner size={24} />
               </div>
-            ))
-          )}
+            ) : flights.length === 0 ? (
+              <EmptyState
+                icon={<Radar size={36} strokeWidth={1.5} />}
+                title="No flights tracked for this date"
+                subtext="Add a flight number to an air cargo entry to start tracking it here."
+                actions={[
+                  {
+                    label: 'New cargo entry',
+                    onClick: () => window.dispatchEvent(new CustomEvent('ehi-nav', { detail: 'Cargo' })),
+                  },
+                ]}
+              />
+            ) : groups.every(g => g.items.length === 0) ? (
+              <EmptyState
+                icon={<Search size={36} strokeWidth={1.5} />}
+                title="No matching flights"
+                subtext={`Nothing matches "${search}" for this date.`}
+                actions={[{ label: 'Clear search', onClick: () => setSearch('') }]}
+              />
+            ) : (
+              groups
+                .filter(g => g.items.length > 0)
+                .map(g => (
+                  <div key={g.id}>
+                    <div className="text-[13px] font-sans font-semibold text-[var(--color-muted)] flex items-center gap-2 mb-2.5">
+                      <span>{g.title}</span>
+                      <span className="text-[12px] font-normal opacity-70 tabular-nums">({g.items.length})</span>
+                    </div>
+                    <div className="space-y-2.5">
+                      {g.items.map(f => (
+                        <FlightCard
+                          key={f.flightNumber}
+                          flight={f}
+                          onOpen={() => openFlight(f)}
+                          isCompact={isCompact}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))
+            )}
+          </div>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto p-4 space-y-5">
-          {nationalLoading ? (
-            <div className="flex justify-center py-12">
-              <Spinner size={22} />
-            </div>
-          ) : nationalFlights.length === 0 ? (
-            <EmptyState
-              icon={<Radar size={36} strokeWidth={1.5} />}
-              title="No cached flights yet"
-              subtext={canRefreshNational
-                ? "Nothing's been fetched for these airports today -- try Refresh All Airports."
-                : "Nothing's been fetched for these airports yet today -- check back after cargo staff at other hubs have logged some entries, or ask an admin to refresh."}
-            />
-          ) : searchedNationalFlights.length === 0 ? (
-            <EmptyState
-              icon={<Search size={36} strokeWidth={1.5} />}
-              title="No matching flights"
-              subtext={`Nothing matches "${search}" for this date.`}
-              actions={[{ label: 'Clear search', onClick: () => setSearch('') }]}
-            />
-          ) : (
-            nationalGroups.filter(g => g.items.length > 0).map(g => (
-              <div key={g.title}>
-                <div className="text-[10px] font-mono text-[var(--color-muted)] uppercase tracking-widest mb-2">
-                  {g.title} <span className="opacity-60">({g.items.length})</span>
-                </div>
-                <div className="space-y-2">
-                  {g.items.map((f, i) => (
-                    <NationalFlightCard key={`${f.flightNumber}-${f.originIata}-${i}`} flight={f} onOpen={() => openNationalFlight(f)} />
-                  ))}
-                </div>
+        <div className={`flex-1 overflow-y-auto ${isCompact ? 'p-3 sm:p-4 space-y-4' : 'p-4 sm:p-6 space-y-5'}`}>
+          <div className="max-w-5xl mx-auto space-y-5">
+            {nationalLoading ? (
+              <div className="flex justify-center py-16">
+                <Spinner size={24} />
               </div>
-            ))
-          )}
+            ) : nationalFlights.length === 0 ? (
+              <EmptyState
+                icon={<Radar size={36} strokeWidth={1.5} />}
+                title="No cached flights yet"
+                subtext={
+                  canRefreshNational
+                    ? "Nothing has been fetched for these airports today. Tap 'Refresh all airports' above."
+                    : "Nothing has been fetched for these airports yet today. Check back later or ask an administrator."
+                }
+              />
+            ) : nationalGroups.every(g => g.items.length === 0) ? (
+              <EmptyState
+                icon={<Search size={36} strokeWidth={1.5} />}
+                title="No matching flights"
+                subtext={`Nothing matches "${search}" for this date.`}
+                actions={[{ label: 'Clear search', onClick: () => setSearch('') }]}
+              />
+            ) : (
+              nationalGroups
+                .filter(g => g.items.length > 0)
+                .map(g => (
+                  <div key={g.id}>
+                    <div className="text-[13px] font-sans font-semibold text-[var(--color-muted)] flex items-center gap-2 mb-2.5">
+                      <span>{g.title}</span>
+                      <span className="text-[12px] font-normal opacity-70 tabular-nums">({g.items.length})</span>
+                    </div>
+                    <div className="space-y-2.5">
+                      {g.items.map((f, i) => (
+                        <NationalFlightCard
+                          key={`${f.flightNumber}-${f.originIata}-${i}`}
+                          flight={f}
+                          onOpen={() => openNationalFlight(f)}
+                          isCompact={isCompact}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))
+            )}
+          </div>
         </div>
       )}
 
+      {/* Flight Detail Modal (Portal rendered via Modal component) */}
       <Modal isOpen={!!selected} onClose={() => setSelected(null)}>
         {selected && (
-          <div className="flex flex-col max-h-[85vh]">
-            <div className="p-4 border-b border-[var(--color-border)] flex justify-between items-center shrink-0">
+          <div className="flex flex-col max-h-[85vh] text-[var(--color-foreground)] font-sans">
+            {/* Modal Header */}
+            <div className="p-4 sm:p-5 border-b border-[var(--color-border)] flex justify-between items-center shrink-0">
               <div>
-                <div style={{ fontSize: 15, fontWeight: 700, fontFamily: 'monospace', color: 'var(--color-foreground)' }}>
+                <div className="text-base sm:text-lg font-bold font-sans tracking-tight text-[var(--color-foreground)]">
                   {selected.flightNumber}
                 </div>
-                {selected.airline && <div style={{ fontSize: 11, color: 'var(--color-muted)' }}>{selected.airline}</div>}
+                {selected.airline && (
+                  <div className="text-[13px] font-sans text-[var(--color-muted)] mt-0.5">
+                    {selected.airline}
+                  </div>
+                )}
               </div>
-              <StatusBadge status={selectedStatus} />
+              <FlightStatusBadge status={selectedStatus} />
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {/* Modal Scrollable Body */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-5">
               {detailLoading ? (
-                <div className="flex justify-center py-8">
-                  <Spinner size={20} />
+                <div className="flex justify-center py-10">
+                  <Spinner size={22} />
                 </div>
               ) : (
                 <>
                   <FlightTimeline status={selectedStatus} />
 
-                  {/* Route line echoes the departure/arrival pair as a single
-                      visual line instead of two disconnected columns -- the
-                      plane glyph and line color both track the flight's
-                      current status color (selectedMeta), same mapping
-                      StatusBadge/FlightTimeline already use. */}
-                  <div style={{
-                    background: 'var(--color-surface-2)', border: '1px solid var(--color-border)',
-                    borderRadius: 'var(--radius-lg)', padding: '14px 16px',
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: 9, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Departure</div>
-                        <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--color-foreground)', fontFamily: 'monospace', marginTop: 2 }}>
+                  {/* Departure & Arrival Card */}
+                  <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-4 sm:p-5">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-[11px] font-sans text-[var(--color-muted)] font-medium">
+                          Departure
+                        </div>
+                        <div className="text-xl sm:text-2xl font-bold font-sans text-[var(--color-foreground)] mt-0.5">
                           {selected.status?.departure_airport || '—'}
                         </div>
                       </div>
-                      <div style={{ flex: 1, height: 1, background: `linear-gradient(90deg, var(--color-border-strong), ${selectedMeta.color}, var(--color-border-strong))`, position: 'relative' }}>
-                        <Plane size={14} style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%) rotate(90deg)', color: selectedMeta.color, background: 'var(--color-surface-2)' }} />
+
+                      <div className="flex-1 flex items-center justify-center px-3 relative">
+                        <div className="w-full h-px bg-[var(--color-border-strong)]" />
+                        <div className="absolute bg-[var(--color-surface-1)] px-2">
+                          <Plane size={15} className="text-[var(--color-muted)] rotate-90" />
+                        </div>
                       </div>
-                      <div style={{ minWidth: 0, textAlign: 'right' }}>
-                        <div style={{ fontSize: 9, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Arrival</div>
-                        <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--color-foreground)', fontFamily: 'monospace', marginTop: 2 }}>
+
+                      <div className="text-right">
+                        <div className="text-[11px] font-sans text-[var(--color-muted)] font-medium">
+                          Arrival
+                        </div>
+                        <div className="text-xl sm:text-2xl font-bold font-sans text-[var(--color-foreground)] mt-0.5">
                           {selected.status?.arrival_airport || '—'}
                         </div>
                       </div>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10 }}>
-                      <div style={{ fontSize: 11, color: 'var(--color-muted)' }}>
-                        Sched {fmtTime(selected.status?.scheduled_departure ?? null)}
-                        {selected.status?.actual_departure ? ` · Actual ${fmtTime(selected.status.actual_departure)}` : ''}
+
+                    <div className="flex justify-between items-center text-[12px] font-sans text-[var(--color-muted)] mt-3 pt-3 border-t border-[var(--color-border)] tabular-nums">
+                      <div>
+                        Sched {fmtFlightTime(selected.status?.scheduled_departure)}
+                        {selected.status?.actual_departure && (
+                          <span className="ml-1.5 font-medium text-[var(--color-foreground)]">
+                            · Actual {fmtFlightTime(selected.status.actual_departure)}
+                          </span>
+                        )}
                       </div>
-                      <div style={{ fontSize: 11, color: 'var(--color-muted)', textAlign: 'right' }}>
-                        Sched {fmtTime(selected.status?.scheduled_arrival ?? null)}
-                        {selected.status?.actual_arrival ? ` · Actual ${fmtTime(selected.status.actual_arrival)}` : ''}
+                      <div className="text-right">
+                        Sched {fmtFlightTime(selected.status?.scheduled_arrival)}
+                        {selected.status?.actual_arrival && (
+                          <span className="ml-1.5 font-medium text-[var(--color-foreground)]">
+                            · Actual {fmtFlightTime(selected.status.actual_arrival)}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
 
+                  {/* Interactive Leaflet Map */}
                   <FlightRouteMap
                     departureIata={selected.status?.departure_airport ?? null}
                     arrivalIata={selected.status?.arrival_airport ?? null}
-                    color={selectedMeta.color}
+                    status={selectedStatus}
                   />
 
                   {selectedStatus === 'unknown' && (
-                    <div style={{ fontSize: 11, color: 'var(--color-muted)', fontStyle: 'italic' }}>
-                      No live data yet for this flight/date -- check the flight number, or try Refresh.
+                    <div className="text-[12px] font-sans text-[var(--color-muted)] italic">
+                      No live data yet for this flight on this date. Verify the flight number or tap Refresh.
                     </div>
                   )}
 
-                  <div>
-                    <div style={{ fontSize: 9, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
-                      Shipments on this flight
+                  {/* Shipments on this flight */}
+                  {selected.entries && selected.entries.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="text-[12px] font-sans font-semibold text-[var(--color-muted)]">
+                        Shipments on this flight ({selected.entries.length})
+                      </div>
+                      <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-1)] divide-y divide-[var(--color-border)] overflow-hidden">
+                        {selected.entries.map(e => (
+                          <div key={e.id} className="p-3 flex items-center justify-between text-[13px] font-sans gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Package2 size={14} className="text-[var(--color-muted)] shrink-0" />
+                              <span className="font-semibold text-[var(--color-foreground)] truncate">
+                                {e.awb || e.id}
+                              </span>
+                            </div>
+                            {e.name && (
+                              <span className="text-[12px] text-[var(--color-muted)] truncate text-right">
+                                {e.name}
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <div className="space-y-1.5">
-                      {selected.entries.map(e => (
-                        <div key={e.id} className="flex items-center gap-2" style={{ fontSize: 12 }}>
-                          <Package2 size={13} style={{ color: 'var(--color-muted)' }} />
-                          <span style={{ fontFamily: 'monospace', color: 'var(--color-foreground)' }}>{e.awb || e.id}</span>
-                          <span style={{ color: 'var(--color-muted)' }}>{e.name}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  )}
                 </>
               )}
             </div>
 
-            <div className="p-4 border-t border-[var(--color-border)] shrink-0">
+            {/* Modal Footer: Grok Flat White Pill Button */}
+            <div className="p-4 sm:p-5 border-t border-[var(--color-border)] shrink-0 bg-[var(--color-surface-1)]">
               <button
                 onClick={refreshSelected}
                 disabled={refreshing}
-                className="w-full h-9 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg text-[11px] font-bold uppercase tracking-wider text-[var(--color-foreground)] flex items-center justify-center gap-1.5 disabled:opacity-50"
+                className="w-full min-h-[44px] h-11 rounded-full bg-white text-black dark:bg-white dark:text-black font-semibold text-[13px] font-sans hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2 shadow-xs disabled:opacity-50"
               >
-                <RefreshCw size={12} className={refreshing ? 'animate-spin' : ''} />
-                {refreshing ? 'Refreshing…' : 'Refresh Live Status'}
+                <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
+                <span>{refreshing ? 'Refreshing…' : 'Refresh live status'}</span>
               </button>
             </div>
           </div>
