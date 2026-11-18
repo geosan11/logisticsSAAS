@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Brain, Calendar, ShieldCheck, AlertTriangle, TrendingUp, Sparkles } from 'lucide-react';
-import { PageHeader, Spinner } from '../ui';
+import { PageHeader, Spinner, Skeleton } from '../ui';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, AreaChart, Area } from 'recharts';
 import { fmt } from '../../lib/helpers';
 import { supabase } from '../../lib/supabase';
+import { buildRouteHeatmap, RouteHeatmapRow } from '../../lib/routeHeatmap';
 
 interface ForecastDay {
   date: string;
@@ -28,15 +29,22 @@ export const Forecasting = ({
   const [historicalData, setHistoricalData] = useState<Array<{ day: string; Cargo: number; Packages: number; Legacy?: number }>>([]);
   const [hasLegacy, setHasLegacy] = useState(false);
 
+  const [routesHeatmap, setRoutesHeatmap] = useState<RouteHeatmapRow[]>([]);
+  const [heatmapLoading, setHeatmapLoading] = useState(true);
+
   useEffect(() => {
     const fetchRevenue = async () => {
       const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+      const eightWeeksAgo = new Date(Date.now() - 8 * 7 * 86400000).toISOString();
       try {
-        const [cargoRes, pkgRes, vjRes, mktRes] = await Promise.all([
+        setHeatmapLoading(true);
+        const [cargoRes, pkgRes, vjRes, mktRes, routeCargoRes, routePkgRes] = await Promise.all([
           supabase.from('cargo_entries').select('created_at, amount').gte('created_at', sevenDaysAgo),
           supabase.from('package_entries').select('created_at, amount').gte('created_at', sevenDaysAgo),
           supabase.from('manifests').select('created_at, amount').gte('created_at', sevenDaysAgo),
-          supabase.from('marketing_entries').select('created_at, amount_paid').gte('created_at', sevenDaysAgo)
+          supabase.from('marketing_entries').select('created_at, amount_paid').gte('created_at', sevenDaysAgo),
+          supabase.from('cargo_entries').select('route, created_at').gte('created_at', eightWeeksAgo).limit(5000),
+          supabase.from('package_entries').select('destination, created_at').gte('created_at', eightWeeksAgo).limit(5000)
         ]);
 
         const dayMap: Record<string, { Cargo: number; Packages: number; Legacy: number }> = {};
@@ -88,8 +96,19 @@ export const Forecasting = ({
         } else {
           setHistoricalData([]);
         }
+
+        // Process 8-week route capacity data
+        const combinedRouteEntries = [
+          ...(routeCargoRes.data || []),
+          ...(routePkgRes.data || [])
+        ];
+        const computedHeatmap = buildRouteHeatmap(combinedRouteEntries, { weeks: 8, maxRoutes: 8 });
+        setRoutesHeatmap(computedHeatmap);
       } catch (err) {
         console.error('Forecasting revenue fetch error:', err);
+        setRoutesHeatmap([]);
+      } finally {
+        setHeatmapLoading(false);
       }
     };
     fetchRevenue();
@@ -98,17 +117,24 @@ export const Forecasting = ({
   // Forecasted dataset — starts empty until generated
   const [forecastData, setForecastData] = useState<ForecastDay[]>([]);
 
-  // Heatmap route data representation
-  const routesHeatmap = [
-    { route: 'LOS - ABV', Mon: 'low', Tue: 'medium', Wed: 'high', Thu: 'medium', Fri: 'high', Sat: 'medium' },
-    { route: 'LOS - PHC', Mon: 'medium', Tue: 'low', Wed: 'high', Thu: 'medium', Fri: 'high', Sat: 'low' },
-    { route: 'LOS - BNI', Mon: 'low', Tue: 'medium', Wed: 'medium', Thu: 'low', Fri: 'medium', Sat: 'medium' },
-    { route: 'LOS - KAN', Mon: 'low', Tue: 'low', Wed: 'medium', Thu: 'high', Fri: 'low', Sat: 'low' }
-  ];
-
   const handleGenerateForecast = async () => {
     setLoading(true);
     try {
+      // Find peak day from historical data dynamically
+      let computedPeak = '';
+      if (historicalData.length > 0) {
+        const sortedDays = [...historicalData].sort((a, b) => {
+          const totalA = (a.Cargo || 0) + (a.Packages || 0) + (a.Legacy || 0);
+          const totalB = (b.Cargo || 0) + (b.Packages || 0) + (b.Legacy || 0);
+          return totalB - totalA;
+        });
+        const highest = sortedDays[0];
+        const highestTotal = (highest.Cargo || 0) + (highest.Packages || 0) + (highest.Legacy || 0);
+        if (highestTotal > 0) {
+          computedPeak = highest.day;
+        }
+      }
+
       const { data: sess } = await supabase.auth.getSession();
       const token = sess.session?.access_token || '';
       const response = await fetch('/api/gemini/report-narrative', {
@@ -117,8 +143,7 @@ export const Forecasting = ({
         body: JSON.stringify({
           reportType: '7-Day Demand Forecasting and Operations Split',
           reportData: {
-            historicalSummary: historicalData,
-            nigerianContext: 'Upcoming public holiday Eid-el-Kabir scheduled for Wednesday, affecting cargo logistics capacity.'
+            historicalSummary: historicalData
           }
         })
       });
@@ -131,14 +156,18 @@ export const Forecasting = ({
       if (resData.success && resData.narrative) {
         // Parse paragraphs
         const paras = resData.narrative.split('\n\n');
-        setStaffingRecommendation(paras[1] || 'Staffing is optimized for peak logistics.');
+        setStaffingRecommendation(paras[1] || 'Staffing is optimized for peak logistics demand.');
         setRiskNote(paras[2] || 'Ensure vehicles undergo checklist clearance before heavy travel schedules.');
-        setPeakDay('Wednesday (EOD Surge)');
+        setPeakDay(computedPeak ? `${computedPeak} (Peak Volume)` : 'Operational Baseline');
       } else {
         // Fallback default AI response
-        setStaffingRecommendation('Demand peaks heavily on Wednesday. Recommended action: Allocate three extra drivers to standard heavy-duty van trips and increase package handling shifts starting 07:00 AM.');
-        setRiskNote('High operational bottleneck risk detected on Abuja route paths due to pre-holiday supply shipments.');
-        setPeakDay('Wednesday');
+        setStaffingRecommendation(
+          computedPeak
+            ? `Highest volume observed on ${computedPeak}. Recommended action: Allocate extra handling shifts during peak arrival windows.`
+            : 'Operational demand distributed across standard shifts. Maintain baseline station staffing.'
+        );
+        setRiskNote('Monitor high-frequency route segments for congestion during shift handovers.');
+        setPeakDay(computedPeak || 'Operational Baseline');
       }
       const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
       const avgCargo = historicalData.length > 0 ? Math.round(historicalData.reduce((acc, d) => acc + (d.Cargo || 0), 0) / historicalData.length) : 0;
@@ -282,7 +311,7 @@ export const Forecasting = ({
                 <Calendar size={16} />
                 <span className="text-[12px] uppercase">Peak Operational Day</span>
               </div>
-              <div className="text-xl font-bold font-mono tracking-tight text-[var(--color-foreground)]">{peakDay || 'Wednesday'}</div>
+              <div className="text-xl font-bold font-mono tracking-tight text-[var(--color-foreground)]">{peakDay || '—'}</div>
               <p className="text-[11px] text-[var(--color-muted)] leading-relaxed font-mono">High-volume cargo dispatches and package intake coincide, putting stress on local hub desks.</p>
             </div>
 
@@ -331,76 +360,76 @@ export const Forecasting = ({
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs font-mono">
-              <thead>
-                <tr className="border-b border-[var(--color-border)] text-[var(--color-muted)] text-left">
-                  <th className="py-2.5 font-bold">Logistics Route Axis</th>
-                  <th className="py-2.5 px-2">Mon</th>
-                  <th className="py-2.5 px-2">Tue</th>
-                  <th className="py-2.5 px-2">Wed</th>
-                  <th className="py-2.5 px-2">Thu</th>
-                  <th className="py-2.5 px-2">Fri</th>
-                  <th className="py-2.5 px-2">Sat</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--color-border)]">
-                {routesHeatmap.map((heatmap, idx) => (
-                  <tr key={idx} className="hover:bg-[var(--color-surface-hover)]">
-                    <td className="py-3 font-semibold text-[var(--color-foreground)] uppercase truncate max-w-[200px]">{heatmap.route}</td>
-                    <td className="py-3 px-2">
-                      <span className={`px-2 py-1 rounded text-[10px] uppercase font-bold block text-center max-w-[50px] ${
-                        heatmap.Mon === 'high' ? 'bg-amber-500/20 text-[var(--color-accent-amber)]' :
-                        heatmap.Mon === 'medium' ? 'bg-blue-500/10 text-blue-300' : 'bg-[var(--color-surface-2)] text-[var(--color-muted)]'
-                      }`}>
-                        {heatmap.Mon}
-                      </span>
-                    </td>
-                    <td className="py-3 px-2">
-                      <span className={`px-2 py-1 rounded text-[10px] uppercase font-bold block text-center max-w-[50px] ${
-                        heatmap.Tue === 'high' ? 'bg-amber-500/20 text-[var(--color-accent-amber)]' :
-                        heatmap.Tue === 'medium' ? 'bg-blue-500/10 text-blue-300' : 'bg-[var(--color-surface-2)] text-[var(--color-muted)]'
-                      }`}>
-                        {heatmap.Tue}
-                      </span>
-                    </td>
-                    <td className="py-3 px-2">
-                      <span className={`px-2 py-1 rounded text-[10px] uppercase font-bold block text-center max-w-[50px] ${
-                        heatmap.Wed === 'high' ? 'bg-amber-500/20 text-[var(--color-accent-amber)]' :
-                        heatmap.Wed === 'medium' ? 'bg-blue-500/10 text-blue-300' : 'bg-[var(--color-surface-2)] text-[var(--color-muted)]'
-                      }`}>
-                        {heatmap.Wed}
-                      </span>
-                    </td>
-                    <td className="py-3 px-2">
-                      <span className={`px-2 py-1 rounded text-[10px] uppercase font-bold block text-center max-w-[50px] ${
-                        heatmap.Thu === 'high' ? 'bg-amber-500/20 text-[var(--color-accent-amber)]' :
-                        heatmap.Thu === 'medium' ? 'bg-blue-500/10 text-blue-300' : 'bg-[var(--color-surface-2)] text-[var(--color-muted)]'
-                      }`}>
-                        {heatmap.Thu}
-                      </span>
-                    </td>
-                    <td className="py-3 px-2">
-                      <span className={`px-2 py-1 rounded text-[10px] uppercase font-bold block text-center max-w-[50px] ${
-                        heatmap.Fri === 'high' ? 'bg-amber-500/20 text-[var(--color-accent-amber)]' :
-                        heatmap.Fri === 'medium' ? 'bg-blue-500/10 text-blue-300' : 'bg-[var(--color-surface-2)] text-[var(--color-muted)]'
-                      }`}>
-                        {heatmap.Fri}
-                      </span>
-                    </td>
-                    <td className="py-3 px-2">
-                      <span className={`px-2 py-1 rounded text-[10px] uppercase font-bold block text-center max-w-[50px] ${
-                        heatmap.Sat === 'high' ? 'bg-amber-500/20 text-[var(--color-accent-amber)]' :
-                        heatmap.Sat === 'medium' ? 'bg-blue-500/10 text-blue-300' : 'bg-[var(--color-surface-2)] text-[var(--color-muted)]'
-                      }`}>
-                        {heatmap.Sat}
-                      </span>
-                    </td>
+          {heatmapLoading ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs font-mono">
+                <thead>
+                  <tr className="border-b border-[var(--color-border)] text-[var(--color-muted)] text-left">
+                    <th className="py-2.5 font-bold">Logistics Route Axis</th>
+                    <th className="py-2.5 px-2">Mon</th>
+                    <th className="py-2.5 px-2">Tue</th>
+                    <th className="py-2.5 px-2">Wed</th>
+                    <th className="py-2.5 px-2">Thu</th>
+                    <th className="py-2.5 px-2">Fri</th>
+                    <th className="py-2.5 px-2">Sat</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-[var(--color-border)]">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <tr key={i}>
+                      <td className="py-3 max-w-[200px]">
+                        <Skeleton className="h-3.5 w-24" />
+                      </td>
+                      {Array.from({ length: 6 }).map((_, j) => (
+                        <td key={j} className="py-3 px-2">
+                          <Skeleton className="h-6 w-[50px] rounded" />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : routesHeatmap.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs font-mono">
+                <thead>
+                  <tr className="border-b border-[var(--color-border)] text-[var(--color-muted)] text-left">
+                    <th className="py-2.5 font-bold">Logistics Route Axis</th>
+                    <th className="py-2.5 px-2">Mon</th>
+                    <th className="py-2.5 px-2">Tue</th>
+                    <th className="py-2.5 px-2">Wed</th>
+                    <th className="py-2.5 px-2">Thu</th>
+                    <th className="py-2.5 px-2">Fri</th>
+                    <th className="py-2.5 px-2">Sat</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--color-border)]">
+                  {routesHeatmap.map((heatmap, idx) => (
+                    <tr key={idx} className="hover:bg-[var(--color-surface-hover)]">
+                      <td className="py-3 font-semibold text-[var(--color-foreground)] uppercase truncate max-w-[200px]">{heatmap.route}</td>
+                      {(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const).map(day => (
+                        <td key={day} className="py-3 px-2">
+                          <span className={`px-2 py-1 rounded text-[10px] uppercase font-bold block text-center max-w-[50px] ${
+                            heatmap[day] === 'high' ? 'bg-amber-500/20 text-[var(--color-accent-amber)]' :
+                            heatmap[day] === 'medium' ? 'bg-blue-500/10 text-blue-300' : 'bg-[var(--color-surface-2)] text-[var(--color-muted)]'
+                          }`}>
+                            {heatmap[day]}
+                          </span>
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="h-[180px] w-full flex flex-col items-center justify-center border border-dashed border-[var(--color-border)] rounded-xl text-center px-4">
+              <Calendar size={24} className="text-[var(--color-muted)] mb-2 opacity-40" />
+              <div className="text-[12px] font-sans font-medium text-[var(--color-foreground)]">No route history yet</div>
+              <div className="text-[10px] font-mono text-[var(--color-muted)] mt-1">No cargo or package route activity recorded in the last 8 weeks.</div>
+            </div>
+          )}
         </div>
 
       </div>
