@@ -307,3 +307,63 @@ export function getDensityClasses(isCompact: boolean): {
     textSecondary: 'text-[12px]',
   };
 }
+
+/**
+ * Formats alert count badge for unverified transactions.
+ */
+export function formatAlertCountBadge(count: number): { label: string; hasAlert: boolean } {
+  const safeCount = Math.max(0, Number(count) || 0);
+  return {
+    label: safeCount > 0 ? String(safeCount) : '',
+    hasAlert: safeCount > 0,
+  };
+}
+
+/**
+ * Checks whether an entry is eligible for multi-row batch actions.
+ */
+export function isBatchSelectable(entry: { source?: string } | null | undefined): boolean {
+  return Boolean(entry && entry.source === 'transaction');
+}
+
+/**
+ * Summarises batch selection metrics for the floating/pinned batch bar.
+ */
+export function summariseSelection(
+  selectedIds: Set<string>,
+  entries: Array<{ id: string; amount?: number; mode?: string; source?: string }>
+): {
+  count: number;
+  totalAmount: number;
+  debtCount: number;
+} {
+  let count = 0;
+  let totalAmount = 0;
+  let debtCount = 0;
+
+  for (const e of entries) {
+    if (selectedIds.has(e.id)) {
+      count++;
+      totalAmount += Number(e.amount || 0);
+      if (e.mode === 'Debt') {
+        debtCount++;
+      }
+    }
+  }
+
+  return { count, totalAmount, debtCount };
+}
+
+/**
+ * Formats destination option label for select dropdowns.
+ */
+export function formatDestinationFilter(dest: string | null | undefined): string {
+  if (!dest || dest === 'All') return 'All destinations';
+  const trimmed = dest.trim();
+  if (trimmed.includes('/')) {
+    const [code, name] = trimmed.split('/');
+    return `${code} · ${name}`;
+  }
+  return trimmed;
+}
+

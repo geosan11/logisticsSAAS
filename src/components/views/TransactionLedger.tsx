@@ -67,6 +67,7 @@ import {
   Wallet,
   Building2,
   User as UserIcon,
+  MapPin,
 } from "lucide-react";
 import { QRCode } from "../QRCode";
 import TagPrintHistory from "./TagPrintHistory";
@@ -78,7 +79,7 @@ import { PartialRetrievalModal } from "./PartialRetrievalModal";
 import { CustomerWallet } from "../../lib/types";
 import { CustomerWalletPicker } from "../CustomerWalletPicker";
 import { WalletRemainderSelector } from "../WalletRemainderSelector";
-import { fetchLedgerPage, fetchLedgerTotals, fetchProfileLookup, LedgerSearchParams, LedgerCursor, LedgerEntryType, LedgerTotals } from "../../lib/ledgerSearch";
+import { fetchLedgerPage, fetchLedgerTotals, fetchProfileLookup, fetchAllLedgerRowsForExport, LedgerSearchParams, LedgerCursor, LedgerEntryType, LedgerTotals } from "../../lib/ledgerSearch";
 
 type Entry = {
   id: string;
@@ -100,21 +101,6 @@ type Entry = {
 // normalizeAirlineName's output, not the raw string, so casing/spacing
 // variants of the same airline never split across two colors), no meaning
 // attached to which color a given airline gets.
-const AIRLINE_BADGE_PALETTE: { bg: string; text: string; border: string }[] = [
-  { bg: 'rgba(59,130,246,0.15)', text: '#60a5fa', border: 'rgba(59,130,246,0.35)' },   // blue
-  { bg: 'rgba(16,185,129,0.15)', text: '#34d399', border: 'rgba(16,185,129,0.35)' },   // emerald
-  { bg: 'rgba(168,85,247,0.15)', text: '#c084fc', border: 'rgba(168,85,247,0.35)' },   // purple
-  { bg: 'rgba(236,72,153,0.15)', text: '#f472b6', border: 'rgba(236,72,153,0.35)' },   // pink
-  { bg: 'rgba(34,211,238,0.15)', text: '#22d3ee', border: 'rgba(34,211,238,0.35)' },   // cyan
-  { bg: 'rgba(163,230,53,0.15)', text: '#a3e635', border: 'rgba(163,230,53,0.35)' },   // lime
-];
-
-function hashStringToIndex(s: string, mod: number): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
-  return Math.abs(h) % mod;
-}
-
 function airlineBadgeColors(_airlineName: string) {
   return {
     bg: 'var(--color-surface-2)',
@@ -3555,10 +3541,7 @@ export const TransactionLedger = ({
     try {
       setIsExportingAll(true);
       showToast({ message: 'Fetching complete historical records from day one for Excel export...', type: 'info' });
-      const [{ downloadDailyExcel }, { fetchAllLedgerRowsForExport }] = await Promise.all([
-        import('../../lib/excelExport'),
-        import('../../lib/ledgerSearch'),
-      ]);
+      const { downloadDailyExcel } = await import('../../lib/excelExport');
 
       const { transactions: allTxs, expenses: allExps } = await fetchAllLedgerRowsForExport(
         allTimeFilterParams,
@@ -3644,17 +3627,6 @@ export const TransactionLedger = ({
           </select>
         </>
       )}
-
-      {/* General Destination filter */}
-      <select
-        value={destFilter}
-        onChange={e => setDestFilter(e.target.value)}
-        title="Filter by destination"
-        className="min-h-[44px] h-11 px-3.5 bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-full text-[12px] font-sans text-[var(--color-foreground)] focus:outline-none focus:border-[var(--color-border-strong)]"
-      >
-        <option value="All">All destinations</option>
-        {allDests.map(r => <option key={r} value={r}>{r}</option>)}
-      </select>
 
       {/* Grouped Export Dropdown Menu (Excel Current View, Excel All-Time, Airline Manifest Excel) */}
       <div className="relative" ref={exportMenuRef}>
@@ -3818,12 +3790,12 @@ export const TransactionLedger = ({
       {canAccessTab(user, 'More:DebtCollectionLog', []) && (
         <button
           type="button"
-          title="Every debt payment and cargo retrieval, one line each"
+          title="Debt collection log"
           onClick={() => { onBack(); navigate('/more/debt-collection-log'); }}
           className="min-h-[44px] h-11 px-3.5 flex items-center gap-2 bg-[var(--color-surface-1)] border border-[var(--color-border)] hover:border-[var(--color-border-strong)] rounded-full text-[var(--color-foreground)] font-sans text-[12px] font-medium transition-colors cursor-pointer"
         >
           <HandCoins size={14} className="text-[var(--color-muted)]" />
-          <span>Debt &amp; collections</span>
+          <span>Debt collection log</span>
         </button>
       )}
     </div>
@@ -3893,8 +3865,9 @@ export const TransactionLedger = ({
                       {allTimeFirstLoadInFlight ? '…' : `₦${fmt(displayTotals.cashAmount)}`}
                     </span>
                     {isAccountantOrAdmin && unverifiedCash.length > 0 && (
-                      <span className="text-[10px] font-mono tabular-nums font-semibold bg-[var(--color-warning)]/15 text-[var(--color-warning)] px-1.5 py-0.5 rounded-full">
-                        !{unverifiedCash.length}
+                      <span className="text-[10px] font-mono tabular-nums font-semibold bg-[var(--color-warning)]/15 text-[var(--color-warning)] px-1.5 py-0.5 rounded-full inline-flex items-center gap-0.5">
+                        <AlertTriangle size={9} />
+                        <span>{unverifiedCash.length}</span>
                       </span>
                     )}
                   </button>
@@ -3914,8 +3887,9 @@ export const TransactionLedger = ({
                       {allTimeFirstLoadInFlight ? '…' : `₦${fmt(displayTotals.transferAmount)}`}
                     </span>
                     {isAccountantOrAdmin && unconfirmedTransfer.length > 0 && (
-                      <span className="text-[10px] font-mono tabular-nums font-semibold bg-[var(--color-warning)]/15 text-[var(--color-warning)] px-1.5 py-0.5 rounded-full">
-                        !{unconfirmedTransfer.length}
+                      <span className="text-[10px] font-mono tabular-nums font-semibold bg-[var(--color-warning)]/15 text-[var(--color-warning)] px-1.5 py-0.5 rounded-full inline-flex items-center gap-0.5">
+                        <AlertTriangle size={9} />
+                        <span>{unconfirmedTransfer.length}</span>
                       </span>
                     )}
                   </button>
@@ -3935,8 +3909,9 @@ export const TransactionLedger = ({
                       {allTimeFirstLoadInFlight ? '…' : `₦${fmt(displayTotals.posAmount)}`}
                     </span>
                     {isAccountantOrAdmin && unconfirmedPOS.length > 0 && (
-                      <span className="text-[10px] font-mono tabular-nums font-semibold bg-[var(--color-warning)]/15 text-[var(--color-warning)] px-1.5 py-0.5 rounded-full">
-                        !{unconfirmedPOS.length}
+                      <span className="text-[10px] font-mono tabular-nums font-semibold bg-[var(--color-warning)]/15 text-[var(--color-warning)] px-1.5 py-0.5 rounded-full inline-flex items-center gap-0.5">
+                        <AlertTriangle size={9} />
+                        <span>{unconfirmedPOS.length}</span>
                       </span>
                     )}
                   </button>
@@ -3956,8 +3931,8 @@ export const TransactionLedger = ({
                       {allTimeFirstLoadInFlight ? '…' : `₦${fmt(displayTotals.debtAmount)}`}
                     </span>
                     {displayTotals.unpaidDebtCount > 0 && (
-                      <span className="text-[10px] font-mono tabular-nums font-semibold bg-[var(--color-error)]/15 text-[var(--color-error)] px-1.5 py-0.5 rounded-full">
-                        {displayTotals.unpaidDebtCount}
+                      <span className="text-[10px] font-mono tabular-nums font-semibold bg-[var(--color-error)]/15 text-[var(--color-error)] px-1.5 py-0.5 rounded-full inline-flex items-center gap-0.5">
+                        <span>{displayTotals.unpaidDebtCount}</span>
                       </span>
                     )}
                   </button>
@@ -4178,7 +4153,7 @@ export const TransactionLedger = ({
                         onClick={clearSearch}
                         aria-label="Clear search"
                         title="Clear search"
-                        className="absolute right-2 top-1/2 -translate-y-1/2 min-w-[40px] min-h-[40px] w-10 h-10 flex items-center justify-center bg-transparent border-none cursor-pointer text-[var(--color-muted)] hover:text-[var(--color-foreground)] transition-colors"
+                        className="absolute right-1 top-1/2 -translate-y-1/2 min-w-[44px] min-h-[44px] flex items-center justify-center bg-transparent border-none cursor-pointer text-[var(--color-muted)] hover:text-[var(--color-foreground)] transition-colors"
                       >
                         <X size={14} />
                       </button>
@@ -4209,8 +4184,23 @@ export const TransactionLedger = ({
                   </div>
                 </div>
 
-                {/* Filter Dropdowns (Date Range, Mode, Time) */}
+                {/* Filter Dropdowns (Destination, Date Range, Mode, Time) */}
                 <div className="flex items-center gap-2 flex-wrap">
+                  {/* Destination filter */}
+                  <div className="relative flex items-center min-h-[44px] h-11 pl-3.5 pr-7 bg-[var(--color-surface-1)] border border-[var(--color-border)] hover:border-[var(--color-border-strong)] rounded-full font-sans text-[12px] text-[var(--color-foreground)] transition-colors">
+                    <MapPin size={13} className="text-[var(--color-muted)] mr-2 shrink-0" />
+                    <select
+                      value={destFilter}
+                      onChange={e => setDestFilter(e.target.value)}
+                      title="Filter by destination"
+                      className="bg-transparent text-[var(--color-foreground)] border-none focus:outline-none cursor-pointer h-full appearance-none pr-1 font-medium"
+                    >
+                      <option value="All" className="bg-[var(--color-surface-card)]">All destinations</option>
+                      {allDests.map(r => <option key={r} value={r} className="bg-[var(--color-surface-card)]">{r}</option>)}
+                    </select>
+                    <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--color-muted)] pointer-events-none" />
+                  </div>
+
                   {/* Date range */}
                   {dateRange && onDateRangeChange && (
                     <div
@@ -4261,7 +4251,7 @@ export const TransactionLedger = ({
                               if (!allTimeEngaged) fetchAllTimeFirstPage();
                             }
                           }}
-                          className="min-w-[32px] min-h-[32px] flex items-center justify-center text-[var(--color-muted)] hover:text-[var(--color-foreground)] transition-colors p-0.5 cursor-pointer"
+                          className="min-w-[44px] min-h-[44px] flex items-center justify-center text-[var(--color-muted)] hover:text-[var(--color-foreground)] transition-colors p-1 cursor-pointer"
                         >
                           <X size={12} />
                         </button>
@@ -4533,7 +4523,7 @@ export const TransactionLedger = ({
                               const c = airlineBadgeColors((e.raw as any).airline);
                               return (
                                 <span
-                                  className="px-2 py-0.5 rounded-full text-[10px] font-sans font-medium uppercase tracking-wider border"
+                                  className="px-2 py-0.5 rounded-full text-[10px] font-sans font-medium border"
                                   style={{ background: c.bg, color: c.text, borderColor: c.border }}
                                 >
                                   {(e.raw as any).airline}
@@ -4547,7 +4537,7 @@ export const TransactionLedger = ({
                               return dest ? (
                                 <span
                                   title={dest}
-                                  className="px-2 py-0.5 rounded-full text-[10px] font-sans font-medium uppercase tracking-wider bg-[var(--color-surface-2)] text-[var(--color-foreground)] border border-[var(--color-border)]"
+                                  className="px-2 py-0.5 rounded-full text-[10px] font-sans font-medium bg-[var(--color-surface-2)] text-[var(--color-foreground)] border border-[var(--color-border)]"
                                 >
                                   {shortDest || dest}
                                 </span>
@@ -4674,9 +4664,28 @@ export const TransactionLedger = ({
                 <table className="w-full min-w-[720px] text-left border-collapse">
             <thead className="sticky top-0 z-10 bg-[var(--color-surface-card)] shadow-[0_1px_0_var(--color-border)]">
               <tr className="text-[var(--color-muted)] border-b border-[var(--color-border)] font-sans text-[11px] font-medium">
+                <th className={`${density.tableRowPadding} w-[44px] text-center`} title="Select all entries for batch actions">
+                  <label className="min-w-[44px] min-h-[44px] -my-2 flex items-center justify-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      aria-label="Select all transactions"
+                      checked={displayEntries.length > 0 && displayEntries.filter(e => e.source === 'transaction').length > 0 && displayEntries.filter(e => e.source === 'transaction').every(e => selectedDebtIds.has(e.id))}
+                      onChange={(evt) => {
+                        const txEntries = displayEntries.filter(e => e.source === 'transaction');
+                        if (evt.target.checked) {
+                          setSelectedDebtIds(new Set(txEntries.map(e => e.id)));
+                        } else {
+                          setSelectedDebtIds(new Set());
+                        }
+                      }}
+                      className="w-4 h-4 cursor-pointer accent-white"
+                    />
+                  </label>
+                </th>
                 {(isAccountantOrAdmin || !viewOnly) && (
-                  <th className={`${density.tableRowPadding} w-[48px] text-center`}>
+                  <th className={`${density.tableRowPadding} w-[44px] text-center`} title="Confirm payment">
                     <span className="sr-only">Confirm payment</span>
+                    <CheckSquare size={13} className="mx-auto text-[var(--color-muted)]" />
                   </th>
                 )}
                 {canSeePin && <th className={`${density.tableRowPadding} w-[68px]`}>Pin</th>}
@@ -4684,9 +4693,6 @@ export const TransactionLedger = ({
                 <th className={`${density.tableRowPadding} w-[84px]`}>Date</th>
                 <th className={`${density.tableRowPadding} min-w-[140px]`}>Customer / detail</th>
                 <th className={`${density.tableRowPadding} w-[84px] text-center`}>Status</th>
-                <th className={`${density.tableRowPadding} w-[48px] text-center`} title="Select entries for batch actions">
-                  <span className="sr-only">Batch select</span>
-                </th>
                 <th className={`${density.tableRowPadding} w-[100px] text-right`}>Amount</th>
                 <th className={`${density.tableRowPadding} w-[80px] text-center`}>Mode</th>
                 <th className={`${density.tableRowPadding} w-[36px] text-center`}>
@@ -4700,7 +4706,7 @@ export const TransactionLedger = ({
               {displayEntries.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={(isAccountantOrAdmin || !viewOnly) ? (canSeePin ? 10 : 9) : (canSeePin ? 9 : 8)}
+                    colSpan={8 + ((isAccountantOrAdmin || !viewOnly) ? 1 : 0) + (canSeePin ? 1 : 0)}
                     className="py-12 text-center text-[var(--color-muted)] font-sans text-[13px]"
                   >
                     No entries found matching filters.
@@ -4710,7 +4716,7 @@ export const TransactionLedger = ({
                 <>
                   {rowVirtualizer.getVirtualItems().length > 0 && (
                     <tr style={{ height: rowVirtualizer.getVirtualItems()[0].start }}>
-                      <td colSpan={(isAccountantOrAdmin || !viewOnly) ? (canSeePin ? 10 : 9) : (canSeePin ? 9 : 8)} />
+                      <td colSpan={8 + ((isAccountantOrAdmin || !viewOnly) ? 1 : 0) + (canSeePin ? 1 : 0)} />
                     </tr>
                   )}
                   {rowVirtualizer.getVirtualItems().map((virtualRow) => {
@@ -4718,7 +4724,7 @@ export const TransactionLedger = ({
                     if (e.type === 'shift-marker') {
                       return (
                         <tr key={e.id} className="bg-[var(--color-surface-1)] border-b border-[var(--color-border)]">
-                          <td colSpan={10} className="py-2.5 px-4 text-center font-sans font-medium text-[var(--color-foreground)] text-[12px]">
+                          <td colSpan={8 + ((isAccountantOrAdmin || !viewOnly) ? 1 : 0) + (canSeePin ? 1 : 0)} className="py-2.5 px-4 text-center font-sans font-medium text-[var(--color-foreground)] text-[12px]">
                             {e.name} — {e.detail}
                           </td>
                         </tr>
@@ -4742,6 +4748,26 @@ export const TransactionLedger = ({
                       e.raw?.is_debt_clearance ? 'bg-[rgba(59,130,246,0.05)]' : ''
                     }`}
                   >
+                    {/* Batch select */}
+                    <td className={`${density.tableRowPadding} text-center`} onClick={(evt) => evt.stopPropagation()}>
+                      {e.source === 'transaction' && (
+                        <label className="min-w-[44px] min-h-[44px] -my-2 flex items-center justify-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            aria-label={`Select entry ${e.id}`}
+                            checked={selectedDebtIds.has(e.id)}
+                            onChange={(evt) => {
+                              setSelectedDebtIds(prev => {
+                                const next = new Set(prev);
+                                if (evt.target.checked) next.add(e.id); else next.delete(e.id);
+                                return next;
+                              });
+                            }}
+                            className="w-4 h-4 cursor-pointer accent-white"
+                          />
+                        </label>
+                      )}
+                    </td>
                     {(isAccountantOrAdmin || !viewOnly) && (
                       <td className={density.tableRowPadding}>
                         {(e.mode === 'Cash' || e.mode === 'POS' || e.mode === 'Transfer') && isAccountantOrAdmin && !e.raw?.is_debt_clearance && (
@@ -4865,7 +4891,7 @@ export const TransactionLedger = ({
                           const c = airlineBadgeColors((e.raw as any).airline);
                           return (
                             <span
-                              className="px-2 py-0.5 rounded-full text-[10px] font-sans font-medium uppercase tracking-wider border"
+                              className="px-2 py-0.5 rounded-full text-[10px] font-sans font-medium border"
                               style={{ background: c.bg, color: c.text, borderColor: c.border }}
                             >
                               {(e.raw as any).airline}
@@ -4879,7 +4905,7 @@ export const TransactionLedger = ({
                           return dest ? (
                             <span
                               title={dest}
-                              className="px-2 py-0.5 rounded-full text-[10px] font-sans font-medium uppercase tracking-wider bg-[var(--color-surface-2)] text-[var(--color-foreground)] border border-[var(--color-border)]"
+                              className="px-2 py-0.5 rounded-full text-[10px] font-sans font-medium bg-[var(--color-surface-2)] text-[var(--color-foreground)] border border-[var(--color-border)]"
                             >
                               {shortDest || dest}
                             </span>
@@ -4935,25 +4961,6 @@ export const TransactionLedger = ({
                         {e.source === 'expense' ? 'Expense' : (e.raw?.is_debt_clearance || e.id?.startsWith('DC-')) ? 'Collection' : formatEntryTypeLabel(e.status || 'Intake')}
                       </span>
                     </td>
-                    {/* Batch select */}
-                    <td className={`${density.tableRowPadding} text-center`} onClick={(evt) => evt.stopPropagation()}>
-                      {e.source === 'transaction' && (
-                        <label className="min-w-[44px] min-h-[44px] -my-2 flex items-center justify-center cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={selectedDebtIds.has(e.id)}
-                            onChange={(evt) => {
-                              setSelectedDebtIds(prev => {
-                                const next = new Set(prev);
-                                if (evt.target.checked) next.add(e.id); else next.delete(e.id);
-                                return next;
-                              });
-                            }}
-                            className="w-4 h-4 cursor-pointer accent-white"
-                          />
-                        </label>
-                      )}
-                    </td>
                     {/* Amount */}
                     <td className={`${density.tableRowPadding} text-right font-mono tabular-nums text-[12px] whitespace-nowrap ${e.source === "expense" ? "text-[var(--color-error)] font-semibold" : "text-[var(--color-foreground)] font-semibold"}`}>
                       <div>{e.source === "expense" ? "-" : ""}₦{fmt(e.source === "expense" ? e.amount : Math.max(0, e.amount - ((e.raw as any)?.raw?.retrieved_amount || 0)))}</div>
@@ -4994,7 +5001,7 @@ export const TransactionLedger = ({
                                 evt.stopPropagation();
                                 openClearDebt(e, evt);
                               }}
-                              className="min-h-[40px] px-2.5 rounded-full bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] text-[var(--color-foreground)] border border-[var(--color-border)] transition-colors focus:outline-none flex items-center gap-1 cursor-pointer font-sans text-[11px] font-medium"
+                              className="min-h-[44px] px-3 rounded-full bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] text-[var(--color-foreground)] border border-[var(--color-border)] transition-colors focus:outline-none flex items-center gap-1 cursor-pointer font-sans text-[11px] font-medium"
                               title="Clear Outstanding Debt"
                             >
                               <HandCoins size={12} /> Clear
@@ -5129,7 +5136,7 @@ export const TransactionLedger = ({
             <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
               {/* Customer Section */}
               <section>
-                <h4 className="text-[11px] font-sans font-medium text-[var(--color-muted)] uppercase tracking-wider mb-2">Details</h4>
+                <h4 className="text-[12px] font-sans font-medium text-[var(--color-muted)] mb-2">Details</h4>
                 <div className="bg-[var(--color-surface-1)] rounded-xl p-4 border border-[var(--color-border)]">
                   <div className={`font-sans font-semibold text-base mb-1 ${viewingDetail.source === 'expense' ? 'text-[var(--color-error)]' : 'text-[var(--color-foreground)]'}`}>
                     {viewingDetail.name}
@@ -5144,7 +5151,7 @@ export const TransactionLedger = ({
                   )}
                   {viewingDetail.raw.remarks && (
                     <div className="mt-3 pt-2.5 border-t border-[var(--color-border)] flex flex-col gap-0.5">
-                      <span className="text-[11px] font-sans font-medium text-[var(--color-muted)] uppercase">Remarks</span>
+                      <span className="text-[11px] font-sans font-medium text-[var(--color-muted)]">Remarks</span>
                       <span className="text-[13px] text-[var(--color-foreground)] italic font-sans">{viewingDetail.raw.remarks}</span>
                     </div>
                   )}
@@ -5153,7 +5160,7 @@ export const TransactionLedger = ({
 
               {/* Payment Section */}
               <section>
-                <h4 className="text-[11px] font-sans font-medium text-[var(--color-muted)] uppercase tracking-wider mb-2">Payment information</h4>
+                <h4 className="text-[12px] font-sans font-medium text-[var(--color-muted)] mb-2">Payment information</h4>
                 <div className="bg-[var(--color-surface-1)] rounded-xl p-4 border border-[var(--color-border)] space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-[13px] font-sans text-[var(--color-muted)]">Amount</span>
@@ -5176,7 +5183,7 @@ export const TransactionLedger = ({
                   )}
                   {viewingDetail.mode === 'Transfer' && viewingDetail.raw.paymentNarration && (
                     <div className="flex items-center justify-between">
-                      <span className="text-[13px] font-sans text-[var(--color-muted)]">Narration Ref</span>
+                      <span className="text-[13px] font-sans text-[var(--color-muted)]">Narration reference</span>
                       <span className="text-[11px] font-mono tabular-nums bg-[var(--color-surface-2)] border border-[var(--color-border)] px-2 py-0.5 rounded-full text-[var(--color-foreground)]">{viewingDetail.raw.paymentNarration}</span>
                     </div>
                   )}
@@ -5232,7 +5239,7 @@ export const TransactionLedger = ({
                   {/* Debt-collection timeline */}
                   {Array.isArray(viewingDetail.raw?.paymentHistory) && viewingDetail.raw.paymentHistory.length > 0 && (
                     <div className="mt-2 pt-3 border-t border-[var(--color-border)] space-y-1.5">
-                      <div className="text-[11px] font-sans font-medium text-[var(--color-muted)] uppercase">Payments</div>
+                      <div className="text-[11px] font-sans font-medium text-[var(--color-muted)]">Payments</div>
                       {viewingDetail.raw.paymentHistory.map((p: any, i: number) => (
                         <div key={i} className="flex items-center justify-between text-[12px] font-sans gap-2">
                           <span className="text-[var(--color-muted)] truncate">
@@ -5250,7 +5257,7 @@ export const TransactionLedger = ({
               {/* Status Section */}
               {viewingDetail.source === 'transaction' && (
                 <section>
-                  <h4 className="text-[11px] font-sans font-medium text-[var(--color-muted)] uppercase tracking-wider mb-2">Status &amp; tracking</h4>
+                  <h4 className="text-[12px] font-sans font-medium text-[var(--color-muted)] mb-2">Status &amp; tracking</h4>
                   <div className="bg-[var(--color-surface-1)] rounded-xl p-4 border border-[var(--color-border)] flex flex-col gap-2">
                     <div className="flex items-center gap-2">
                       <div
@@ -5302,7 +5309,7 @@ export const TransactionLedger = ({
               {/* Activity History */}
               {viewingDetail.source === 'transaction' && (
                 <section className="pb-4 border-t border-[var(--color-border)] pt-3">
-                  <div className="text-[11px] font-sans font-medium text-[var(--color-muted)] uppercase tracking-wider mb-2.5">Activity history</div>
+                  <div className="text-[12px] font-sans font-medium text-[var(--color-muted)] mb-2.5">Activity history</div>
                   {txHistoryLoading ? (
                     <div className="text-[12px] font-sans text-[var(--color-muted)]">Loading…</div>
                   ) : txHistory.length === 0 ? (
@@ -5339,7 +5346,7 @@ export const TransactionLedger = ({
                 <>
                   {/* Primary Operations Row */}
                   <div className="space-y-2">
-                    <div className="text-[11px] font-sans font-medium text-[var(--color-muted)] uppercase tracking-wider">Operations</div>
+                    <div className="text-[12px] font-sans font-medium text-[var(--color-muted)]">Operations</div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       <button
                         onClick={() => setViewingQrTx(viewingDetail)}
@@ -5432,7 +5439,7 @@ export const TransactionLedger = ({
                   {/* Document Printing & PDF Row */}
                   {(user.can_print_ledger || user.role === 'super_admin') && (
                     <div className="space-y-2 pt-2.5 border-t border-[var(--color-border)]">
-                      <div className="text-[11px] font-sans font-medium text-[var(--color-muted)] uppercase tracking-wider">Printing &amp; documents</div>
+                      <div className="text-[12px] font-sans font-medium text-[var(--color-muted)]">Printing &amp; documents</div>
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                         {(viewingDetail.raw.type === 'cargo' || viewingDetail.raw.type === 'package') && (
                           <>
@@ -5514,7 +5521,7 @@ export const TransactionLedger = ({
                 </span>
               </div>
 
-              <h4 className="text-[11px] font-sans font-medium text-[var(--color-muted)] uppercase tracking-wider -mb-2">
+              <h4 className="text-[12px] font-sans font-medium text-[var(--color-muted)] -mb-2">
                 Details
               </h4>
 
@@ -6195,9 +6202,9 @@ export const TransactionLedger = ({
                     className="w-full min-h-[44px] h-11 px-3.5 bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-xl text-[var(--color-foreground)] font-sans text-[14px] focus:outline-none focus:border-[var(--color-border-strong)] disabled:opacity-60"
                   >
                     <option value="Cash">Cash</option>
-                    <option value="Transfer">Bank Transfer</option>
-                    <option value="POS">POS / Card</option>
-                    <option value="Wallet">Customer Wallet</option>
+                    <option value="Transfer">Bank transfer</option>
+                    <option value="POS">POS / card</option>
+                    <option value="Wallet">Customer wallet</option>
                   </select>
                 </div>
                 {clearDebtMode === 'Transfer' && (
@@ -6209,7 +6216,7 @@ export const TransactionLedger = ({
                       onChange={(e) => setClearDebtBank(e.target.value)}
                       className="w-full min-h-[44px] h-11 px-3.5 bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-xl text-[var(--color-foreground)] font-sans text-[14px] focus:outline-none focus:border-[var(--color-border-strong)] disabled:opacity-60"
                     >
-                      <option value="">Select Bank</option>
+                      <option value="">Select bank</option>
                       {banks.map((b) => <option key={b} value={b}>{b}</option>)}
                     </select>
                   </div>
@@ -6217,7 +6224,7 @@ export const TransactionLedger = ({
                 {clearDebtMode === 'Wallet' && (
                   <div className="space-y-1.5">
                     <label className="text-[12px] font-sans font-medium text-[var(--color-foreground)]">
-                      Customer Wallet{' '}
+                      Customer wallet{' '}
                       {clearDebtWallet
                         ? walletRem > 0
                           ? `(₦${fmt(walletPay)} wallet + ₦${fmt(walletRem)} ${clearDebtRemainderMode})`

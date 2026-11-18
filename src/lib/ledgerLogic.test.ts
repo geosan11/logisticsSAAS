@@ -13,6 +13,10 @@ import {
   summarisePaymentHistory,
   canAccessLedger,
   getDensityClasses,
+  formatAlertCountBadge,
+  isBatchSelectable,
+  summariseSelection,
+  formatDestinationFilter,
 } from './ledgerLogic';
 
 describe('Transaction Ledger Logic & Formatting (Grok UI)', () => {
@@ -217,6 +221,55 @@ describe('Transaction Ledger Logic & Formatting (Grok UI)', () => {
       assert.strictEqual(spacious.tapTargetHeight, 'min-h-[44px]');
       assert.strictEqual(compact.tableRowPadding, 'py-2 px-3');
       assert.strictEqual(spacious.tableRowPadding, 'py-3 px-4');
+    });
+  });
+
+  describe('formatAlertCountBadge', () => {
+    test('returns alert state and label when count > 0', () => {
+      assert.deepStrictEqual(formatAlertCountBadge(3), { label: '3', hasAlert: true });
+      assert.deepStrictEqual(formatAlertCountBadge(1), { label: '1', hasAlert: true });
+    });
+
+    test('returns inactive state for zero or negative counts', () => {
+      assert.deepStrictEqual(formatAlertCountBadge(0), { label: '', hasAlert: false });
+      assert.deepStrictEqual(formatAlertCountBadge(-1), { label: '', hasAlert: false });
+    });
+  });
+
+  describe('isBatchSelectable', () => {
+    test('allows transaction entries to be batch selected', () => {
+      assert.strictEqual(isBatchSelectable({ source: 'transaction' }), true);
+    });
+
+    test('disallows expenses or shift-markers from batch selection', () => {
+      assert.strictEqual(isBatchSelectable({ source: 'expense' }), false);
+      assert.strictEqual(isBatchSelectable({ source: 'shift-marker' } as any), false);
+      assert.strictEqual(isBatchSelectable(null), false);
+    });
+  });
+
+  describe('summariseSelection', () => {
+    test('calculates batch metrics correctly', () => {
+      const selected = new Set(['tx-1', 'tx-2']);
+      const entries = [
+        { id: 'tx-1', amount: 25000, mode: 'Debt', source: 'transaction' },
+        { id: 'tx-2', amount: 15000, mode: 'Transfer', source: 'transaction' },
+        { id: 'tx-3', amount: 5000, mode: 'Debt', source: 'transaction' },
+      ];
+      const summary = summariseSelection(selected, entries);
+      assert.strictEqual(summary.count, 2);
+      assert.strictEqual(summary.totalAmount, 40000);
+      assert.strictEqual(summary.debtCount, 1);
+    });
+  });
+
+  describe('formatDestinationFilter', () => {
+    test('formats destination routes and airport codes cleanly', () => {
+      assert.strictEqual(formatDestinationFilter('All'), 'All destinations');
+      assert.strictEqual(formatDestinationFilter(''), 'All destinations');
+      assert.strictEqual(formatDestinationFilter(null), 'All destinations');
+      assert.strictEqual(formatDestinationFilter('ABV/Abuja'), 'ABV · Abuja');
+      assert.strictEqual(formatDestinationFilter('LOS-KAN'), 'LOS-KAN');
     });
   });
 });
