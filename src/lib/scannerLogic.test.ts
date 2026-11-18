@@ -4,6 +4,7 @@ import {
   formatScanModeLabel,
   getScanModeDescription,
   getScanModeSublabel,
+  getScanActionLabel,
   parseScannedReference,
   formatScanResultBadge,
   calculateBatchMetrics,
@@ -39,6 +40,13 @@ describe('QR Scanner Logic & Formatting (Grok UI)', () => {
       assert.strictEqual(getScanModeSublabel('ARRIVE'), 'Cargo landed here');
       assert.strictEqual(getScanModeSublabel('DEPART'), 'Sending to carrier');
       assert.strictEqual(getScanModeSublabel('DELIVER'), 'Handover to consignee');
+    });
+
+    test('returns unambiguous action button labels for each mode', () => {
+      assert.strictEqual(getScanActionLabel('ARRIVE'), 'Log arrival');
+      assert.strictEqual(getScanActionLabel('DEPART'), 'Log departure');
+      assert.strictEqual(getScanActionLabel('DELIVER'), 'Log delivery');
+      assert.strictEqual(getScanActionLabel('' as any), 'Record scan');
     });
   });
 

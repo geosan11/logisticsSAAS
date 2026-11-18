@@ -5,10 +5,7 @@ import {
   QrCode,
   RefreshCw,
   Package,
-  Plane,
   ArrowDown,
-  ArrowUp,
-  List,
   CheckCircle,
   Bell,
   X,
@@ -32,6 +29,7 @@ import {
   formatScanModeLabel,
   getScanModeDescription,
   getScanModeSublabel,
+  getScanActionLabel,
   formatScanResultBadge,
 } from '../../lib/scannerLogic';
 import { supabase } from '../../lib/supabase';
@@ -40,7 +38,6 @@ import { useDensity } from '../../lib/useDensity';
 import { BackButton } from '../BackButton';
 
 import { ArrivalsView } from './ArrivalsView';
-import { IncomingToHub } from './IncomingToHub';
 import { ProofOfDeliveryForm } from './ProofOfDelivery';
 
 // Standard Web Audio API synthesizer for a subtle, high-pitched electronic confirmation blip
@@ -239,7 +236,6 @@ export const Scanner = ({
   const [processing, setProcessing] = useState(false);
   const [permissionDenied, setPermissionDenied] = useState(false);
   const [batchItems, setBatchItems] = useState<BatchScanItem[]>([]);
-  const [showBatch, setShowBatch] = useState(false);
   const [manualRef, setManualRef] = useState('');
   const scannerRef = useRef<any>(null);
   const processingRef = useRef(false);
@@ -282,7 +278,6 @@ export const Scanner = ({
 
   const [submittingBatch, setSubmittingBatch] = useState(false);
   const [showQueueSummary, setShowQueueSummary] = useState(false);
-  const [showIncomingView, setShowIncomingView] = useState(false);
   const [showArrivalsView, setShowArrivalsView] = useState(false);
   const [showWrongDestView, setShowWrongDestView] = useState(false);
   const [wrongDestTab, setWrongDestTab] = useState<'unresolved' | 'resolved'>('unresolved');
@@ -325,9 +320,17 @@ export const Scanner = ({
   const currentHub = user.hub;
   const batchSuccess = batchItems.filter(b => b.result.startsWith('SUCCESS')).length;
   const batchAlerts = batchItems.filter(b => !b.result.startsWith('SUCCESS') && b.result !== 'ALREADY_PROCESSED').length;
-  const successfulScans = batchItems
+  const successfulScans = (batchItems.length > 0 ? batchItems : batchQueue)
     .filter(item => item.result === 'SUCCESS_ARRIVE' || item.result === 'SUCCESS_DEPART' || item.result === 'SUCCESS_DELIVER')
     .slice(0, 10);
+
+  const sessionScansCount = batchItems.length > 0 ? batchItems.length : batchQueue.length;
+  const sessionSuccessCount = batchItems.length > 0
+    ? batchSuccess
+    : batchQueue.filter(b => b.result.startsWith('SUCCESS')).length;
+  const sessionAlertsCount = batchItems.length > 0
+    ? batchAlerts
+    : batchQueue.filter(b => !b.result.startsWith('SUCCESS') && b.result !== 'ALREADY_PROCESSED').length;
 
   const loadWrongDestAlerts = useCallback(async (tab: 'unresolved' | 'resolved') => {
     setWrongDestLoading(true);
@@ -831,10 +834,6 @@ export const Scanner = ({
     };
   }, []);
 
-  if (showIncomingView) {
-    return <IncomingToHub user={user} onBack={() => setShowIncomingView(false)} />;
-  }
-
   // Arrivals List View
   if (showArrivalsView) {
     return <ArrivalsView user={user} onBack={() => setShowArrivalsView(false)} />;
@@ -1151,7 +1150,7 @@ export const Scanner = ({
                   <div key={i} className="flex items-center justify-between p-3.5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] hover:border-[var(--color-border-strong)] transition-all gap-3 shadow-xs">
                     <div className="flex items-center gap-3 min-w-0">
                       <span className={`w-2 h-2 rounded-full shrink-0 ${
-                        item.mode === 'ARRIVE' ? 'bg-[var(--color-success)]' : item.mode === 'DEPART' ? 'bg-[var(--color-info)]' : 'bg-[var(--color-purple)]'
+                        item.mode === 'ARRIVE' ? 'bg-[var(--color-success)]' : item.mode === 'DEPART' ? 'bg-[var(--color-info)]' : 'bg-[var(--color-success)]'
                       }`} />
                       <div className="min-w-0">
                         <div className="text-[13px] font-medium text-[var(--color-foreground)] truncate">{item.name}</div>
@@ -1189,87 +1188,22 @@ export const Scanner = ({
     );
   }
 
-  // Batch list view
-  if (showBatch) {
-    return (
-      <div className="flex flex-col min-h-full bg-[var(--color-canvas)] text-[var(--color-foreground)] select-none">
-        <header className={`sticky top-0 z-20 border-b border-[var(--color-border)] px-4 sm:px-6 shrink-0 bg-[var(--color-canvas)]/95 backdrop-blur-md ${isCompact ? 'py-2.5' : 'py-3'}`}>
-          <div className="flex items-center gap-3">
-            <BackButton onClick={() => setShowBatch(false)} />
-            <div className="min-w-0">
-              <h1 className="text-[18px] sm:text-[20px] font-sans font-semibold text-[var(--color-foreground)] tracking-tight truncate">
-                Session scans
-              </h1>
-              <p className="text-[12px] font-sans text-[var(--color-muted)] truncate mt-0.5">
-                {batchItems.length} {batchItems.length === 1 ? 'scan' : 'scans'} recorded this session
-              </p>
-            </div>
-          </div>
-        </header>
-
-        <div className="p-4 sm:p-6 space-y-3 max-w-4xl mx-auto w-full pb-28">
-          {batchItems.length === 0 ? (
-            <div className="text-center py-16 text-[12px] font-sans text-[var(--color-muted)] border border-dashed border-[var(--color-border)] rounded-2xl">
-              No scans recorded yet this session.
-            </div>
-          ) : (
-            batchItems.map((item, i) => {
-              const badge = formatScanResultBadge(item.result);
-              return (
-                <div key={i} className="flex items-center justify-between p-3.5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] gap-3 shadow-xs">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className={`w-2 h-2 rounded-full shrink-0 ${
-                      badge.tone === 'success' ? 'bg-[var(--color-success)]' : badge.tone === 'info' ? 'bg-[var(--color-info)]' : 'bg-[var(--color-error)]'
-                    }`} />
-                    <div className="min-w-0">
-                      <div className="text-[13px] font-medium text-[var(--color-foreground)] truncate">{item.name}</div>
-                      <div className="text-[11px] font-mono text-[var(--color-muted)] tabular-nums">{item.ref}</div>
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <div className={`text-[11px] font-sans font-semibold ${
-                      badge.tone === 'success' ? 'text-[var(--color-success)]' : badge.tone === 'info' ? 'text-[var(--color-info)]' : 'text-[var(--color-error)]'
-                    }`}>
-                      {badge.label}
-                    </div>
-                    <div className="text-[10px] text-[var(--color-muted)] tabular-nums font-sans">{item.time}</div>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col min-h-full bg-[var(--color-canvas)] text-[var(--color-foreground)] select-none">
       {/* ── 1. Unified Quiet Header Toolbar (Sticky) ────────────────────── */}
       <header className={`sticky top-0 z-20 border-b border-[var(--color-border)] px-4 sm:px-6 shrink-0 bg-[var(--color-canvas)]/95 backdrop-blur-md ${isCompact ? 'py-2.5' : 'py-3'}`}>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="min-w-0">
-              <h1 className="text-[18px] sm:text-[20px] font-sans font-semibold text-[var(--color-foreground)] tracking-tight truncate">
-                QR Scanner
-              </h1>
-              <p className="text-[12px] font-sans text-[var(--color-muted)] truncate mt-0.5">
-                Active station: <strong className="font-medium text-[var(--color-foreground)]">{currentHub}</strong>
-              </p>
-            </div>
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-[18px] sm:text-[20px] font-sans font-semibold text-[var(--color-foreground)] tracking-tight truncate">
+              QR Scanner
+            </h1>
+            <p className="text-[12px] font-sans text-[var(--color-muted)] truncate mt-0.5">
+              Active station: <strong className="font-medium text-[var(--color-foreground)]">{currentHub}</strong>
+            </p>
           </div>
 
           {/* Quick Shortcuts Toolbar */}
-          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
-            <button
-              type="button"
-              onClick={() => window.dispatchEvent(new CustomEvent('ehi-nav', { detail: 'Incoming' }))}
-              aria-label="View incoming shipments"
-              className="min-h-[44px] h-11 px-3.5 rounded-full text-[12px] font-sans font-medium bg-[var(--color-surface-2)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] hover:border-[var(--color-border-strong)] text-[var(--color-foreground)] flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
-            >
-              <Plane size={14} className="text-[var(--color-muted)] shrink-0" />
-              <span>Incoming</span>
-            </button>
+          <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={() => setShowArrivalsView(true)}
@@ -1291,28 +1225,17 @@ export const Scanner = ({
                 <span className="w-2 h-2 rounded-full bg-[var(--color-error)] shrink-0" />
               )}
             </button>
-            {batchItems.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setShowBatch(true)}
-                aria-label="View session scans"
-                className="min-h-[44px] h-11 px-3.5 rounded-full text-[12px] font-sans font-medium bg-[var(--color-surface-2)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] hover:border-[var(--color-border-strong)] text-[var(--color-foreground)] flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
-              >
-                <List size={14} className="text-[var(--color-muted)] shrink-0" />
-                <span>History ({batchItems.length})</span>
-              </button>
-            )}
           </div>
         </div>
       </header>
 
       {/* ── 2. Scanner Main Viewport ────────────────────────────────────── */}
-      <main className="flex-1 p-4 sm:p-6 space-y-4 max-w-4xl mx-auto w-full" style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom))' }}>
+      <section aria-label="Scanner workspace" className="flex-1 p-4 sm:p-6 space-y-4 max-w-4xl mx-auto w-full" style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom))' }}>
         {/* Mode Toggle Segment: Arrive / Depart / Deliver */}
         <div className="flex bg-[var(--color-surface-1)] p-1 rounded-2xl border border-[var(--color-border)] w-full gap-1">
           {(['DEPART', 'ARRIVE', 'DELIVER'] as ScanMode[]).map((m) => {
             const active = mode === m;
-            const dotColor = m === 'ARRIVE' ? 'bg-[var(--color-success)]' : m === 'DEPART' ? 'bg-[var(--color-info)]' : 'bg-[var(--color-purple)]';
+            const dotColor = m === 'ARRIVE' ? 'bg-[var(--color-success)]' : m === 'DEPART' ? 'bg-[var(--color-info)]' : 'bg-[var(--color-success)]';
             return (
               <button
                 key={m}
@@ -1337,11 +1260,6 @@ export const Scanner = ({
             );
           })}
         </div>
-
-        {/* Operational mode description */}
-        <p className="text-[12px] font-sans text-[var(--color-muted)] text-center">
-          {getScanModeDescription(mode)}
-        </p>
 
         {/* Scan Log Option: Direct Log vs Batch Queue */}
         <div className="flex items-center justify-center pt-0.5">
@@ -1376,8 +1294,8 @@ export const Scanner = ({
           </div>
         </div>
 
-        {/* Batch Queue Status Box (when items staged) */}
-        {batchQueue.length > 0 && (
+        {/* In batch mode: show the batch queue staging card */}
+        {isBatchQueueMode && (
           <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
             <div className="min-w-0">
               <div className="flex items-center gap-2">
@@ -1389,31 +1307,61 @@ export const Scanner = ({
                 </span>
               </div>
               <p className="text-[12px] font-sans text-[var(--color-muted)] mt-0.5">
-                Scans are staged locally on this device. Review before committing to database.
+                {batchQueue.length === 0
+                  ? 'Queue is empty. Scans in this mode will be staged locally before committing.'
+                  : 'Scans are staged locally on this device. Review before committing to the database.'}
               </p>
             </div>
+            {batchQueue.length > 0 && (
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowQueueSummary(true)}
+                  className="min-h-[44px] h-11 px-4 rounded-full text-[12px] font-sans font-medium bg-[var(--color-surface-2)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] transition-colors cursor-pointer"
+                >
+                  Review queue
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleConfirmSubmitBatch()}
+                  disabled={submittingBatch}
+                  className="min-h-[44px] h-11 px-5 rounded-full text-[13px] font-sans font-semibold bg-white text-black hover:bg-neutral-200 dark:bg-white dark:text-black transition-colors cursor-pointer flex items-center gap-1.5 disabled:opacity-50 shadow-xs"
+                >
+                  {submittingBatch ? (
+                    <>
+                      <RefreshCw size={14} className="animate-spin text-black" />
+                      <span>Committing…</span>
+                    </>
+                  ) : (
+                    <span>Commit batch</span>
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* In direct log mode: compact inline reminder if uncommitted batch items exist */}
+        {!isBatchQueueMode && batchQueue.length > 0 && (
+          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-card)] px-4 py-2.5 flex items-center justify-between gap-3 text-[12px] font-sans shadow-xs">
+            <span className="text-[var(--color-muted)]">
+              <strong className="text-[var(--color-foreground)] font-medium tabular-nums">{batchQueue.length}</strong> uncommitted batch {batchQueue.length === 1 ? 'item' : 'items'} staged
+            </span>
             <div className="flex items-center gap-2 shrink-0">
               <button
                 type="button"
                 onClick={() => setShowQueueSummary(true)}
-                className="min-h-[44px] h-11 px-4 rounded-full text-[12px] font-sans font-medium bg-[var(--color-surface-2)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] transition-colors cursor-pointer"
+                className="text-[var(--color-foreground)] hover:underline font-medium cursor-pointer"
               >
-                Review queue
+                Review
               </button>
               <button
                 type="button"
                 onClick={() => handleConfirmSubmitBatch()}
                 disabled={submittingBatch}
-                className="min-h-[44px] h-11 px-5 rounded-full text-[13px] font-sans font-semibold bg-white text-black hover:bg-neutral-200 dark:bg-white dark:text-black transition-colors cursor-pointer flex items-center gap-1.5 disabled:opacity-50 shadow-xs"
+                className="px-3 py-1 rounded-full bg-white text-black font-semibold text-[11px] cursor-pointer hover:bg-neutral-200 disabled:opacity-50"
               >
-                {submittingBatch ? (
-                  <>
-                    <RefreshCw size={14} className="animate-spin text-black" />
-                    <span>Committing…</span>
-                  </>
-                ) : (
-                  <span>Commit batch</span>
-                )}
+                Commit
               </button>
             </div>
           </div>
@@ -1466,8 +1414,14 @@ export const Scanner = ({
           </div>
         )}
 
-        {/* Manual Reference Lookup Row */}
-        <div className="flex flex-col sm:flex-row gap-2">
+        {/* Manual Reference Lookup Form */}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleManualLookup();
+          }}
+          className="flex flex-col sm:flex-row gap-2"
+        >
           <div className="relative flex-1">
             <QrCode size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-muted)] pointer-events-none" />
             <input
@@ -1476,22 +1430,20 @@ export const Scanner = ({
               type="text"
               value={manualRef}
               onChange={e => setManualRef(e.target.value.toUpperCase())}
-              onKeyDown={e => e.key === 'Enter' && handleManualLookup()}
-              placeholder="Enter AWB or tag reference manually..."
-              aria-label="Enter AWB or tag reference manually"
+              placeholder="Enter waybill or package reference (e.g. AWB-LOS-9021)..."
+              aria-label="Enter waybill or package reference"
               className="w-full min-h-[44px] h-11 pl-10 pr-4 text-[13px] font-sans rounded-full bg-[var(--color-surface-1)] border border-[var(--color-border)] text-[var(--color-foreground)] placeholder:text-[var(--color-muted)] focus:outline-none focus:border-[var(--color-border-strong)] transition-colors"
             />
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <button
-              type="button"
-              onClick={handleManualLookup}
+              type="submit"
               disabled={!manualRef.trim() || processing}
-              aria-label="Look up scanned reference"
+              aria-label={getScanActionLabel(mode)}
               className="min-h-[44px] h-11 px-5 rounded-full text-[13px] font-sans font-semibold bg-white text-black hover:bg-neutral-200 dark:bg-white dark:text-black transition-colors cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
             >
               {processing && <RefreshCw size={14} className="animate-spin text-black shrink-0" />}
-              <span>{processing ? 'Looking up…' : 'Look up'}</span>
+              <span>{processing ? 'Logging…' : getScanActionLabel(mode)}</span>
             </button>
             <button
               type="button"
@@ -1508,10 +1460,10 @@ export const Scanner = ({
               Track
             </button>
           </div>
-        </div>
+        </form>
 
-        {/* Telemetry Counter Cards (when session items exist) */}
-        {batchItems.length > 0 && (
+        {/* Telemetry Counter Cards (when session or batch items exist) */}
+        {sessionScansCount > 0 && (
           <div className="grid grid-cols-3 gap-3">
             <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] p-3 sm:p-3.5 text-center shadow-xs">
               <div className="flex items-center justify-center gap-1.5 mb-0.5">
@@ -1519,22 +1471,22 @@ export const Scanner = ({
                 <span className="text-[11px] font-sans text-[var(--color-muted)]">Logged</span>
               </div>
               <div className="text-[20px] font-sans font-bold text-[var(--color-foreground)] tabular-nums">
-                {batchSuccess}
+                {sessionSuccessCount}
               </div>
             </div>
             <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] p-3 sm:p-3.5 text-center shadow-xs">
               <div className="flex items-center justify-center gap-1.5 mb-0.5">
-                <span className={`w-2 h-2 rounded-full ${batchAlerts > 0 ? 'bg-[var(--color-error)]' : 'bg-[var(--color-muted)]'}`} />
+                <span className={`w-2 h-2 rounded-full ${sessionAlertsCount > 0 ? 'bg-[var(--color-error)]' : 'bg-[var(--color-muted)]'}`} />
                 <span className="text-[11px] font-sans text-[var(--color-muted)]">Alerts</span>
               </div>
-              <div className={`text-[20px] font-sans font-bold tabular-nums ${batchAlerts > 0 ? 'text-[var(--color-error)]' : 'text-[var(--color-foreground)]'}`}>
-                {batchAlerts}
+              <div className={`text-[20px] font-sans font-bold tabular-nums ${sessionAlertsCount > 0 ? 'text-[var(--color-error)]' : 'text-[var(--color-foreground)]'}`}>
+                {sessionAlertsCount}
               </div>
             </div>
             <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] p-3 sm:p-3.5 text-center shadow-xs">
               <div className="text-[11px] font-sans text-[var(--color-muted)] mb-0.5">Total scans</div>
               <div className="text-[20px] font-sans font-bold text-[var(--color-foreground)] tabular-nums">
-                {batchItems.length}
+                {sessionScansCount}
               </div>
             </div>
           </div>
@@ -1551,15 +1503,6 @@ export const Scanner = ({
                 Last 10
               </span>
             </div>
-            {batchItems.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setShowBatch(true)}
-                className="text-[12px] font-sans text-[var(--color-muted)] hover:text-[var(--color-foreground)] transition-colors cursor-pointer"
-              >
-                View session ({batchItems.length})
-              </button>
-            )}
           </div>
 
           {successfulScans.length === 0 ? (
@@ -1605,7 +1548,7 @@ export const Scanner = ({
             </div>
           )}
         </div>
-      </main>
+      </section>
 
       {/* ── 3. Delivery PIN Verification Modal ──────────────────────────── */}
       {pendingDelivery && createPortal(

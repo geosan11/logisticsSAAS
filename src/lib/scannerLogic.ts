@@ -49,6 +49,22 @@ export function getScanModeSublabel(mode: ScanMode): string {
 }
 
 /**
+ * Returns unambiguous operational action button label based on scan mode.
+ */
+export function getScanActionLabel(mode: ScanMode): string {
+  switch (mode) {
+    case 'ARRIVE':
+      return 'Log arrival';
+    case 'DEPART':
+      return 'Log departure';
+    case 'DELIVER':
+      return 'Log delivery';
+    default:
+      return 'Record scan';
+  }
+}
+
+/**
  * Normalizes and extracts reference code from raw scanner inputs,
  * handling URLs, JSON wrappers, or plain barcode strings.
  */
