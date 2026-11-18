@@ -5,6 +5,7 @@ import {
   formatOutboundSpecs,
   formatAwbDisplay,
   formatRouteDisplay,
+  formatDestinationLabel,
   filterOutboundArrivals,
   calculateOutboundMetrics,
   formatOutboundTelemetry,
@@ -114,6 +115,29 @@ describe('Outbound Arrivals Pure Logic & Helpers', () => {
       assert.strictEqual(formatRouteDisplay('Ibadan Drop Point'), 'Ibadan Drop Point');
       assert.strictEqual(formatRouteDisplay(''), 'Direct route');
       assert.strictEqual(formatRouteDisplay(null), 'Direct route');
+    });
+  });
+
+  describe('formatDestinationLabel', () => {
+    it('identifies transit routes with arrows and assigns "Route" label', () => {
+      const res = formatDestinationLabel('Lagos Hub -> Kano Station');
+      assert.strictEqual(res.isRoute, true);
+      assert.strictEqual(res.displayText, 'Lagos Hub → Kano Station');
+      assert.strictEqual(res.typeLabel, 'Route');
+    });
+
+    it('identifies single station or office drop-points and assigns "Destination" label', () => {
+      const res = formatDestinationLabel('Abuja Central Office');
+      assert.strictEqual(res.isRoute, false);
+      assert.strictEqual(res.displayText, 'Abuja Central Office');
+      assert.strictEqual(res.typeLabel, 'Destination');
+    });
+
+    it('handles null, undefined, or empty destination inputs gracefully', () => {
+      const res = formatDestinationLabel(null);
+      assert.strictEqual(res.isRoute, false);
+      assert.strictEqual(res.displayText, 'Direct route');
+      assert.strictEqual(res.typeLabel, 'Destination');
     });
   });
 
@@ -293,14 +317,14 @@ describe('Outbound Arrivals Pure Logic & Helpers', () => {
   });
 
   describe('formatOutboundTelemetry', () => {
-    it('formats unfiltered telemetry', () => {
+    it('formats unfiltered telemetry with truthful metrics', () => {
       const res = formatOutboundTelemetry(12, 12, 150, 420.5, false);
       assert.strictEqual(res.arrivedText, '12 confirmed arrived');
       assert.strictEqual(res.piecesText, '150 pcs');
       assert.strictEqual(res.weightText, '420.5 kg');
     });
 
-    it('formats filtered telemetry', () => {
+    it('formats filtered telemetry displaying active matching pieces and weight', () => {
       const res = formatOutboundTelemetry(3, 12, 45, 90, true);
       assert.strictEqual(res.arrivedText, '3 of 12 confirmed');
       assert.strictEqual(res.piecesText, '45 pcs');

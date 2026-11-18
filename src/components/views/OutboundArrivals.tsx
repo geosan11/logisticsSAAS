@@ -18,7 +18,7 @@ import {
   timeSince,
   formatOutboundSpecs,
   formatAwbDisplay,
-  formatRouteDisplay,
+  formatDestinationLabel,
   filterOutboundArrivals,
   calculateOutboundMetrics,
   formatOutboundTelemetry,
@@ -146,9 +146,13 @@ export const OutboundArrivals = ({ user, onBack }: { user: User; onBack?: () => 
     return filterOutboundArrivals(rows, searchQuery, sourceFilter);
   }, [rows, searchQuery, sourceFilter]);
 
-  const metrics = useMemo(() => {
+  const totalMetrics = useMemo(() => {
     return calculateOutboundMetrics(rows);
   }, [rows]);
+
+  const filteredMetrics = useMemo(() => {
+    return calculateOutboundMetrics(filteredRows);
+  }, [filteredRows]);
 
   const isFiltered = Boolean(searchQuery.trim() || sourceFilter !== 'all');
 
@@ -156,11 +160,11 @@ export const OutboundArrivals = ({ user, onBack }: { user: User; onBack?: () => 
     return formatOutboundTelemetry(
       filteredRows.length,
       rows.length,
-      metrics.totalPieces,
-      metrics.totalWeight,
+      isFiltered ? filteredMetrics.totalPieces : totalMetrics.totalPieces,
+      isFiltered ? filteredMetrics.totalWeight : totalMetrics.totalWeight,
       isFiltered
     );
-  }, [filteredRows.length, rows.length, metrics.totalPieces, metrics.totalWeight, isFiltered]);
+  }, [filteredRows.length, rows.length, filteredMetrics, totalMetrics, isFiltered]);
 
   const handleCopyIdentifier = useCallback((text: string, id: string) => {
     if (!text) return;
@@ -201,9 +205,9 @@ export const OutboundArrivals = ({ user, onBack }: { user: User; onBack?: () => 
   };
 
   return (
-    <div className="flex flex-col h-full bg-[var(--color-canvas)] text-[var(--color-foreground)] overflow-hidden select-none">
-      {/* ── 1. Unified Quiet Header Toolbar ──────────────────────────── */}
-      <header className={`border-b border-[var(--color-border)] px-4 sm:px-6 shrink-0 bg-[var(--color-canvas)] ${isCompact ? 'py-2.5' : 'py-3'}`}>
+    <div className="flex flex-col min-h-full bg-[var(--color-canvas)] text-[var(--color-foreground)] select-none">
+      {/* ── 1. Unified Quiet Header Toolbar (Sticky) ────────────────────── */}
+      <header className={`sticky top-0 z-20 border-b border-[var(--color-border)] px-4 sm:px-6 shrink-0 bg-[var(--color-canvas)]/95 backdrop-blur-md ${isCompact ? 'py-2.5' : 'py-3'}`}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             {onBack && <BackButton onClick={onBack} />}
@@ -273,17 +277,18 @@ export const OutboundArrivals = ({ user, onBack }: { user: User; onBack?: () => 
               onClick={handleExportCsv}
               disabled={rows.length === 0}
               aria-label="Export confirmed arrivals to CSV"
-              className="min-h-[44px] h-11 px-4 sm:px-5 rounded-full text-[13px] font-sans font-semibold bg-white text-black hover:bg-neutral-200 dark:bg-white dark:text-black shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="min-h-[44px] h-11 px-3.5 sm:px-5 rounded-full text-[13px] font-sans font-semibold bg-white text-black hover:bg-neutral-200 dark:bg-white dark:text-black shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Download size={14} className="shrink-0" />
-              <span>Export CSV</span>
+              <span className="hidden sm:inline">Export CSV</span>
+              <span className="sm:hidden">Export</span>
             </button>
           </div>
         </div>
       </header>
 
-      {/* ── 2. KPI Summary Telemetry Bar (No Duplication) ─────────────── */}
-      <div className={`bg-[var(--color-surface-1)] border-b border-[var(--color-border)] px-4 sm:px-6 flex flex-col md:flex-row md:items-center justify-between text-[12px] font-sans text-[var(--color-muted)] gap-3 shrink-0 ${isCompact ? 'py-2' : 'py-2.5'}`}>
+      {/* ── 2. KPI Summary Telemetry Bar (Sticky) ───────────────────────── */}
+      <div className={`sticky top-[57px] sm:top-[69px] z-10 bg-[var(--color-surface-1)]/95 backdrop-blur-md border-b border-[var(--color-border)] px-4 sm:px-6 flex flex-col md:flex-row md:items-center justify-between text-[12px] font-sans text-[var(--color-muted)] gap-3 shrink-0 ${isCompact ? 'py-2' : 'py-2.5'}`}>
         <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
           <span className="inline-flex items-center gap-1.5 font-medium text-[var(--color-foreground)]">
             <span className="w-2 h-2 rounded-full bg-[var(--color-success)]"></span>
@@ -291,7 +296,7 @@ export const OutboundArrivals = ({ user, onBack }: { user: User; onBack?: () => 
           </span>
           <span className="text-[var(--color-border-strong)] hidden sm:inline">·</span>
           <div className="flex items-center gap-1.5">
-            <span>Total:</span>
+            <span>{isFiltered ? 'Active:' : 'Total:'}</span>
             <span className="tabular-nums font-mono font-medium text-[var(--color-foreground)]">
               {telemetry.piecesText}
             </span>
@@ -314,7 +319,7 @@ export const OutboundArrivals = ({ user, onBack }: { user: User; onBack?: () => 
             }`}
           >
             <span>All</span>
-            <span className="tabular-nums font-mono text-[12px] opacity-80">({metrics.totalCount})</span>
+            <span className="tabular-nums font-mono text-[12px] opacity-80">({totalMetrics.totalCount})</span>
           </button>
           <button
             type="button"
@@ -326,7 +331,7 @@ export const OutboundArrivals = ({ user, onBack }: { user: User; onBack?: () => 
             }`}
           >
             <span>Air Cargo</span>
-            <span className="tabular-nums font-mono text-[12px] opacity-80">({metrics.cargoCount})</span>
+            <span className="tabular-nums font-mono text-[12px] opacity-80">({totalMetrics.cargoCount})</span>
           </button>
           <button
             type="button"
@@ -338,13 +343,13 @@ export const OutboundArrivals = ({ user, onBack }: { user: User; onBack?: () => 
             }`}
           >
             <span>Packages</span>
-            <span className="tabular-nums font-mono text-[12px] opacity-80">({metrics.packageCount})</span>
+            <span className="tabular-nums font-mono text-[12px] opacity-80">({totalMetrics.packageCount})</span>
           </button>
         </div>
       </div>
 
       {/* ── 3. Content Stream (Density Aware) ────────────────────────── */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1">
         <div className={`max-w-7xl mx-auto ${isCompact ? 'p-3 sm:p-4 space-y-2' : 'p-4 sm:p-6 space-y-3.5'}`}>
           {loading ? (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
@@ -355,7 +360,7 @@ export const OutboundArrivals = ({ user, onBack }: { user: User; onBack?: () => 
             </div>
           ) : rows.length === 0 ? (
             /* Empty State: Nothing dispatched has arrived yet */
-            <div className="flex flex-col items-center justify-center py-16 px-4 text-center border border-dashed border-[var(--color-border)] rounded-2xl bg-[var(--color-surface-card)]">
+            <div className="flex flex-col items-center justify-center py-16 px-4 text-center border border-[var(--color-border)] rounded-2xl bg-[var(--color-surface-card)]">
               <div className="w-12 h-12 rounded-full bg-[var(--color-surface-2)] border border-[var(--color-border)] flex items-center justify-center mb-3">
                 <CheckCircle2 size={22} className="text-[var(--color-muted)]" />
               </div>
@@ -371,7 +376,7 @@ export const OutboundArrivals = ({ user, onBack }: { user: User; onBack?: () => 
                 type="button"
                 onClick={fetchArrivals}
                 aria-label="Refresh outbound arrivals"
-                className="min-h-[44px] h-11 px-4 rounded-full text-[13px] font-sans font-medium bg-[var(--color-surface-2)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] flex items-center gap-1.5 transition-colors cursor-pointer"
+                className="min-h-[44px] h-11 px-5 rounded-full text-[13px] font-sans font-medium bg-[var(--color-surface-2)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
                 <span>Refresh list</span>
@@ -379,7 +384,7 @@ export const OutboundArrivals = ({ user, onBack }: { user: User; onBack?: () => 
             </div>
           ) : filteredRows.length === 0 ? (
             /* Filter Empty State */
-            <div className="flex flex-col items-center justify-center py-16 px-4 text-center border border-dashed border-[var(--color-border)] rounded-2xl bg-[var(--color-surface-card)]">
+            <div className="flex flex-col items-center justify-center py-16 px-4 text-center border border-[var(--color-border)] rounded-2xl bg-[var(--color-surface-card)]">
               <div className="w-12 h-12 rounded-full bg-[var(--color-surface-2)] border border-[var(--color-border)] flex items-center justify-center mb-3">
                 <Search size={22} className="text-[var(--color-muted)]" />
               </div>
@@ -405,7 +410,7 @@ export const OutboundArrivals = ({ user, onBack }: { user: User; onBack?: () => 
             filteredRows.map((r) => {
               const specs = formatOutboundSpecs(r.pcs, r.kg);
               const awbFormatted = formatAwbDisplay(r.awb);
-              const routeFormatted = formatRouteDisplay(r.destinationLabel);
+              const destInfo = formatDestinationLabel(r.destinationLabel);
               const isRefCopied = copiedId === `${r.key}-ref`;
               const isAwbCopied = copiedId === `${r.key}-awb`;
 
@@ -417,31 +422,36 @@ export const OutboundArrivals = ({ user, onBack }: { user: User; onBack?: () => 
                   }`}
                 >
                   <div className="space-y-2 min-w-0 flex-1 w-full">
-                    {/* Primary Header Row: Customer Name, Source Badge, and Route */}
+                    {/* Primary Header Row: Customer Name, Source & Airline Badges, and Route/Destination */}
                     <div className="flex items-center justify-between gap-2 flex-wrap">
                       <div className="flex items-center gap-2 flex-wrap min-w-0">
                         <span className="text-[15px] sm:text-[16px] font-semibold text-[var(--color-foreground)] font-sans tracking-tight truncate">
                           {r.customerName}
                         </span>
                         <span className="px-2 py-0.5 rounded-full text-[11px] font-sans font-medium bg-[var(--color-surface-2)] text-[var(--color-muted)] border border-[var(--color-border)]">
-                          {r.source === 'Cargo' ? 'Air Cargo' : r.source === 'Package' ? 'Package' : 'Legacy'}
+                          {r.source === 'Cargo' ? 'Air Cargo' : r.source === 'Package' ? 'Package' : 'Charter'}
                         </span>
+                        {r.airline && (
+                          <span className="px-2 py-0.5 rounded-full text-[11px] font-sans font-medium bg-[var(--color-surface-2)] text-[var(--color-foreground)] border border-[var(--color-border)]">
+                            {r.airline}
+                          </span>
+                        )}
                       </div>
                       <div className="text-[13px] font-sans font-medium text-[var(--color-foreground)] flex items-center gap-1.5">
-                        <span className="text-[var(--color-muted)] text-[12px]">Route:</span>
-                        <span>{routeFormatted}</span>
+                        <span className="text-[var(--color-muted)] text-[12px]">{destInfo.typeLabel}:</span>
+                        <span className="truncate">{destInfo.displayText}</span>
                       </div>
                     </div>
 
-                    {/* Identifiers & Tactile Copy Row: Entry Ref (44px) + AWB Tag (44px) + Airline */}
+                    {/* Identifiers Tier: Tactile 44px Copy Buttons for Entry Ref + AWB Tag */}
                     <div className="flex items-center gap-2 flex-wrap text-[12px] font-sans text-[var(--color-muted)]">
                       {/* Entry Ref with 44px hit target */}
                       <button
                         type="button"
                         onClick={() => handleCopyIdentifier(r.entryRef, `${r.key}-ref`)}
-                        title="Click to copy entry ref"
+                        title="Click to copy entry reference"
                         aria-label={`Copy entry reference ${r.entryRef}`}
-                        className="min-h-[44px] h-11 inline-flex items-center gap-2 px-3 rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] transition-colors cursor-pointer group"
+                        className="min-h-[44px] h-11 inline-flex items-center gap-2 px-3.5 rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] transition-colors cursor-pointer group"
                       >
                         <span className="text-[11px] font-sans text-[var(--color-muted)]">Ref:</span>
                         <span className="font-mono tabular-nums font-medium text-[13px]">{r.entryRef}</span>
@@ -459,7 +469,7 @@ export const OutboundArrivals = ({ user, onBack }: { user: User; onBack?: () => 
                           onClick={() => handleCopyIdentifier(r.awb || '', `${r.key}-awb`)}
                           title="Click to copy AWB tag"
                           aria-label={`Copy AWB tag ${awbFormatted}`}
-                          className="min-h-[44px] h-11 inline-flex items-center gap-2 px-3 rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] transition-colors cursor-pointer group"
+                          className="min-h-[44px] h-11 inline-flex items-center gap-2 px-3.5 rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] transition-colors cursor-pointer group"
                         >
                           <span className="text-[11px] font-sans text-[var(--color-muted)]">AWB:</span>
                           <span className="font-mono tabular-nums font-medium text-[13px]">{awbFormatted}</span>
@@ -470,40 +480,25 @@ export const OutboundArrivals = ({ user, onBack }: { user: User; onBack?: () => 
                           )}
                         </button>
                       ) : null}
-
-                      {r.airline && (
-                        <span className="px-2.5 py-1 rounded-full text-[12px] font-sans bg-[var(--color-surface-2)] text-[var(--color-muted)] border border-[var(--color-border)]">
-                          {r.airline}
-                        </span>
-                      )}
                     </div>
 
-                    {/* Cargo Physical Specs Row: Pieces, Weight, Content Type */}
-                    <div className="flex items-center gap-3 text-[12px] font-sans text-[var(--color-muted)] flex-wrap pt-0.5">
-                      <div className="flex items-center gap-1.5">
-                        <span>Pieces:</span>
-                        <span className="tabular-nums font-mono font-medium text-[var(--color-foreground)]">
-                          {specs.pcsStr}
-                        </span>
-                      </div>
+                    {/* Cargo Physical Specs Row: Pieces · Weight · Contents (Zero stutter/repetition) */}
+                    <div className="flex items-center gap-2 text-[12px] font-sans text-[var(--color-muted)] flex-wrap pt-0.5">
+                      <span className="tabular-nums font-mono font-medium text-[var(--color-foreground)]">
+                        {specs.pcsStr}
+                      </span>
                       {r.kg ? (
                         <>
                           <span className="text-[var(--color-border-strong)]">·</span>
-                          <div className="flex items-center gap-1.5">
-                            <span>Weight:</span>
-                            <span className="tabular-nums font-mono font-medium text-[var(--color-foreground)]">
-                              {specs.kgStr}
-                            </span>
-                          </div>
+                          <span className="tabular-nums font-mono font-medium text-[var(--color-foreground)]">
+                            {specs.kgStr}
+                          </span>
                         </>
                       ) : null}
                       <span className="text-[var(--color-border-strong)]">·</span>
-                      <div className="flex items-center gap-1.5 truncate">
-                        <span>Contents:</span>
-                        <span className="text-[var(--color-foreground)] font-medium truncate">
-                          {r.contentType || 'General Goods'}
-                        </span>
-                      </div>
+                      <span className="text-[var(--color-foreground)] font-medium truncate">
+                        {r.contentType || 'General Goods'}
+                      </span>
                     </div>
                   </div>
 
