@@ -109,6 +109,25 @@ describe('Flight Radar Logic & Formatting (Grok UI)', () => {
       assert.strictEqual(matchesFlightSearch('7120', 'P4 7120', 'Air Peace'), true);
       assert.strictEqual(matchesFlightSearch('9999', 'P4 7120', 'Air Peace'), false);
     });
+
+    test('matches multi-token search across flight, airline, and route', () => {
+      assert.strictEqual(matchesFlightSearch('peace abv', 'P4 7120', 'Air Peace', 'LOS -> ABV'), true);
+      assert.strictEqual(matchesFlightSearch('P4 Abuja', 'P4 7120', 'Air Peace', 'LOS -> ABV'), false); // 'Abuja' not in code ABV
+      assert.strictEqual(matchesFlightSearch('p4 abv', 'P4 7120', 'Air Peace', 'LOS -> ABV'), true);
+      assert.strictEqual(matchesFlightSearch('ibom uyo', 'QI 0504', 'Ibom Air', 'LOS -> UYO'), true);
+      assert.strictEqual(matchesFlightSearch('peace kan', 'P4 7120', 'Air Peace', 'LOS -> ABV'), false);
+    });
+
+    test('matches search by shipment AWB and consignee name', () => {
+      const entries = [
+        { type: 'cargo', id: 'CRG-01', awb: 'AWB-LOS-9021', name: 'Dangote Parts' },
+        { type: 'cargo', id: 'CRG-02', awb: 'AWB-LOS-9022', name: 'Federal High Court Docs' },
+      ];
+      assert.strictEqual(matchesFlightSearch('dangote', 'P4 7120', 'Air Peace', 'LOS -> ABV', entries), true);
+      assert.strictEqual(matchesFlightSearch('9021', 'P4 7120', 'Air Peace', 'LOS -> ABV', entries), true);
+      assert.strictEqual(matchesFlightSearch('peace dangote', 'P4 7120', 'Air Peace', 'LOS -> ABV', entries), true);
+      assert.strictEqual(matchesFlightSearch('telecom', 'P4 7120', 'Air Peace', 'LOS -> ABV', entries), false);
+    });
   });
 
   describe('fmtFlightTime & fmtFlightDateTime', () => {
@@ -300,6 +319,19 @@ describe('Flight Radar Logic & Formatting (Grok UI)', () => {
       assert.strictEqual(enroute.items.length, 1);
       assert.strictEqual(enroute.items[0].flightNumber, 'QI 0504');
       assert.strictEqual(attention.items.length, 0);
+    });
+
+    test('filters groups with multi-token route and airline search', () => {
+      // "peace abv" matches P4 7120 on LOS -> ABV
+      const groups = groupFlights(mockFlights, 'peace abv');
+      const attention = groups.find(g => g.id === 'attention')!;
+      assert.strictEqual(attention.items.length, 1);
+      assert.strictEqual(attention.items[0].flightNumber, 'P4 7120');
+
+      // "green ilr" matches Q9 302
+      const landed = groupFlights(mockFlights, 'green ilr').find(g => g.id === 'landed')!;
+      assert.strictEqual(landed.items.length, 1);
+      assert.strictEqual(landed.items[0].flightNumber, 'Q9 302');
     });
 
     test('partitions national flights correctly', () => {

@@ -9,7 +9,7 @@ import { Modal } from '../Modal';
 import { BackButton } from '../BackButton';
 import { Spinner } from '../ui';
 import { getAirportCoordinate } from '../../lib/airportCoordinates';
-import { Radar, RefreshCw, Plane, Package2, Search, X, Check } from 'lucide-react';
+import { Radar, RefreshCw, Plane, Package2, Search, X, Check, Copy } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Polyline, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -223,7 +223,7 @@ function FlightCard({
   return (
     <button
       onClick={onOpen}
-      className={`w-full text-left rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] hover:bg-[var(--color-surface-hover)] hover:border-[var(--color-border-strong)] transition-all min-h-[44px] flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 ${
+      className={`w-full text-left rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] hover:bg-[var(--color-surface-hover)] hover:border-[var(--color-border-strong)] focus-visible:ring-1 focus-visible:ring-white/40 focus:outline-none transition-all min-h-[44px] flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 ${
         isCompact ? 'p-3 sm:p-3.5' : 'p-4 sm:p-4.5'
       }`}
     >
@@ -278,7 +278,7 @@ function NationalFlightCard({
   return (
     <button
       onClick={onOpen}
-      className={`w-full text-left rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] hover:bg-[var(--color-surface-hover)] hover:border-[var(--color-border-strong)] transition-all min-h-[44px] flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 ${
+      className={`w-full text-left rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] hover:bg-[var(--color-surface-hover)] hover:border-[var(--color-border-strong)] focus-visible:ring-1 focus-visible:ring-white/40 focus:outline-none transition-all min-h-[44px] flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 ${
         isCompact ? 'p-3 sm:p-3.5' : 'p-4 sm:p-4.5'
       }`}
     >
@@ -430,111 +430,130 @@ export const FlightRadar = ({ user, onBack }: { user: User; onBack: () => void }
   const selectedStatus = effectiveStatus(selected?.status);
 
   return (
-    <div className="flex flex-col min-h-full bg-[var(--color-canvas)] text-[var(--color-foreground)] select-none">
-      {/* Top Header & Quiet Toolbar (Sticky) */}
-      <header className={`sticky top-0 z-20 border-b border-[var(--color-border)] px-4 sm:px-6 shrink-0 bg-[var(--color-canvas)]/95 backdrop-blur-md ${isCompact ? 'py-2.5' : 'py-3'}`}>
-        <div className="flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
-          <div className="flex items-center gap-3 min-w-0">
-            {onBack && <BackButton onClick={onBack} />}
-            <div className="min-w-0">
-              <h1 className="text-[18px] sm:text-[20px] font-sans font-semibold text-[var(--color-foreground)] tracking-tight truncate">
-                Flight Radar
-              </h1>
-              <p className="text-[12px] font-sans text-[var(--color-muted)] truncate">
-                Live flight telemetry and cargo tracking
-              </p>
+    <div className="flex flex-col min-h-full bg-[var(--color-canvas)] text-[var(--color-foreground)]">
+      {/* ── 1. Unified Sticky Header & Controls Bar ──────────────────────── */}
+      <div className="sticky top-0 z-20 bg-[var(--color-canvas)]/95 backdrop-blur-md border-b border-[var(--color-border)]">
+        {/* Top Header & Quiet Toolbar */}
+        <header className={`px-4 sm:px-6 shrink-0 ${isCompact ? 'py-2.5' : 'py-3'}`}>
+          <div className="flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
+            <div className="flex items-center gap-3 min-w-0">
+              {onBack && <BackButton onClick={onBack} />}
+              <div className="min-w-0">
+                <h1 className="text-[18px] sm:text-[20px] font-sans font-semibold text-[var(--color-foreground)] tracking-tight truncate">
+                  Flight Radar
+                </h1>
+                <p className="text-[12px] font-sans text-[var(--color-muted)] truncate">
+                  Live flight telemetry and cargo tracking
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              {date !== lagosBusinessDate() && (
+                <button
+                  onClick={() => setDate(lagosBusinessDate())}
+                  aria-label="Jump to today"
+                  className="min-h-[44px] h-11 px-3.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] text-[12px] font-sans font-medium text-[var(--color-foreground)] transition-colors shrink-0"
+                >
+                  Today
+                </button>
+              )}
+              <input
+                type="date"
+                value={date}
+                onChange={e => setDate(e.target.value)}
+                aria-label="Select date"
+                className="min-h-[44px] h-11 px-3.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-1)] text-[13px] font-sans text-[var(--color-foreground)] tabular-nums focus:outline-none focus:ring-1 focus:ring-white/20"
+              />
+              <button
+                onClick={tab === 'mine' ? fetchBoard : fetchNationalBoard}
+                aria-label="Refresh flights"
+                title="Refresh flights"
+                className="min-h-[44px] min-w-[44px] h-11 w-11 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] text-[var(--color-muted)] hover:text-[var(--color-foreground)] flex items-center justify-center transition-colors shrink-0"
+              >
+                <RefreshCw
+                  size={15}
+                  className={(tab === 'mine' ? loading : nationalLoading) ? 'animate-spin' : ''}
+                />
+              </button>
             </div>
           </div>
+        </header>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <input
-              type="date"
-              value={date}
-              onChange={e => setDate(e.target.value)}
-              aria-label="Select date"
-              className="min-h-[44px] h-11 px-3.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-1)] text-[13px] font-sans text-[var(--color-foreground)] tabular-nums focus:outline-none focus:ring-1 focus:ring-white/20"
+        {/* Sub-bar: Segmented Tabs & Instant Search */}
+        <div className={`border-t border-[var(--color-border)] px-4 sm:px-6 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-[var(--color-surface-1)]/50 ${isCompact ? 'py-2' : 'py-2.5'}`}>
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="min-h-[48px] p-1 rounded-full bg-[var(--color-surface-2)] border border-[var(--color-border)] inline-flex items-center gap-1 shrink-0">
+              <button
+                onClick={() => setTab('mine')}
+                className={`min-h-[44px] h-11 px-5 rounded-full text-[13px] font-sans font-medium transition-colors ${
+                  tab === 'mine'
+                    ? 'bg-white text-black dark:bg-white dark:text-black shadow-xs font-semibold'
+                    : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
+                }`}
+              >
+                My shipments
+              </button>
+              <button
+                onClick={() => setTab('national')}
+                className={`min-h-[44px] h-11 px-5 rounded-full text-[13px] font-sans font-medium transition-colors ${
+                  tab === 'national'
+                    ? 'bg-white text-black dark:bg-white dark:text-black shadow-xs font-semibold'
+                    : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
+                }`}
+              >
+                Nigeria today
+              </button>
+            </div>
+
+            {tab === 'national' && nationalCoverage && (
+              <span className="text-[12px] font-sans text-[var(--color-muted)] tabular-nums">
+                {nationalCoverage.cached} of {nationalCoverage.total} airports cached
+              </span>
+            )}
+
+            {tab === 'national' && canRefreshNational && (
+              <button
+                onClick={refreshAllAirports}
+                disabled={nationalRefreshing}
+                className="min-h-[44px] h-11 px-4 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-hover)] text-[12px] font-sans font-medium text-[var(--color-foreground)] flex items-center gap-2 disabled:opacity-50 transition-colors"
+              >
+                <RefreshCw size={13} className={nationalRefreshing ? 'animate-spin' : ''} />
+                <span>{nationalRefreshing ? 'Refreshing…' : 'Refresh all airports'}</span>
+              </button>
+            )}
+          </div>
+
+          {/* Search Input with Keyboard Escape Clear */}
+          <div className="relative flex-1 md:max-w-xs min-w-[200px]">
+            <Search
+              size={15}
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-muted)] pointer-events-none"
             />
-            <button
-              onClick={tab === 'mine' ? fetchBoard : fetchNationalBoard}
-              aria-label="Refresh flights"
-              title="Refresh flights"
-              className="min-h-[44px] min-w-[44px] h-11 w-11 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] text-[var(--color-muted)] hover:text-[var(--color-foreground)] flex items-center justify-center transition-colors"
-            >
-              <RefreshCw
-                size={15}
-                className={(tab === 'mine' ? loading : nationalLoading) ? 'animate-spin' : ''}
-              />
-            </button>
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Escape') {
+                  setSearch('');
+                  (e.target as HTMLElement).blur();
+                }
+              }}
+              placeholder="Search flights, routes, AWBs..."
+              aria-label="Search flights, routes, AWBs"
+              className="w-full min-h-[44px] h-11 pl-10 pr-10 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-2)] text-[13px] font-sans text-[var(--color-foreground)] placeholder:text-[var(--color-muted)] focus:outline-none focus:ring-1 focus:ring-white/20 transition-all"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                aria-label="Clear search"
+                className="absolute right-0.5 top-1/2 -translate-y-1/2 min-w-[44px] min-h-[44px] w-11 h-11 rounded-full flex items-center justify-center text-[var(--color-muted)] hover:text-[var(--color-foreground)] transition-colors"
+              >
+                <X size={15} />
+              </button>
+            )}
           </div>
-        </div>
-      </header>
-
-      {/* Sub-bar: Segmented Tabs & Instant Search (Sticky) */}
-      <div className={`sticky top-[69px] sm:top-[73px] z-10 bg-[var(--color-surface-1)]/95 backdrop-blur-md border-b border-[var(--color-border)] px-4 sm:px-6 flex flex-col md:flex-row md:items-center justify-between gap-3 shrink-0 ${isCompact ? 'py-2' : 'py-2.5'}`}>
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="min-h-[48px] p-1 rounded-full bg-[var(--color-surface-2)] border border-[var(--color-border)] inline-flex items-center gap-1 shrink-0">
-            <button
-              onClick={() => setTab('mine')}
-              className={`min-h-[44px] h-11 px-5 rounded-full text-[13px] font-sans font-medium transition-colors ${
-                tab === 'mine'
-                  ? 'bg-white text-black dark:bg-white dark:text-black shadow-xs font-semibold'
-                  : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
-              }`}
-            >
-              My shipments
-            </button>
-            <button
-              onClick={() => setTab('national')}
-              className={`min-h-[44px] h-11 px-5 rounded-full text-[13px] font-sans font-medium transition-colors ${
-                tab === 'national'
-                  ? 'bg-white text-black dark:bg-white dark:text-black shadow-xs font-semibold'
-                  : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
-              }`}
-            >
-              Nigeria today
-            </button>
-          </div>
-
-          {tab === 'national' && nationalCoverage && (
-            <span className="text-[12px] font-sans text-[var(--color-muted)] tabular-nums">
-              {nationalCoverage.cached} of {nationalCoverage.total} airports cached
-            </span>
-          )}
-
-          {tab === 'national' && canRefreshNational && (
-            <button
-              onClick={refreshAllAirports}
-              disabled={nationalRefreshing}
-              className="min-h-[44px] h-11 px-4 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-hover)] text-[12px] font-sans font-medium text-[var(--color-foreground)] flex items-center gap-2 disabled:opacity-50 transition-colors"
-            >
-              <RefreshCw size={13} className={nationalRefreshing ? 'animate-spin' : ''} />
-              <span>{nationalRefreshing ? 'Refreshing…' : 'Refresh all airports'}</span>
-            </button>
-          )}
-        </div>
-
-        {/* Search */}
-        <div className="relative flex-1 md:max-w-xs min-w-[200px]">
-          <Search
-            size={15}
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-muted)] pointer-events-none"
-          />
-          <input
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search flights or airlines..."
-            className="w-full min-h-[44px] h-11 pl-10 pr-10 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-2)] text-[13px] font-sans text-[var(--color-foreground)] placeholder:text-[var(--color-muted)] focus:outline-none focus:ring-1 focus:ring-white/20"
-          />
-          {search && (
-            <button
-              onClick={() => setSearch('')}
-              aria-label="Clear search"
-              className="absolute right-0.5 top-1/2 -translate-y-1/2 min-w-[44px] min-h-[44px] w-11 h-11 rounded-full flex items-center justify-center text-[var(--color-muted)] hover:text-[var(--color-foreground)] transition-colors"
-            >
-              <X size={15} />
-            </button>
-          )}
         </div>
       </div>
 
@@ -644,18 +663,41 @@ export const FlightRadar = ({ user, onBack }: { user: User; onBack: () => void }
         {selected && (
           <div className="flex flex-col max-h-[85vh] text-[var(--color-foreground)] font-sans">
             {/* Modal Header */}
-            <div className="p-4 sm:p-5 border-b border-[var(--color-border)] flex justify-between items-center shrink-0">
-              <div>
-                <div className="text-base sm:text-lg font-bold font-sans tracking-tight text-[var(--color-foreground)]">
-                  {selected.flightNumber}
+            <div className="p-4 sm:p-5 border-b border-[var(--color-border)] flex justify-between items-center shrink-0 gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-base sm:text-lg font-bold font-sans tracking-tight text-[var(--color-foreground)]">
+                    {selected.flightNumber}
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigator.clipboard.writeText(selected.flightNumber);
+                      showToast({ message: `Copied ${selected.flightNumber}`, type: 'success' });
+                    }}
+                    aria-label="Copy flight number"
+                    title="Copy flight number"
+                    className="min-h-[36px] min-w-[36px] h-9 w-9 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] text-[var(--color-muted)] hover:text-[var(--color-foreground)] flex items-center justify-center transition-colors shrink-0"
+                  >
+                    <Copy size={13} />
+                  </button>
                 </div>
                 {selected.airline && (
-                  <div className="text-[13px] font-sans text-[var(--color-muted)] mt-0.5">
+                  <div className="text-[13px] font-sans text-[var(--color-muted)] mt-0.5 truncate">
                     {selected.airline}
                   </div>
                 )}
               </div>
-              <FlightStatusBadge status={selectedStatus} />
+              <div className="flex items-center gap-2 shrink-0">
+                <FlightStatusBadge status={selectedStatus} />
+                <button
+                  onClick={() => setSelected(null)}
+                  aria-label="Close dialog"
+                  className="min-h-[44px] min-w-[44px] h-11 w-11 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-hover)] text-[var(--color-muted)] hover:text-[var(--color-foreground)] flex items-center justify-center transition-colors shrink-0"
+                >
+                  <X size={16} />
+                </button>
+              </div>
             </div>
 
             {/* Modal Scrollable Body */}
@@ -737,21 +779,31 @@ export const FlightRadar = ({ user, onBack }: { user: User; onBack: () => void }
                         Shipments on this flight ({selected.entries.length})
                       </div>
                       <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-1)] divide-y divide-[var(--color-border)] overflow-hidden">
-                        {selected.entries.map(e => (
-                          <div key={e.id} className="p-3 flex items-center justify-between text-[13px] font-sans gap-2">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <Package2 size={14} className="text-[var(--color-muted)] shrink-0" />
-                              <span className="font-semibold text-[var(--color-foreground)] truncate">
-                                {e.awb || e.id}
-                              </span>
-                            </div>
-                            {e.name && (
-                              <span className="text-[12px] text-[var(--color-muted)] truncate text-right">
-                                {e.name}
-                              </span>
-                            )}
-                          </div>
-                        ))}
+                        {selected.entries.map(e => {
+                          const tag = e.awb || e.id;
+                          return (
+                            <button
+                              key={e.id}
+                              onClick={() => {
+                                navigator.clipboard.writeText(tag);
+                                showToast({ message: `Copied ${tag}`, type: 'success' });
+                              }}
+                              aria-label={`Copy ${tag}`}
+                              className="min-h-[44px] p-3 flex items-center justify-between text-[13px] font-sans gap-2 w-full hover:bg-[var(--color-surface-hover)] transition-colors group cursor-pointer text-left"
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <Package2 size={14} className="text-[var(--color-muted)] shrink-0" />
+                                <span className="font-semibold text-[var(--color-foreground)] truncate">
+                                  {tag}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0 text-[12px] text-[var(--color-muted)]">
+                                {e.name && <span className="truncate max-w-[150px]">{e.name}</span>}
+                                <Copy size={13} className="text-[var(--color-muted)] group-hover:text-[var(--color-foreground)] shrink-0 transition-colors" />
+                              </div>
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   )}

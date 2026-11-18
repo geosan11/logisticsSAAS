@@ -95,19 +95,38 @@ export function normalizeSearchToken(s: string | null | undefined): string {
 }
 
 /**
- * Matches a search query against flight number and airline name.
+ * Matches a search query against flight number, airline name, optional route, and optional entries.
+ * Supports multi-token searches where every token must match across flight attributes.
  */
 export function matchesFlightSearch(
   query: string,
   flightNumber: string | null | undefined,
-  airline: string | null | undefined
+  airline: string | null | undefined,
+  route?: string | null | undefined,
+  entries?: BoardEntry[] | null | undefined
 ): boolean {
-  const q = normalizeSearchToken(query);
-  if (!q) return true;
-  return (
-    normalizeSearchToken(flightNumber).includes(q) ||
-    normalizeSearchToken(airline).includes(q)
-  );
+  if (!query || !query.trim()) return true;
+  const rawTokens = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
+  if (rawTokens.length === 0) return true;
+
+  const fn = (flightNumber || '').toLowerCase();
+  const al = (airline || '').toLowerCase();
+  const rt = (route || '').toLowerCase();
+  const entStr = (entries || [])
+    .map(e => `${e.awb || ''} ${e.id || ''} ${e.name || ''}`)
+    .join(' ')
+    .toLowerCase();
+
+  const fnClean = normalizeSearchToken(flightNumber);
+  const alClean = normalizeSearchToken(airline);
+  const rtClean = normalizeSearchToken(route);
+
+  const haystack = `${fn} ${fnClean} ${al} ${alClean} ${rt} ${rtClean} ${entStr}`;
+
+  return rawTokens.every(tok => {
+    const cleanTok = normalizeSearchToken(tok);
+    return haystack.includes(tok) || (cleanTok.length > 0 && haystack.includes(cleanTok));
+  });
 }
 
 /**
@@ -271,7 +290,9 @@ export interface FlightGroup<T> {
  * Partitions board flights into 4 logical groups (Needs attention, En route, Scheduled, Landed).
  */
 export function groupFlights(flights: BoardFlight[], search = ''): FlightGroup<BoardFlight>[] {
-  const searched = flights.filter(f => matchesFlightSearch(search, f.flightNumber, f.airline));
+  const searched = flights.filter(f =>
+    matchesFlightSearch(search, f.flightNumber, f.airline, f.route, f.entries)
+  );
 
   const attention = searched.filter(f => ATTENTION_STATUSES.includes(effectiveStatus(f.status)));
   const enroute = searched.filter(f => ENROUTE_STATUSES.includes(effectiveStatus(f.status)));
@@ -292,7 +313,10 @@ export function groupFlights(flights: BoardFlight[], search = ''): FlightGroup<B
  * Partitions national flights into 4 logical groups.
  */
 export function groupNationalFlights(flights: NationalFlight[], search = ''): FlightGroup<NationalFlight>[] {
-  const searched = flights.filter(f => matchesFlightSearch(search, f.flightNumber, f.airline));
+  const searched = flights.filter(f => {
+    const route = f.destinationIata ? `${f.originIata} ${f.destinationIata}` : f.originIata;
+    return matchesFlightSearch(search, f.flightNumber, f.airline, route);
+  });
 
   const attention = searched.filter(f => ATTENTION_STATUSES.includes(f.status.toLowerCase() as FlightStatus));
   const enroute = searched.filter(f => ENROUTE_STATUSES.includes(f.status.toLowerCase() as FlightStatus));
