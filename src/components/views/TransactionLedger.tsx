@@ -29,6 +29,8 @@ import {
   formatLedgerTitle,
   formatEntryTypeLabel,
   formatPaymentModeBadge,
+  getPaymentToneClass,
+  getPaymentBadgeClasses,
   getDensityClasses,
 } from "../../lib/ledgerLogic";
 import {
@@ -4004,145 +4006,6 @@ export const TransactionLedger = ({
                     </div>
                   )}
 
-                  {/* 6-Card KPI Grid */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
-                    {/* Total Card */}
-                    <div
-                      onClick={() => setModeFilter('All')}
-                      className={`rounded-2xl p-3 border flex flex-col justify-between text-left transition-all cursor-pointer ${
-                        modeFilter === 'All'
-                          ? 'bg-[var(--color-surface-hover)] border-[var(--color-border-strong)]'
-                          : 'bg-[var(--color-surface-card)] border-[var(--color-border)] hover:border-[var(--color-border-strong)]'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-1 mb-1">
-                        <span className="text-[11px] font-sans text-[var(--color-muted)]">Total</span>
-                        <LayoutGrid size={13} className="text-[var(--color-muted)]" />
-                      </div>
-                      <div className="text-[14px] sm:text-[15px] font-semibold font-mono tabular-nums text-[var(--color-foreground)] leading-tight truncate">
-                        {allTimeFirstLoadInFlight ? <Loader2 size={12} className="animate-spin" /> : `₦${fmt(displayTotals.totalAmount)}`}
-                      </div>
-                    </div>
-
-                    {/* Cash Card */}
-                    <button
-                      onClick={() => setModeFilter(modeFilter === 'Cash' ? 'All' : 'Cash')}
-                      className={`rounded-2xl p-3 border flex flex-col justify-between text-left transition-all cursor-pointer ${
-                        modeFilter === 'Cash'
-                          ? 'bg-[var(--color-surface-hover)] border-[var(--color-border-strong)]'
-                          : 'bg-[var(--color-surface-card)] border-[var(--color-border)] hover:border-[var(--color-border-strong)]'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-1 mb-1">
-                        <span className="text-[11px] font-sans text-[var(--color-muted)]">Cash</span>
-                        <Banknote size={13} className="text-[var(--color-muted)]" />
-                      </div>
-                      <div className="flex items-center justify-between gap-1">
-                        <div className="text-[14px] sm:text-[15px] font-semibold font-mono tabular-nums text-[var(--color-foreground)] leading-tight truncate">
-                          {allTimeFirstLoadInFlight ? <Loader2 size={12} className="animate-spin" /> : `₦${fmt(displayTotals.cashAmount)}`}
-                        </div>
-                        {isAccountantOrAdmin && unverifiedCash.length > 0 && (
-                          <span className="text-[10px] font-mono tabular-nums font-semibold bg-[var(--color-warning)]/15 text-[var(--color-warning)] px-1.5 py-0.5 rounded-full shrink-0">
-                            !{unverifiedCash.length}
-                          </span>
-                        )}
-                      </div>
-                    </button>
-
-                    {/* Transfer Card */}
-                    <button
-                      onClick={() => setModeFilter(modeFilter === 'Transfer' ? 'All' : 'Transfer')}
-                      className={`rounded-2xl p-3 border flex flex-col justify-between text-left transition-all cursor-pointer ${
-                        modeFilter === 'Transfer'
-                          ? 'bg-[var(--color-surface-hover)] border-[var(--color-border-strong)]'
-                          : 'bg-[var(--color-surface-card)] border-[var(--color-border)] hover:border-[var(--color-border-strong)]'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-1 mb-1">
-                        <span className="text-[11px] font-sans text-[var(--color-muted)]">Transfer</span>
-                        <ArrowLeftRight size={13} className="text-[var(--color-muted)]" />
-                      </div>
-                      <div className="flex items-center justify-between gap-1">
-                        <div className="text-[14px] sm:text-[15px] font-semibold font-mono tabular-nums text-[var(--color-foreground)] leading-tight truncate">
-                          {allTimeFirstLoadInFlight ? <Loader2 size={12} className="animate-spin" /> : `₦${fmt(displayTotals.transferAmount)}`}
-                        </div>
-                        {isAccountantOrAdmin && unconfirmedTransfer.length > 0 && (
-                          <span className="text-[10px] font-mono tabular-nums font-semibold bg-[var(--color-warning)]/15 text-[var(--color-warning)] px-1.5 py-0.5 rounded-full shrink-0">
-                            !{unconfirmedTransfer.length}
-                          </span>
-                        )}
-                      </div>
-                    </button>
-
-                    {/* POS Card */}
-                    <button
-                      onClick={() => setModeFilter(modeFilter === 'POS' ? 'All' : 'POS')}
-                      className={`rounded-2xl p-3 border flex flex-col justify-between text-left transition-all cursor-pointer ${
-                        modeFilter === 'POS'
-                          ? 'bg-[var(--color-surface-hover)] border-[var(--color-border-strong)]'
-                          : 'bg-[var(--color-surface-card)] border-[var(--color-border)] hover:border-[var(--color-border-strong)]'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-1 mb-1">
-                        <span className="text-[11px] font-sans text-[var(--color-muted)]">POS</span>
-                        <CreditCard size={13} className="text-[var(--color-muted)]" />
-                      </div>
-                      <div className="flex items-center justify-between gap-1">
-                        <div className="text-[14px] sm:text-[15px] font-semibold font-mono tabular-nums text-[var(--color-foreground)] leading-tight truncate">
-                          {allTimeFirstLoadInFlight ? <Loader2 size={12} className="animate-spin" /> : `₦${fmt(displayTotals.posAmount)}`}
-                        </div>
-                        {isAccountantOrAdmin && unconfirmedPOS.length > 0 && (
-                          <span className="text-[10px] font-mono tabular-nums font-semibold bg-[var(--color-warning)]/15 text-[var(--color-warning)] px-1.5 py-0.5 rounded-full shrink-0">
-                            !{unconfirmedPOS.length}
-                          </span>
-                        )}
-                      </div>
-                    </button>
-
-                    {/* Debt Card */}
-                    <button
-                      onClick={() => setModeFilter(modeFilter === 'Debt' ? 'All' : 'Debt')}
-                      className={`rounded-2xl p-3 border flex flex-col justify-between text-left transition-all cursor-pointer ${
-                        modeFilter === 'Debt'
-                          ? 'bg-[var(--color-surface-hover)] border-[var(--color-border-strong)]'
-                          : 'bg-[var(--color-surface-card)] border-[var(--color-border)] hover:border-[var(--color-border-strong)]'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-1 mb-1">
-                        <span className="text-[11px] font-sans text-[var(--color-muted)]">Debt</span>
-                        <AlertTriangle size={13} className="text-[var(--color-muted)]" />
-                      </div>
-                      <div className="flex items-center justify-between gap-1">
-                        <div className="text-[14px] sm:text-[15px] font-semibold font-mono tabular-nums text-[var(--color-foreground)] leading-tight truncate">
-                          {allTimeFirstLoadInFlight ? <Loader2 size={12} className="animate-spin" /> : `₦${fmt(displayTotals.debtAmount)}`}
-                        </div>
-                        {displayTotals.unpaidDebtCount > 0 && (
-                          <span className="text-[10px] font-mono tabular-nums font-semibold bg-[var(--color-error)]/15 text-[var(--color-error)] px-1.5 py-0.5 rounded-full shrink-0">
-                            {displayTotals.unpaidDebtCount}
-                          </span>
-                        )}
-                      </div>
-                    </button>
-
-                    {/* Wallet Card */}
-                    <button
-                      onClick={() => setModeFilter(modeFilter === 'Wallet' ? 'All' : 'Wallet')}
-                      className={`rounded-2xl p-3 border flex flex-col justify-between text-left transition-all cursor-pointer ${
-                        modeFilter === 'Wallet'
-                          ? 'bg-[var(--color-surface-hover)] border-[var(--color-border-strong)]'
-                          : 'bg-[var(--color-surface-card)] border-[var(--color-border)] hover:border-[var(--color-border-strong)]'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-1 mb-1">
-                        <span className="text-[11px] font-sans text-[var(--color-muted)]">Wallet</span>
-                        <Wallet size={13} className="text-[var(--color-muted)]" />
-                      </div>
-                      <div className="text-[14px] sm:text-[15px] font-semibold font-mono tabular-nums text-[var(--color-foreground)] leading-tight truncate">
-                        {allTimeFirstLoadInFlight ? <Loader2 size={12} className="animate-spin" /> : `₦${fmt(displayTotals.walletAmount)}`}
-                      </div>
-                    </button>
-                  </div>
-
                   {/* Office Work (B2B) vs Individual Debt Split */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     <button
@@ -4570,13 +4433,13 @@ export const TransactionLedger = ({
             )}
 
             {/* ── TIER 4: Bounded Virtualized Table / Mobile Cards Container ── */}
-            <div ref={tableRef} className="flex-1 min-h-0 overflow-auto p-3 sm:p-4 sm:pr-16 pb-4 relative">
+            <div ref={tableRef} className="flex-1 min-h-0 overflow-auto p-3 sm:p-4 pb-4 relative">
               {allTimeFirstLoadInFlight && (
                 <div
                   className="absolute inset-0 flex flex-col items-center justify-center gap-2 z-20"
                   style={{ background: 'var(--color-overlay, rgba(0,0,0,0.55))', backdropFilter: 'blur(2px)' }}
                 >
-                  <Loader2 size={22} className="animate-spin" style={{ color: 'var(--color-accent-amber)' }} />
+                  <Loader2 size={22} className="animate-spin text-[var(--color-foreground)]" />
                   <span className="text-[12px] font-mono text-[var(--color-foreground)]">Loading full history…</span>
                 </div>
               )}
@@ -4730,17 +4593,14 @@ export const TransactionLedger = ({
                         {/* Bottom Row: Mode & Amount & Quick Actions */}
                         <div className="flex items-center justify-between border-t border-[var(--color-border)] pt-2.5 mt-1">
                           <div className="flex items-center gap-2">
-                            <span className={`px-2.5 py-1 rounded-full font-sans text-[11px] font-medium border ${
-                              e.mode === "Cash" ? "bg-[rgba(16,185,129,0.12)] text-[var(--color-success)] border-[rgba(16,185,129,0.25)]" :
-                              e.mode === "Transfer" ? "bg-[rgba(59,130,246,0.12)] text-[var(--color-accent-cobalt)] border-[rgba(59,130,246,0.25)]" :
-                              e.mode === "POS" ? "bg-[var(--color-surface-2)] text-[var(--color-foreground)] border-[var(--color-border)]" :
-                              e.mode === "Expense" ? "bg-[rgba(239,68,68,0.12)] text-[var(--color-error)] border-[rgba(239,68,68,0.25)]" :
-                              e.mode === "Debt Paid" ? "bg-[rgba(16,185,129,0.12)] text-[var(--color-success)] border-[rgba(16,185,129,0.25)]" :
-                              e.mode === "Wallet" ? "bg-[var(--color-surface-2)] text-[var(--color-foreground)] border-[var(--color-border)]" :
-                              "border border-[var(--color-error)] text-[var(--color-error)] bg-[rgba(239,68,68,0.08)]"
-                            }`}>
-                              {formatPaymentModeBadge(e.mode).label}
-                            </span>
+                            {(() => {
+                              const badge = getPaymentBadgeClasses(e.mode, Boolean(e.raw?.paymentConfirmed), Number(e.raw?.wallet_deduction_amount || 0));
+                              return (
+                                <span className={`px-2.5 py-1 rounded-full font-sans text-[11px] font-medium border ${badge.className}`}>
+                                  {badge.label}
+                                </span>
+                              );
+                            })()}
 
                             {e.mode === "Debt" && (
                               <button
@@ -4813,17 +4673,25 @@ export const TransactionLedger = ({
                 <div className="overflow-x-auto">
                 <table className="w-full min-w-[720px] text-left border-collapse">
             <thead className="sticky top-0 z-10 bg-[var(--color-surface-card)] shadow-[0_1px_0_var(--color-border)]">
-              <tr className="text-[var(--color-muted)] border-b border-[var(--color-border)] font-sans text-[11px] font-medium uppercase tracking-wider">
-                {(isAccountantOrAdmin || !viewOnly) && <th className={`${density.tableRowPadding} w-[48px]`}></th>}
-                {canSeePin && <th className={`${density.tableRowPadding} w-[68px]`}>PIN</th>}
+              <tr className="text-[var(--color-muted)] border-b border-[var(--color-border)] font-sans text-[11px] font-medium">
+                {(isAccountantOrAdmin || !viewOnly) && (
+                  <th className={`${density.tableRowPadding} w-[48px] text-center`}>
+                    <span className="sr-only">Confirm payment</span>
+                  </th>
+                )}
+                {canSeePin && <th className={`${density.tableRowPadding} w-[68px]`}>Pin</th>}
                 <th className={`${density.tableRowPadding} w-[150px]`}>Ref</th>
                 <th className={`${density.tableRowPadding} w-[84px]`}>Date</th>
-                <th className={`${density.tableRowPadding} min-w-[140px]`}>Customer / Detail</th>
+                <th className={`${density.tableRowPadding} min-w-[140px]`}>Customer / detail</th>
                 <th className={`${density.tableRowPadding} w-[84px] text-center`}>Status</th>
-                <th className={`${density.tableRowPadding} w-[48px] text-center`} title="Select entries for batch actions"></th>
+                <th className={`${density.tableRowPadding} w-[48px] text-center`} title="Select entries for batch actions">
+                  <span className="sr-only">Batch select</span>
+                </th>
                 <th className={`${density.tableRowPadding} w-[100px] text-right`}>Amount</th>
                 <th className={`${density.tableRowPadding} w-[80px] text-center`}>Mode</th>
-                <th className={`${density.tableRowPadding} w-[36px] text-center`}></th>
+                <th className={`${density.tableRowPadding} w-[36px] text-center`}>
+                  <span className="sr-only">Details</span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -4886,7 +4754,7 @@ export const TransactionLedger = ({
                                     name={`pos-code-${e.id}`}
                                     autoFocus
                                     type="text"
-                                    className="w-16 bg-[var(--color-surface-1)] border border-[var(--color-accent-amber)] rounded-md px-1.5 py-1 font-mono tabular-nums text-[11px] text-[var(--color-foreground)] outline-none"
+                                    className="w-16 bg-[var(--color-surface-1)] border border-[var(--color-border-strong)] rounded-md px-1.5 py-1 font-mono tabular-nums text-[11px] text-[var(--color-foreground)] outline-none"
                                     placeholder="Code"
                                     value={posCodeInput.code}
                                     onChange={evt => setPosCodeInput({ id: e.id, code: evt.target.value })}
@@ -4897,7 +4765,7 @@ export const TransactionLedger = ({
                               ) : (
                                 <button
                                   onClick={(evt) => { evt.stopPropagation(); setPosCodeInput({ id: e.id, code: '' }); }}
-                                  className="min-h-[44px] flex items-center text-[var(--color-accent-amber)] hover:underline whitespace-nowrap text-[11px] font-sans font-medium cursor-pointer"
+                                  className="min-h-[44px] flex items-center text-[var(--color-foreground)] hover:underline whitespace-nowrap text-[11px] font-sans font-medium cursor-pointer"
                                 >
                                   Enter code
                                 </button>
@@ -4907,10 +4775,10 @@ export const TransactionLedger = ({
                                 disabled={confirmingIds.has(e.id)}
                                 onClick={(evt) => toggleConfirm(e, evt)}
                                 aria-label="Confirm payment"
-                                className="min-w-[44px] min-h-[44px] rounded-full flex items-center justify-center text-[var(--color-accent-amber)] hover:bg-[var(--color-surface-hover)] disabled:opacity-50 cursor-pointer transition-colors"
+                                className="min-w-[44px] min-h-[44px] rounded-full flex items-center justify-center text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)] disabled:opacity-50 cursor-pointer transition-colors"
                               >
                                 {e.raw.paymentConfirmed ? (
-                                  <div className="w-5 h-5 bg-[var(--color-accent-amber)] rounded-md flex items-center justify-center">
+                                  <div className="w-5 h-5 bg-[var(--color-success)] rounded-md flex items-center justify-center">
                                     <Check size={13} className="text-white" strokeWidth={3} />
                                   </div>
                                 ) : (
@@ -5105,23 +4973,20 @@ export const TransactionLedger = ({
                     <td className={`${density.tableRowPadding} text-center`} onClick={(evt) => evt.stopPropagation()}>
                       <div className="flex flex-col items-center gap-1">
                         <div className="flex items-center gap-1.5 justify-center">
-                          <span className={`px-2 py-0.5 rounded-full font-sans text-[11px] font-medium flex items-center gap-1 border ${
-                            e.mode === "Cash" ? "bg-[rgba(16,185,129,0.12)] text-[var(--color-success)] border-[rgba(16,185,129,0.25)]" :
-                            e.mode === "Transfer" ? "bg-[rgba(59,130,246,0.12)] text-[var(--color-accent-cobalt)] border-[rgba(59,130,246,0.25)]" :
-                            e.mode === "POS" ? "bg-[var(--color-surface-2)] text-[var(--color-foreground)] border-[var(--color-border)]" :
-                            e.mode === "Expense" ? "bg-[rgba(239,68,68,0.12)] text-[var(--color-error)] border-[rgba(239,68,68,0.25)]" :
-                            e.mode === "Debt Paid" ? "bg-[rgba(16,185,129,0.12)] text-[var(--color-success)] border-[rgba(16,185,129,0.25)]" :
-                            e.mode === "Wallet" ? "bg-[var(--color-surface-2)] text-[var(--color-foreground)] border-[var(--color-border)]" :
-                            "border border-[var(--color-error)] text-[var(--color-error)] bg-[rgba(239,68,68,0.08)]"
-                          }`}>
-                            {e.mode === "Debt" ? "Debt" : e.mode === "Debt Paid" ? "Debt Cleared" : e.mode === "Wallet" ? "Wallet" : e.raw?.wallet_deduction_amount > 0 ? `${e.mode} + Wallet` : e.mode}
-                            {e.raw.paymentConfirmed && e.mode !== 'Debt' && e.mode !== 'Expense' && e.mode !== 'Debt Paid' && (
-                              <Check size={11} strokeWidth={2.5} className="text-current opacity-80" />
-                            )}
-                            {!e.raw.paymentConfirmed && e.mode !== 'Debt' && e.mode !== 'Expense' && e.mode !== 'Debt Paid' && (
-                              <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent-amber)] animate-pulse" />
-                            )}
-                          </span>
+                          {(() => {
+                            const badge = getPaymentBadgeClasses(e.mode, Boolean(e.raw?.paymentConfirmed), Number(e.raw?.wallet_deduction_amount || 0));
+                            return (
+                              <span className={`px-2 py-0.5 rounded-full font-sans text-[11px] font-medium flex items-center gap-1 border ${badge.className}`}>
+                                {badge.label}
+                                {e.raw.paymentConfirmed && e.mode !== 'Debt' && e.mode !== 'Expense' && e.mode !== 'Debt Paid' && (
+                                  <Check size={11} strokeWidth={2.5} className="text-current opacity-80" />
+                                )}
+                                {!e.raw.paymentConfirmed && e.mode !== 'Debt' && e.mode !== 'Expense' && e.mode !== 'Debt Paid' && (
+                                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-warning)] animate-pulse" />
+                                )}
+                              </span>
+                            );
+                          })()}
 
                           {e.mode === "Debt" && (
                             <button
@@ -5657,7 +5522,7 @@ export const TransactionLedger = ({
                 <>
                   <div className="space-y-1">
                     <label className="text-[11px] font-sans font-medium text-[var(--color-muted)]">
-                      Consignee Name
+                      Consignee name
                     </label>
                     <input
                       id="edit-tx-cargo-name"
@@ -5666,7 +5531,7 @@ export const TransactionLedger = ({
                       disabled={!canEdit}
                       value={editingTx.name}
                       onChange={(e) => setEditingTx({ ...editingTx, name: e.target.value })}
-                      className="w-full h-10 px-3 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg text-[var(--color-foreground)] font-sans text-[16px] focus:outline-none focus:border-[var(--color-accent-amber)] disabled:opacity-60"
+                      className="w-full min-h-[44px] h-11 px-3.5 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl text-[var(--color-foreground)] font-sans text-[14px] focus:outline-none focus:border-[var(--color-border-strong)] focus:bg-[var(--color-surface-hover)] disabled:opacity-60"
                     />
                   </div>
                   <div className="space-y-1">
@@ -5679,9 +5544,9 @@ export const TransactionLedger = ({
                       disabled={!canEdit}
                       value={editingTx.airline || ''}
                       onChange={(e) => setEditingTx({ ...editingTx, airline: e.target.value })}
-                      className="w-full h-10 px-3 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg text-[var(--color-foreground)] font-sans text-[14px] focus:outline-none focus:border-[var(--color-accent-amber)] disabled:opacity-60"
+                      className="w-full min-h-[44px] h-11 px-3.5 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl text-[var(--color-foreground)] font-sans text-[14px] focus:outline-none focus:border-[var(--color-border-strong)] focus:bg-[var(--color-surface-hover)] disabled:opacity-60"
                     >
-                      <option value="">Select Airline</option>
+                      <option value="">Select airline</option>
                       {/* Guard against the entry's current airline having fallen out of the
                           canonical list (e.g. renamed/removed since this entry was created) --
                           without this, a stale value with no matching <option> would silently
@@ -5694,7 +5559,7 @@ export const TransactionLedger = ({
                   </div>
                   <div className="space-y-1">
                     <label className="text-[11px] font-sans font-medium text-[var(--color-muted)]">
-                      Flight No. (optional -- for Flight Radar)
+                      Flight number (optional — for flight radar)
                     </label>
                     <input
                       id="edit-tx-flight-number"
@@ -5704,7 +5569,7 @@ export const TransactionLedger = ({
                       value={editingTx.flight || ''}
                       onChange={(e) => setEditingTx({ ...editingTx, flight: e.target.value.toUpperCase() })}
                       placeholder="e.g. W3 331"
-                      className="w-full h-10 px-3 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg text-[var(--color-foreground)] font-sans text-[14px] focus:outline-none focus:border-[var(--color-accent-amber)] disabled:opacity-60"
+                      className="w-full min-h-[44px] h-11 px-3.5 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl text-[var(--color-foreground)] font-sans text-[14px] focus:outline-none focus:border-[var(--color-border-strong)] focus:bg-[var(--color-surface-hover)] disabled:opacity-60"
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
@@ -5718,15 +5583,15 @@ export const TransactionLedger = ({
                         disabled={!canEdit}
                         value={editingTx.route || ''}
                         onChange={(e) => setEditingTx({ ...editingTx, route: e.target.value })}
-                        className="w-full h-10 px-3 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg text-[var(--color-foreground)] font-sans text-[14px] focus:outline-none focus:border-[var(--color-accent-amber)] disabled:opacity-60"
+                        className="w-full min-h-[44px] h-11 px-3.5 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl text-[var(--color-foreground)] font-sans text-[14px] focus:outline-none focus:border-[var(--color-border-strong)] focus:bg-[var(--color-surface-hover)] disabled:opacity-60"
                       >
-                        <option value="">Select Route</option>
+                        <option value="">Select route</option>
                         {routes.map(r => <option key={r} value={r}>{r}</option>)}
                       </select>
                     </div>
                     <div className="space-y-1">
                       <label className="text-[11px] font-sans font-medium text-[var(--color-muted)]">
-                        Content Type
+                        Content type
                       </label>
                       <select
                         id="edit-tx-content-type"
@@ -5734,9 +5599,9 @@ export const TransactionLedger = ({
                         disabled={!canEdit}
                         value={editingTx.contentType || ''}
                         onChange={(e) => setEditingTx({ ...editingTx, contentType: e.target.value })}
-                        className="w-full h-10 px-3 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg text-[var(--color-foreground)] font-sans text-[14px] focus:outline-none focus:border-[var(--color-accent-amber)] disabled:opacity-60"
+                        className="w-full min-h-[44px] h-11 px-3.5 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl text-[var(--color-foreground)] font-sans text-[14px] focus:outline-none focus:border-[var(--color-border-strong)] focus:bg-[var(--color-surface-hover)] disabled:opacity-60"
                       >
-                        <option value="">Select Content Type</option>
+                        <option value="">Select content type</option>
                         {/* Guard against the entry's current content type having fallen out of
                             the canonical list (e.g. deleted via ContentTypes.tsx since this entry
                             was created) -- same stale-value guard as the Airline select above. */}
@@ -5754,7 +5619,7 @@ export const TransactionLedger = ({
                           value={editCustomContentType}
                           onChange={(e) => setEditCustomContentType(e.target.value.toUpperCase())}
                           placeholder="Enter content type"
-                          className="w-full h-10 px-3 mt-2 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg text-[var(--color-foreground)] font-sans text-[14px] focus:outline-none focus:border-[var(--color-accent-amber)] disabled:opacity-60"
+                          className="w-full min-h-[44px] h-11 px-3.5 mt-2 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl text-[var(--color-foreground)] font-sans text-[14px] focus:outline-none focus:border-[var(--color-border-strong)] focus:bg-[var(--color-surface-hover)] disabled:opacity-60"
                         />
                       )}
                     </div>
@@ -5762,7 +5627,7 @@ export const TransactionLedger = ({
                   {sizeTierContentTypeNames.has(editingTx.contentType || '') && (
                     <div className="space-y-1">
                       <label className="text-[11px] font-sans font-medium text-[var(--color-muted)]">
-                        Screen Size (inches)
+                        Screen size (inches)
                       </label>
                       <input
                         id="edit-tx-size-inches"
@@ -5772,7 +5637,7 @@ export const TransactionLedger = ({
                         disabled={!canEdit}
                         value={sizeInchesInput}
                         onChange={(e) => setSizeInchesInput(e.target.value)}
-                        className="w-full h-10 px-3 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg text-[var(--color-foreground)] font-mono text-[16px] focus:outline-none focus:border-[var(--color-accent-amber)] disabled:opacity-60"
+                        className="w-full min-h-[44px] h-11 px-3.5 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl text-[var(--color-foreground)] font-mono tabular-nums text-[14px] focus:outline-none focus:border-[var(--color-border-strong)] focus:bg-[var(--color-surface-hover)] disabled:opacity-60"
                       />
                     </div>
                   )}
@@ -5789,12 +5654,12 @@ export const TransactionLedger = ({
                         disabled={!canEdit}
                         value={pieceInput}
                         onChange={(e) => setPieceInput(e.target.value)}
-                        className="w-full h-10 px-3 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg text-[var(--color-foreground)] font-mono text-[16px] focus:outline-none focus:border-[var(--color-accent-amber)] disabled:opacity-60"
+                        className="w-full min-h-[44px] h-11 px-3.5 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl text-[var(--color-foreground)] font-mono tabular-nums text-[14px] focus:outline-none focus:border-[var(--color-border-strong)] focus:bg-[var(--color-surface-hover)] disabled:opacity-60"
                       />
                     </div>
                     <div className="space-y-1">
                       <label className="text-[11px] font-sans font-medium text-[var(--color-muted)]">
-                        Weight (KG)
+                        Weight (kg)
                       </label>
                       <input
                         id="edit-tx-kg"
@@ -5804,7 +5669,7 @@ export const TransactionLedger = ({
                         disabled={!canEdit}
                         value={kgInput}
                         onChange={(e) => setKgInput(e.target.value)}
-                        className="w-full h-10 px-3 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg text-[var(--color-foreground)] font-mono text-[16px] focus:outline-none focus:border-[var(--color-accent-amber)] disabled:opacity-60"
+                        className="w-full min-h-[44px] h-11 px-3.5 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl text-[var(--color-foreground)] font-mono tabular-nums text-[14px] focus:outline-none focus:border-[var(--color-border-strong)] focus:bg-[var(--color-surface-hover)] disabled:opacity-60"
                       />
                     </div>
                   </div>
@@ -5819,14 +5684,14 @@ export const TransactionLedger = ({
                       disabled={!(canEdit || canEditRemarks)}
                       value={editingTx.remarks || ''}
                       onChange={(e) => setEditingTx({ ...editingTx, remarks: e.target.value.toUpperCase() })}
-                      className="w-full px-3 py-2 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg text-[var(--color-foreground)] font-sans text-[14px] focus:outline-none focus:border-[var(--color-accent-amber)] resize-none disabled:opacity-60"
-                      placeholder="E.G. SENT BY ROAD"
+                      className="w-full px-3.5 py-2.5 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl text-[var(--color-foreground)] font-sans text-[14px] focus:outline-none focus:border-[var(--color-border-strong)] focus:bg-[var(--color-surface-hover)] resize-none disabled:opacity-60"
+                      placeholder="e.g. Sent by road"
                     />
                   </div>
                   {editingTx.awb_tag_number && (
-                    <div className="text-[11px] font-mono text-[var(--color-muted)] bg-[var(--color-border)] p-2 rounded">
-                      AWB / Tag:{" "}
-                      <span className="text-[var(--color-foreground)]">{editingTx.awb_tag_number}</span>
+                    <div className="text-[11px] font-mono tabular-nums text-[var(--color-muted)] bg-[var(--color-surface-2)] border border-[var(--color-border)] p-2.5 rounded-xl">
+                      AWB / tag:{" "}
+                      <span className="text-[var(--color-foreground)] font-semibold">{editingTx.awb_tag_number}</span>
                     </div>
                   )}
                 </>
@@ -5836,7 +5701,7 @@ export const TransactionLedger = ({
                 <>
                   <div className="space-y-1">
                     <label className="text-[11px] font-sans font-medium text-[var(--color-muted)]">
-                      Customer Name
+                      Customer name
                     </label>
                     <input
                       id="edit-tx-baggage-name"
@@ -5845,7 +5710,7 @@ export const TransactionLedger = ({
                       disabled={!canEdit}
                       value={editingTx.name}
                       onChange={(e) => setEditingTx({ ...editingTx, name: e.target.value })}
-                      className="w-full h-10 px-3 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg text-[var(--color-foreground)] font-sans text-[16px] focus:outline-none focus:border-[var(--color-accent-amber)] disabled:opacity-60"
+                      className="w-full min-h-[44px] h-11 px-3.5 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl text-[var(--color-foreground)] font-sans text-[14px] focus:outline-none focus:border-[var(--color-border-strong)] focus:bg-[var(--color-surface-hover)] disabled:opacity-60"
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
@@ -5860,7 +5725,7 @@ export const TransactionLedger = ({
                         disabled={!canEdit}
                         value={editingTx.flight || ''}
                         onChange={(e) => setEditingTx({ ...editingTx, flight: e.target.value })}
-                        className="w-full h-10 px-3 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg text-[var(--color-foreground)] font-mono text-[16px] focus:outline-none focus:border-[var(--color-accent-amber)] disabled:opacity-60"
+                        className="w-full min-h-[44px] h-11 px-3.5 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl text-[var(--color-foreground)] font-mono tabular-nums text-[14px] focus:outline-none focus:border-[var(--color-border-strong)] focus:bg-[var(--color-surface-hover)] disabled:opacity-60"
                       />
                     </div>
                     <div className="space-y-1">
@@ -5873,9 +5738,9 @@ export const TransactionLedger = ({
                         disabled={!canEdit}
                         value={editingTx.destination || ''}
                         onChange={(e) => setEditingTx({ ...editingTx, destination: e.target.value })}
-                        className="w-full h-10 px-3 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg text-[var(--color-foreground)] font-sans text-[14px] focus:outline-none focus:border-[var(--color-accent-amber)] disabled:opacity-60"
+                        className="w-full min-h-[44px] h-11 px-3.5 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl text-[var(--color-foreground)] font-sans text-[14px] focus:outline-none focus:border-[var(--color-border-strong)] focus:bg-[var(--color-surface-hover)] disabled:opacity-60"
                       >
-                        <option value="">Select Route</option>
+                        <option value="">Select destination</option>
                         {routes.map(r => <option key={r} value={r}>{r}</option>)}
                       </select>
                     </div>
@@ -5887,7 +5752,7 @@ export const TransactionLedger = ({
                 <>
                   <div className="space-y-1">
                     <label className="text-[11px] font-sans font-medium text-[var(--color-muted)]">
-                      Customer Name
+                      Customer name
                     </label>
                     <input
                       id="edit-tx-marketing-name"
@@ -5896,7 +5761,7 @@ export const TransactionLedger = ({
                       disabled={!canEdit}
                       value={editingTx.name}
                       onChange={(e) => setEditingTx({ ...editingTx, name: e.target.value })}
-                      className="w-full h-10 px-3 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg text-[var(--color-foreground)] font-sans text-[16px] focus:outline-none focus:border-[var(--color-accent-amber)] disabled:opacity-60"
+                      className="w-full min-h-[44px] h-11 px-3.5 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl text-[var(--color-foreground)] font-sans text-[14px] focus:outline-none focus:border-[var(--color-border-strong)] focus:bg-[var(--color-surface-hover)] disabled:opacity-60"
                     />
                   </div>
                   <div className="space-y-1">
@@ -5909,9 +5774,9 @@ export const TransactionLedger = ({
                       disabled={!canEdit}
                       value={editingTx.route || ''}
                       onChange={(e) => setEditingTx({ ...editingTx, route: e.target.value })}
-                      className="w-full h-10 px-3 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg text-[var(--color-foreground)] font-sans text-[14px] focus:outline-none focus:border-[var(--color-accent-amber)] disabled:opacity-60"
+                      className="w-full min-h-[44px] h-11 px-3.5 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl text-[var(--color-foreground)] font-sans text-[14px] focus:outline-none focus:border-[var(--color-border-strong)] focus:bg-[var(--color-surface-hover)] disabled:opacity-60"
                     >
-                      <option value="">Select Route</option>
+                      <option value="">Select route</option>
                       {routes.map(r => <option key={r} value={r}>{r}</option>)}
                     </select>
                   </div>
@@ -5925,10 +5790,9 @@ export const TransactionLedger = ({
                       disabled={!canEdit}
                       value={editingTx.airline || ''}
                       onChange={(e) => setEditingTx({ ...editingTx, airline: e.target.value })}
-                      className="w-full h-10 px-3 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg text-[var(--color-foreground)] font-sans text-[14px] focus:outline-none focus:border-[var(--color-accent-amber)] disabled:opacity-60"
+                      className="w-full min-h-[44px] h-11 px-3.5 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl text-[var(--color-foreground)] font-sans text-[14px] focus:outline-none focus:border-[var(--color-border-strong)] focus:bg-[var(--color-surface-hover)] disabled:opacity-60"
                     >
-                      <option value="">Select Airline</option>
-                      {/* Same stale-value guard as Cargo's Airline select above. */}
+                      <option value="">Select airline</option>
                       {editingTx.airline && !editAirlines.includes(editingTx.airline) && (
                         <option value={editingTx.airline}>{editingTx.airline}</option>
                       )}
@@ -5938,7 +5802,7 @@ export const TransactionLedger = ({
                   <div className="grid grid-cols-3 gap-2">
                     <div className="space-y-1">
                       <label className="text-[11px] font-sans font-medium text-[var(--color-muted)]">
-                        Big Bags
+                        Big bags
                       </label>
                       <input
                         id="edit-tx-bb"
@@ -5948,12 +5812,12 @@ export const TransactionLedger = ({
                         disabled={!canEdit}
                         value={editBagCounts.bb}
                         onChange={(e) => setEditBagCounts({ ...editBagCounts, bb: e.target.value })}
-                        className="w-full h-10 px-2 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg text-[var(--color-foreground)] font-mono text-[14px] text-center focus:outline-none focus:border-[var(--color-accent-amber)] disabled:opacity-60"
+                        className="w-full min-h-[44px] h-11 px-2 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl text-[var(--color-foreground)] font-mono tabular-nums text-[14px] text-center focus:outline-none focus:border-[var(--color-border-strong)] focus:bg-[var(--color-surface-hover)] disabled:opacity-60"
                       />
                     </div>
                     <div className="space-y-1">
                       <label className="text-[11px] font-sans font-medium text-[var(--color-muted)]">
-                        Med Bags
+                        Medium bags
                       </label>
                       <input
                         id="edit-tx-mb"
@@ -5963,12 +5827,12 @@ export const TransactionLedger = ({
                         disabled={!canEdit}
                         value={editBagCounts.mb}
                         onChange={(e) => setEditBagCounts({ ...editBagCounts, mb: e.target.value })}
-                        className="w-full h-10 px-2 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg text-[var(--color-foreground)] font-mono text-[14px] text-center focus:outline-none focus:border-[var(--color-accent-amber)] disabled:opacity-60"
+                        className="w-full min-h-[44px] h-11 px-2 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl text-[var(--color-foreground)] font-mono tabular-nums text-[14px] text-center focus:outline-none focus:border-[var(--color-border-strong)] focus:bg-[var(--color-surface-hover)] disabled:opacity-60"
                       />
                     </div>
                     <div className="space-y-1">
                       <label className="text-[11px] font-sans font-medium text-[var(--color-muted)]">
-                        Small Bags
+                        Small bags
                       </label>
                       <input
                         id="edit-tx-sb"
@@ -5978,7 +5842,7 @@ export const TransactionLedger = ({
                         disabled={!canEdit}
                         value={editBagCounts.sb}
                         onChange={(e) => setEditBagCounts({ ...editBagCounts, sb: e.target.value })}
-                        className="w-full h-10 px-2 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg text-[var(--color-foreground)] font-mono text-[14px] text-center focus:outline-none focus:border-[var(--color-accent-amber)] disabled:opacity-60"
+                        className="w-full min-h-[44px] h-11 px-2 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl text-[var(--color-foreground)] font-mono tabular-nums text-[14px] text-center focus:outline-none focus:border-[var(--color-border-strong)] focus:bg-[var(--color-surface-hover)] disabled:opacity-60"
                       />
                     </div>
                   </div>
@@ -5989,7 +5853,7 @@ export const TransactionLedger = ({
                 <>
                   <div className="space-y-1">
                     <label className="text-[11px] font-sans font-medium text-[var(--color-muted)]">
-                      Customer Name
+                      Customer name
                     </label>
                     <input
                       id="edit-tx-package-name"
@@ -5998,7 +5862,7 @@ export const TransactionLedger = ({
                       disabled={!canEdit}
                       value={editingTx.name}
                       onChange={(e) => setEditingTx({ ...editingTx, name: e.target.value })}
-                      className="w-full h-10 px-3 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg text-[var(--color-foreground)] font-sans text-[16px] focus:outline-none focus:border-[var(--color-accent-amber)] disabled:opacity-60"
+                      className="w-full min-h-[44px] h-11 px-3.5 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl text-[var(--color-foreground)] font-sans text-[14px] focus:outline-none focus:border-[var(--color-border-strong)] focus:bg-[var(--color-surface-hover)] disabled:opacity-60"
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
@@ -6012,15 +5876,15 @@ export const TransactionLedger = ({
                         disabled={!canEdit}
                         value={editingTx.destination || ''}
                         onChange={(e) => setEditingTx({ ...editingTx, destination: e.target.value })}
-                        className="w-full h-10 px-3 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg text-[var(--color-foreground)] font-sans text-[14px] focus:outline-none focus:border-[var(--color-accent-amber)] disabled:opacity-60"
+                        className="w-full min-h-[44px] h-11 px-3.5 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl text-[var(--color-foreground)] font-sans text-[14px] focus:outline-none focus:border-[var(--color-border-strong)] focus:bg-[var(--color-surface-hover)] disabled:opacity-60"
                       >
-                        <option value="">Select Route</option>
+                        <option value="">Select destination</option>
                         {routes.map(r => <option key={r} value={r}>{r}</option>)}
                       </select>
                     </div>
                     <div className="space-y-1">
                       <label className="text-[11px] font-sans font-medium text-[var(--color-muted)]">
-                        Content Type
+                        Content type
                       </label>
                       <select
                         id="edit-tx-package-content-type"
@@ -6028,7 +5892,7 @@ export const TransactionLedger = ({
                         disabled={!canEdit}
                         value={editingTx.contentType || 'Package'}
                         onChange={(e) => setEditingTx({ ...editingTx, contentType: e.target.value })}
-                        className="w-full h-10 px-3 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg text-[var(--color-foreground)] font-sans text-[14px] focus:outline-none focus:border-[var(--color-accent-amber)] disabled:opacity-60"
+                        className="w-full min-h-[44px] h-11 px-3.5 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl text-[var(--color-foreground)] font-sans text-[14px] focus:outline-none focus:border-[var(--color-border-strong)] focus:bg-[var(--color-surface-hover)] disabled:opacity-60"
                       >
                         <option value="Package">Package</option>
                         <option value="Parcel">Parcel</option>
@@ -6048,12 +5912,12 @@ export const TransactionLedger = ({
                         disabled={!canEdit}
                         value={pieceInput}
                         onChange={(e) => setPieceInput(e.target.value)}
-                        className="w-full h-10 px-3 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg text-[var(--color-foreground)] font-mono text-[16px] focus:outline-none focus:border-[var(--color-accent-amber)] disabled:opacity-60"
+                        className="w-full min-h-[44px] h-11 px-3.5 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl text-[var(--color-foreground)] font-mono tabular-nums text-[14px] focus:outline-none focus:border-[var(--color-border-strong)] focus:bg-[var(--color-surface-hover)] disabled:opacity-60"
                       />
                     </div>
                     <div className="space-y-1">
                       <label className="text-[11px] font-sans font-medium text-[var(--color-muted)]">
-                        Weight (KG)
+                        Weight (kg)
                       </label>
                       <input
                         id="edit-tx-package-kg"
@@ -6063,7 +5927,7 @@ export const TransactionLedger = ({
                         disabled={!canEdit}
                         value={kgInput}
                         onChange={(e) => setKgInput(e.target.value)}
-                        className="w-full h-10 px-3 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg text-[var(--color-foreground)] font-mono text-[16px] focus:outline-none focus:border-[var(--color-accent-amber)] disabled:opacity-60"
+                        className="w-full min-h-[44px] h-11 px-3.5 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl text-[var(--color-foreground)] font-mono tabular-nums text-[14px] focus:outline-none focus:border-[var(--color-border-strong)] focus:bg-[var(--color-surface-hover)] disabled:opacity-60"
                       />
                     </div>
                   </div>
@@ -6077,7 +5941,7 @@ export const TransactionLedger = ({
                       disabled={!canEdit}
                       value={editingTx.contents || contentTypes[0]}
                       onChange={(e) => setEditingTx({ ...editingTx, contents: e.target.value })}
-                      className="w-full h-10 px-3 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg text-[var(--color-foreground)] font-sans text-[14px] focus:outline-none focus:border-[var(--color-accent-amber)] disabled:opacity-60"
+                      className="w-full min-h-[44px] h-11 px-3.5 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl text-[var(--color-foreground)] font-sans text-[14px] focus:outline-none focus:border-[var(--color-border-strong)] focus:bg-[var(--color-surface-hover)] disabled:opacity-60"
                     >
                       {contentTypes.map((c) => <option key={c} value={c}>{c}</option>)}
                     </select>
@@ -6090,7 +5954,7 @@ export const TransactionLedger = ({
                         value={editCustomContents}
                         onChange={(e) => setEditCustomContents(e.target.value.toUpperCase())}
                         placeholder="Enter content type"
-                        className="w-full h-10 px-3 mt-2 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg text-[var(--color-foreground)] font-sans text-[14px] focus:outline-none focus:border-[var(--color-accent-amber)] disabled:opacity-60"
+                        className="w-full min-h-[44px] h-11 px-3.5 mt-2 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl text-[var(--color-foreground)] font-sans text-[14px] focus:outline-none focus:border-[var(--color-border-strong)] focus:bg-[var(--color-surface-hover)] disabled:opacity-60"
                       />
                     )}
                   </div>
@@ -6105,14 +5969,14 @@ export const TransactionLedger = ({
                       disabled={!(canEdit || canEditRemarks)}
                       value={editingTx.remarks || ''}
                       onChange={(e) => setEditingTx({ ...editingTx, remarks: e.target.value.toUpperCase() })}
-                      className="w-full px-3 py-2 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg text-[var(--color-foreground)] font-sans text-[14px] focus:outline-none focus:border-[var(--color-accent-amber)] resize-none disabled:opacity-60"
-                      placeholder="E.G. SENT BY ROAD"
+                      className="w-full px-3.5 py-2.5 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl text-[var(--color-foreground)] font-sans text-[14px] focus:outline-none focus:border-[var(--color-border-strong)] focus:bg-[var(--color-surface-hover)] resize-none disabled:opacity-60"
+                      placeholder="e.g. Sent by road"
                     />
                   </div>
                 </>
               )}
 
-              <h4 className="text-[10px] font-mono text-[var(--color-muted)] uppercase tracking-wide -mb-2 pt-2 border-t border-[var(--color-border)]">
+              <h4 className="text-[11px] font-sans font-medium text-[var(--color-muted)] -mb-2 pt-2 border-t border-[var(--color-border)]">
                 Payment
               </h4>
 
@@ -6128,13 +5992,13 @@ export const TransactionLedger = ({
                   disabled={!canEdit}
                   value={amountInput}
                   onChange={(e) => setAmountInput(e.target.value)}
-                  className="w-full h-10 px-3 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg text-[var(--color-foreground)] font-mono text-[16px] focus:outline-none focus:border-[var(--color-accent-amber)] disabled:opacity-60"
+                  className="w-full min-h-[44px] h-11 px-3.5 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl text-[var(--color-foreground)] font-mono tabular-nums text-[14px] focus:outline-none focus:border-[var(--color-border-strong)] focus:bg-[var(--color-surface-hover)] disabled:opacity-60"
                 />
               </div>
 
               <div className="space-y-1">
                 <label className="text-[11px] font-sans font-medium text-[var(--color-muted)]">
-                  Payment Mode
+                  Payment mode
                 </label>
                 <select
                   disabled={!canEdit}
@@ -6148,24 +6012,13 @@ export const TransactionLedger = ({
                       setEditWalletRemainderBank('');
                     }
                   }}
-                  className="w-full h-10 px-3 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg text-[var(--color-foreground)] font-sans text-[16px] focus:outline-none focus:border-[var(--color-accent-amber)] disabled:opacity-60"
+                  className="w-full min-h-[44px] h-11 px-3.5 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl text-[var(--color-foreground)] font-sans text-[14px] focus:outline-none focus:border-[var(--color-border-strong)] focus:bg-[var(--color-surface-hover)] disabled:opacity-60"
                 >
                   <option value="Cash">Cash</option>
-                  <option value="Transfer">Bank Transfer</option>
-                  <option value="POS">POS / Card</option>
-                  {/* Picking "Debt" here never actually reopens a cleared
-                      debt -- amount_paid isn't editable in this form and
-                      gets written back unchanged, so a "Debt Paid" entry
-                      silently reverts to Debt Paid on the next reload.
-                      Disabled for an already-cleared entry so staff aren't
-                      misled; use the dedicated Reopen Debt button instead. */}
+                  <option value="Transfer">Bank transfer</option>
+                  <option value="POS">POS / card</option>
                   <option value="Debt" disabled={editOriginalMode === 'Debt Paid'}>Debt</option>
-                  {/* "Customer Wallet" here = settle this debt from the
-                      customer's wallet (routed through clear_*_debt, recorded
-                      in payment_history). Disabled once the entry is fully
-                      settled -- charging a wallet then only double-charges;
-                      use Reopen Debt to fix a wrong payment. */}
-                  <option value="Wallet" disabled={editFullySettled}>Customer Wallet</option>
+                  <option value="Wallet" disabled={editFullySettled}>Customer wallet</option>
                 </select>
                 {editFullySettled && (
                   <p className="text-[10px] font-sans text-[var(--color-muted)] mt-1">
@@ -6175,11 +6028,6 @@ export const TransactionLedger = ({
               </div>
 
               {editingTx.mode === 'Wallet' && editOriginalMode !== 'Wallet' && !editFullySettled && (() => {
-                // Uses the entry's true current amount, NOT amountInput -- the
-                // wallet-settle branch of handleSaveEdit returns before any
-                // edited amount/pieces/kg are persisted, so previewing off a
-                // typed-but-unsaved amount would mislead. Editing figures and
-                // settling from wallet are effectively separate saves.
                 const debtRemaining = roundMoney(
                   (editingTx.amount || 0) - (editingTx.amountPaid || 0) - ((editingTx.raw as any)?.retrieved_amount || 0)
                 );
@@ -6228,9 +6076,9 @@ export const TransactionLedger = ({
                     onChange={(e) =>
                       setEditingTx({ ...editingTx, bank: e.target.value })
                     }
-                    className="w-full h-10 px-3 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg text-[var(--color-foreground)] font-sans text-[16px] focus:outline-none focus:border-[var(--color-accent-amber)] disabled:opacity-60"
+                    className="w-full min-h-[44px] h-11 px-3.5 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl text-[var(--color-foreground)] font-sans text-[14px] focus:outline-none focus:border-[var(--color-border-strong)] focus:bg-[var(--color-surface-hover)] disabled:opacity-60"
                   >
-                    <option value="">Select Bank</option>
+                    <option value="">Select bank</option>
                     {banks.map((b) => <option key={b} value={b}>{b}</option>)}
                   </select>
                 </div>
@@ -6249,7 +6097,7 @@ export const TransactionLedger = ({
                       status: e.target.value as any,
                     })
                   }
-                  className="w-full h-10 px-3 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg text-[var(--color-foreground)] font-sans text-[16px] focus:outline-none focus:border-[var(--color-accent-amber)] disabled:opacity-60"
+                  className="w-full min-h-[44px] h-11 px-3.5 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl text-[var(--color-foreground)] font-sans text-[14px] focus:outline-none focus:border-[var(--color-border-strong)] focus:bg-[var(--color-surface-hover)] disabled:opacity-60"
                 >
                   <option value="Intake">Intake</option>
                   <option value="Dispatched">Dispatched</option>

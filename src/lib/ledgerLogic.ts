@@ -15,6 +15,44 @@ export interface PaymentBadgeResult {
   tone: 'success' | 'warning' | 'error' | 'info' | 'neutral';
 }
 
+/**
+ * Maps status tone to hairline Grok color token classes.
+ */
+export function getPaymentToneClass(tone: 'success' | 'warning' | 'error' | 'info' | 'neutral'): string {
+  switch (tone) {
+    case 'success':
+      return 'bg-[rgba(34,197,94,0.12)] text-[var(--color-success)] border-[rgba(34,197,94,0.25)]';
+    case 'error':
+      return 'bg-[rgba(239,68,68,0.12)] text-[var(--color-error)] border-[rgba(239,68,68,0.25)]';
+    case 'warning':
+      return 'bg-[rgba(245,158,11,0.12)] text-[var(--color-warning)] border-[rgba(245,158,11,0.25)]';
+    case 'info':
+      return 'bg-[rgba(59,130,246,0.12)] text-[var(--color-accent-cobalt)] border-[rgba(59,130,246,0.25)]';
+    case 'neutral':
+    default:
+      return 'bg-[var(--color-surface-2)] text-[var(--color-foreground)] border-[var(--color-border)]';
+  }
+}
+
+/**
+ * Returns badge label, tone, and CSS class name.
+ */
+export function getPaymentBadgeClasses(
+  mode: string,
+  paymentConfirmed: boolean = true,
+  walletDeduction: number = 0
+): {
+  label: string;
+  tone: 'success' | 'warning' | 'error' | 'info' | 'neutral';
+  className: string;
+} {
+  const badge = formatPaymentModeBadge(mode, paymentConfirmed, walletDeduction);
+  return {
+    ...badge,
+    className: getPaymentToneClass(badge.tone),
+  };
+}
+
 export interface AmountFormatResult {
   formatted: string;
   isNegative: boolean;

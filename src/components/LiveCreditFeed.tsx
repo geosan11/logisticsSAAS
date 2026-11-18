@@ -77,22 +77,22 @@ export const LiveCreditFeed: React.FC<LiveCreditFeedProps> = ({
     // side panel below).
     return (
       <div className="select-none" style={{ position: 'fixed', top: '50%', right: 0, transform: 'translateY(-50%)', zIndex: 20 }}>
-        <div className="w-7 sm:w-9 rounded-l-xl rounded-r-none bg-[var(--color-surface-card)]/95 backdrop-blur-sm border border-r-0 border-[var(--color-border-strong)] shadow-[var(--shadow-sm)] flex flex-col items-center py-2 sm:py-2.5 gap-2 transition-colors hover:border-[var(--color-accent-amber)]">
+        <div className="w-7 sm:w-9 rounded-l-xl rounded-r-none bg-[var(--color-surface-card)]/95 backdrop-blur-sm border border-r-0 border-[var(--color-border)] shadow-sm flex flex-col items-center py-2 sm:py-2.5 gap-2 transition-colors hover:border-[var(--color-border-strong)]">
           <button
             type="button"
             onClick={() => setCollapsed(false)}
-            className="p-1 sm:p-1.5 text-[var(--color-accent-amber)] hover:bg-[var(--color-surface-2)] rounded-lg transition-colors cursor-pointer"
-            title="Expand Live Customer Credit Feed"
+            className="p-1 sm:p-1.5 text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-2)] rounded-full transition-colors cursor-pointer"
+            title="Expand customer credit feed"
           >
             <ChevronLeft size={16} />
           </button>
           <div className="flex flex-col items-center gap-2 max-h-[calc(100vh-220px)] overflow-hidden">
-            <span className="w-2 h-2 rounded-full bg-[var(--color-accent-amber)] animate-pulse shrink-0" />
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-muted)] shrink-0" />
             <span
-              className="text-[10px] font-mono font-bold tracking-widest text-[var(--color-accent-amber)] uppercase whitespace-nowrap"
+              className="text-[11px] font-sans font-medium text-[var(--color-muted)] hover:text-[var(--color-foreground)] whitespace-nowrap transition-colors"
               style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
             >
-              Prepaid Credit Feed (₦{fmt(totalLiability)})
+              Prepaid credit · ₦{fmt(totalLiability)}
             </span>
           </div>
         </div>
@@ -109,16 +109,15 @@ export const LiveCreditFeed: React.FC<LiveCreditFeedProps> = ({
       />
       <div className="ehi-credit-feed fixed inset-y-0 right-0 z-50 w-72 sm:w-80 lg:static lg:z-auto lg:w-64 bg-[var(--color-surface-1)] border-l border-[var(--color-border)] flex flex-col h-full shrink-0 shadow-2xl transition-all">
       {/* Feed Header */}
-      <div className="p-2 bg-[var(--color-surface-2)] border-b border-[var(--color-border)] flex items-center justify-between">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <span className="w-2 h-2 rounded-full bg-[var(--color-accent-amber)] animate-ping shrink-0" />
-          <div>
-            <div className="text-[10px] font-mono font-bold text-[var(--color-accent-amber)] flex items-center gap-1">
-              LIVE CREDIT & RETRIEVAL FEED
-              <Sparkles size={10} className="text-[var(--color-accent-amber)]" />
+      <div className="p-3 bg-[var(--color-surface-card)] border-b border-[var(--color-border)] flex items-center justify-between">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="w-2 h-2 rounded-full bg-[var(--color-success)] shrink-0" />
+          <div className="min-w-0">
+            <div className="text-[12px] font-sans font-semibold text-[var(--color-foreground)] truncate">
+              Customer credit &amp; activity
             </div>
-            <div className="text-[10px] font-mono text-[var(--color-muted)]">
-              Liability: <span className="text-[var(--color-foreground)] font-bold">₦{fmt(totalLiability)}</span>
+            <div className="text-[11px] font-sans text-[var(--color-muted)]">
+              Liability: <span className="text-[var(--color-foreground)] font-mono tabular-nums font-semibold">₦{fmt(totalLiability)}</span>
             </div>
           </div>
         </div>
@@ -127,17 +126,18 @@ export const LiveCreditFeed: React.FC<LiveCreditFeedProps> = ({
             <button
               type="button"
               onClick={() => onOpenTopUp()}
-              className="p-1.5 bg-[var(--color-accent-amber)] text-[var(--color-on-accent)] rounded-lg font-bold hover:opacity-90 cursor-pointer"
-              title="Top-Up Customer Credit"
+              className="min-h-[32px] px-3 bg-white text-black hover:bg-neutral-200 rounded-full font-sans text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+              title="Top-up customer credit"
             >
-              <Plus size={14} />
+              <Plus size={13} />
+              <span>Top-up</span>
             </button>
           )}
           <button
             type="button"
             onClick={() => setCollapsed(true)}
-            className="p-1 text-[var(--color-muted)] hover:text-[var(--color-foreground)] rounded-lg cursor-pointer"
-            title="Collapse Feed"
+            className="p-1 text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)] rounded-full cursor-pointer transition-colors"
+            title="Collapse feed"
           >
             <ChevronRight size={18} />
           </button>
@@ -145,26 +145,26 @@ export const LiveCreditFeed: React.FC<LiveCreditFeedProps> = ({
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex border-b border-[var(--color-border)] bg-[var(--color-obsidian)] p-1 gap-1">
+      <div className="flex border-b border-[var(--color-border)] bg-[var(--color-surface-1)] p-1 gap-1">
         <button
           type="button"
           onClick={() => setActiveTab('wallets')}
-          className={`flex-1 py-1 text-[10px] font-mono font-bold rounded transition-colors cursor-pointer flex items-center justify-center gap-1 ${activeTab === 'wallets'
-              ? 'bg-[var(--color-surface-2)] text-[var(--color-accent-amber)] border border-[rgba(251,191,36,0.2)]'
+          className={`flex-1 py-1.5 text-[11px] font-sans font-medium rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${activeTab === 'wallets'
+              ? 'bg-[var(--color-surface-card)] text-[var(--color-foreground)] font-semibold border border-[var(--color-border)] shadow-sm'
               : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
             }`}
         >
-          <Wallet size={11} /> Wallets ({displayedWallets.length})
+          <Wallet size={12} /> Wallets ({displayedWallets.length})
         </button>
         <button
           type="button"
           onClick={() => setActiveTab('activity')}
-          className={`flex-1 py-1 text-[10px] font-mono font-bold rounded transition-colors cursor-pointer flex items-center justify-center gap-1 ${activeTab === 'activity'
-              ? 'bg-[var(--color-surface-2)] text-[var(--color-accent-amber)] border border-[rgba(251,191,36,0.2)]'
+          className={`flex-1 py-1.5 text-[11px] font-sans font-medium rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${activeTab === 'activity'
+              ? 'bg-[var(--color-surface-card)] text-[var(--color-foreground)] font-semibold border border-[var(--color-border)] shadow-sm'
               : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
             }`}
         >
-          <History size={11} /> Live Stream ({walletActivities.length})
+          <History size={12} /> Activity ({walletActivities.length})
         </button>
       </div>
 
@@ -176,67 +176,67 @@ export const LiveCreditFeed: React.FC<LiveCreditFeedProps> = ({
               <div
                 key={w.id}
                 onClick={() => setDrawerWallet(w)}
-                className="p-2 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] border border-[var(--color-border)] rounded-lg space-y-1.5 transition-all group cursor-pointer"
+                className="p-2.5 bg-[var(--color-surface-card)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-xl space-y-1.5 transition-all group cursor-pointer"
               >
                 <div className="flex items-start justify-between gap-1">
                   <div className="min-w-0">
                     <button
                       type="button"
                       onClick={() => onFilterByCustomer && onFilterByCustomer(w.customer_name)}
-                      className="text-[11px] font-bold font-sans text-[var(--color-foreground)] hover:text-[var(--color-accent-amber)] truncate text-left block cursor-pointer leading-tight"
+                      className="text-[12px] font-semibold font-sans text-[var(--color-foreground)] hover:underline truncate text-left block cursor-pointer leading-tight"
                     >
                       {w.customer_name}
                     </button>
                     {w.customer_phone && (
-                      <div className="text-[10px] font-mono text-[var(--color-muted)] mt-0.5">
+                      <div className="text-[10px] font-mono tabular-nums text-[var(--color-muted)] mt-0.5">
                         {w.customer_phone}
                       </div>
                     )}
                   </div>
                   <div className="text-right shrink-0">
-                    <div className="text-[11px] font-mono font-bold text-[var(--color-accent-amber)] leading-tight">
+                    <div className="text-[12px] font-mono tabular-nums font-semibold text-[var(--color-foreground)] leading-tight">
                       ₦{fmt(w.balance)}
                     </div>
-                    <div className="text-[10px] font-mono text-[var(--color-success)] uppercase">
+                    <div className="text-[10px] font-sans text-[var(--color-muted)]">
                       Credit
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1.5 pt-1.5 border-t border-[var(--color-border)] text-[10px] font-mono">
+                <div className="flex items-center gap-1.5 pt-1.5 border-t border-[var(--color-border)] text-[11px] font-sans">
                   {onOpenTopUp && (
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); onOpenTopUp(w.customer_name); }}
-                      className="flex-1 py-1 bg-[rgba(251,191,36,0.12)] hover:bg-[var(--color-accent-amber)] text-[var(--color-accent-amber)] hover:text-[var(--color-on-accent)] rounded-lg font-bold text-center transition-colors cursor-pointer flex items-center justify-center gap-1"
+                      className="flex-1 min-h-[36px] bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] border border-[var(--color-border)] rounded-lg font-medium text-center transition-colors cursor-pointer flex items-center justify-center gap-1"
                     >
-                      <Plus size={11} /> Top Up
+                      <Plus size={12} /> Top-up
                     </button>
                   )}
                   {onFilterByCustomer && (
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); onFilterByCustomer(w.customer_name); }}
-                      className="flex-1 py-1 bg-[var(--color-surface-3)] hover:bg-[var(--color-border)] text-[var(--color-foreground)] rounded-lg text-center transition-colors cursor-pointer flex items-center justify-center gap-1"
+                      className="flex-1 min-h-[36px] bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] border border-[var(--color-border)] rounded-lg font-medium text-center transition-colors cursor-pointer flex items-center justify-center gap-1"
                       title={`Filter ledger by ${w.customer_name}`}
                     >
-                      <Search size={11} /> Filter
+                      <Search size={12} /> Filter
                     </button>
                   )}
                 </div>
               </div>
             ))
           ) : (
-            <div className="py-12 text-center text-[11px] font-mono text-[var(--color-muted)] space-y-2">
+            <div className="py-12 text-center text-[12px] font-sans text-[var(--color-muted)] space-y-2">
               <Wallet size={24} className="mx-auto text-[var(--color-muted)] opacity-50" />
               <div>{searchLower ? 'No wallets match your search.' : 'No customer credit wallets yet.'}</div>
               {!searchLower && onOpenTopUp && (
                 <button
                   type="button"
                   onClick={() => onOpenTopUp()}
-                  className="px-3 py-1.5 bg-[var(--color-accent-amber)] text-[var(--color-on-accent)] font-bold rounded-lg text-[11px] cursor-pointer"
+                  className="px-4 py-2 bg-white text-black hover:bg-neutral-200 font-semibold rounded-full text-[12px] font-sans cursor-pointer transition-colors"
                 >
-                  Create First Wallet
+                  Create first wallet
                 </button>
               )}
             </div>
@@ -252,40 +252,40 @@ export const LiveCreditFeed: React.FC<LiveCreditFeedProps> = ({
                 <div
                   key={tx.id}
                   className={`p-2.5 rounded-xl border space-y-1.5 transition-all ${isRetrieval
-                      ? 'bg-[rgba(16,185,129,0.06)] border-[rgba(16,185,129,0.25)]'
-                      : 'bg-[rgba(251,191,36,0.06)] border-[rgba(251,191,36,0.25)]'
+                      ? 'bg-[rgba(34,197,94,0.06)] border-[rgba(34,197,94,0.2)]'
+                      : 'bg-[var(--color-surface-card)] border-[var(--color-border)]'
                     }`}
                 >
-                  <div className="flex items-center justify-between text-[11px] font-mono">
-                    <span className="font-bold flex items-center gap-1">
+                  <div className="flex items-center justify-between text-[11px] font-sans">
+                    <span className="font-semibold flex items-center gap-1">
                       {isRetrieval ? (
                         <>
                           <ArrowDownLeft size={13} className="text-[var(--color-success)]" />
-                          <span className="text-[var(--color-success)]">RETRIEVAL REFUND</span>
+                          <span className="text-[var(--color-success)]">Retrieval refund</span>
                         </>
                       ) : (
                         <>
-                          <ArrowUpRight size={13} className="text-[var(--color-accent-amber)]" />
-                          <span className="text-[var(--color-accent-amber)]">WALLET DEDUCTION</span>
+                          <ArrowUpRight size={13} className="text-[var(--color-muted)]" />
+                          <span className="text-[var(--color-foreground)]">Wallet deduction</span>
                         </>
                       )}
                     </span>
-                    <span className="text-[var(--color-muted)]">{tx.time || tnow()}</span>
+                    <span className="text-[var(--color-muted)] font-mono tabular-nums">{tx.time || tnow()}</span>
                   </div>
 
-                  <div className="text-[12px] font-bold font-sans text-[var(--color-foreground)] truncate">
+                  <div className="text-[12px] font-semibold font-sans text-[var(--color-foreground)] truncate">
                     {tx.name}
                   </div>
 
-                  <div className="text-[10px] font-mono text-[var(--color-muted)] truncate">
-                    Waybill: {tx.awb_tag_number || tx.id} · {tx.detail}
+                  <div className="text-[11px] font-sans text-[var(--color-muted)] truncate">
+                    Waybill: <span className="font-mono tabular-nums">{tx.awb_tag_number || tx.id}</span> · {tx.detail}
                   </div>
 
-                  <div className="flex items-center justify-between pt-1 border-t border-[rgba(255,255,255,0.05)] text-[11px] font-mono font-bold">
-                    <span className="text-[var(--color-muted)] text-[10px]">
-                      {isRetrieval ? 'Credited to Wallet:' : 'Deducted from Wallet:'}
+                  <div className="flex items-center justify-between pt-1 border-t border-[var(--color-border)] text-[11px]">
+                    <span className="text-[var(--color-muted)] text-[11px] font-sans">
+                      {isRetrieval ? 'Credited to wallet:' : 'Deducted from wallet:'}
                     </span>
-                    <span className={isRetrieval ? 'text-[var(--color-success)]' : 'text-[var(--color-accent-amber)]'}>
+                    <span className={`font-mono tabular-nums font-semibold ${isRetrieval ? 'text-[var(--color-success)]' : 'text-[var(--color-foreground)]'}`}>
                       {isRetrieval ? `+₦${fmt(tx.amount)}` : `-₦${fmt(deductionAmt)}`}
                     </span>
                   </div>
@@ -293,7 +293,7 @@ export const LiveCreditFeed: React.FC<LiveCreditFeedProps> = ({
               );
             })
           ) : (
-            <div className="py-12 text-center text-[11px] font-mono text-[var(--color-muted)]">
+            <div className="py-12 text-center text-[12px] font-sans text-[var(--color-muted)]">
               {searchLower ? 'No activity matches your search.' : 'No recent wallet activity recorded in this shift.'}
             </div>
           )
@@ -302,35 +302,35 @@ export const LiveCreditFeed: React.FC<LiveCreditFeedProps> = ({
 
       {/* Feed Footer */}
       {onOpenWalletsView && (
-        <div className="p-3 bg-[var(--color-surface-2)] border-t border-[var(--color-border)] text-center">
+        <div className="p-3 bg-[var(--color-surface-card)] border-t border-[var(--color-border)] text-center">
           <button
             type="button"
             onClick={onOpenWalletsView}
-            className="w-full py-2 bg-[var(--color-surface-3)] hover:bg-[var(--color-border)] text-[var(--color-foreground)] text-[11px] font-mono font-bold rounded-xl border border-[var(--color-border)] transition-colors cursor-pointer"
+            className="w-full min-h-[44px] px-4 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] text-[12px] font-sans font-medium rounded-full border border-[var(--color-border)] transition-colors cursor-pointer"
           >
-            Manage All Wallets & Receipts →
+            Manage all wallets &amp; receipts →
           </button>
         </div>
       )}
 
       {/* Wallet Mini-Drawer */}
       {drawerWallet && (
-        <div className="absolute inset-0 z-50 flex flex-col bg-[var(--color-surface-1)] border-l border-[var(--color-border)]">
+        <div className="absolute inset-0 z-50 flex flex-col bg-[var(--color-surface-card)] border-l border-[var(--color-border)]">
           {/* Drawer Header */}
-          <div className="p-3 bg-[var(--color-surface-2)] border-b border-[var(--color-border)] flex items-center justify-between shrink-0">
+          <div className="p-3 bg-[var(--color-surface-1)] border-b border-[var(--color-border)] flex items-center justify-between shrink-0">
             <div className="min-w-0">
-              <div className="text-[11px] font-bold font-sans text-[var(--color-foreground)] truncate">{drawerWallet.customer_name}</div>
-              <div className="text-[10px] font-mono text-[var(--color-muted)]">{drawerWallet.customer_phone || 'No phone'}</div>
+              <div className="text-[12px] font-semibold font-sans text-[var(--color-foreground)] truncate">{drawerWallet.customer_name}</div>
+              <div className="text-[11px] font-mono tabular-nums text-[var(--color-muted)]">{drawerWallet.customer_phone || 'No phone'}</div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <div className="text-right">
-                <div className="text-[14px] font-bold font-mono text-[var(--color-accent-amber)]">₦{fmt(drawerWallet.balance)}</div>
-                <div className="text-[10px] font-mono text-[var(--color-success)] uppercase">Credit Balance</div>
+                <div className="text-[13px] font-semibold font-mono tabular-nums text-[var(--color-foreground)]">₦{fmt(drawerWallet.balance)}</div>
+                <div className="text-[10px] font-sans text-[var(--color-muted)]">Credit balance</div>
               </div>
               <button
                 type="button"
                 onClick={() => setDrawerWallet(null)}
-                className="p-1 text-[var(--color-muted)] hover:text-[var(--color-foreground)] rounded-lg cursor-pointer"
+                className="p-1.5 text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)] rounded-full cursor-pointer transition-colors"
               >
                 <X size={14} />
               </button>

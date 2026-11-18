@@ -8,6 +8,8 @@ import {
   shortenDestination,
   stripBadgedFieldsFromDetail,
   formatPaymentModeBadge,
+  getPaymentToneClass,
+  getPaymentBadgeClasses,
   summarisePaymentHistory,
   canAccessLedger,
   getDensityClasses,
@@ -120,6 +122,36 @@ describe('Transaction Ledger Logic & Formatting (Grok UI)', () => {
         label: 'Transfer',
         tone: 'warning',
       });
+    });
+
+    test('maps tone to Grok color classes', () => {
+      assert.ok(getPaymentToneClass('success').includes('var(--color-success)'));
+      assert.ok(getPaymentToneClass('error').includes('var(--color-error)'));
+      assert.ok(getPaymentToneClass('warning').includes('var(--color-warning)'));
+      assert.ok(getPaymentToneClass('neutral').includes('var(--color-surface-2)'));
+      assert.ok(getPaymentToneClass('info').includes('var(--color-accent-cobalt)'));
+    });
+
+    test('returns complete badge metadata with class names', () => {
+      const debt = getPaymentBadgeClasses('Debt');
+      assert.strictEqual(debt.label, 'Debt');
+      assert.strictEqual(debt.tone, 'error');
+      assert.ok(debt.className.includes('var(--color-error)'));
+
+      const cleared = getPaymentBadgeClasses('Debt Paid');
+      assert.strictEqual(cleared.label, 'Debt cleared');
+      assert.strictEqual(cleared.tone, 'success');
+      assert.ok(cleared.className.includes('var(--color-success)'));
+
+      const unverifiedCash = getPaymentBadgeClasses('Cash', false);
+      assert.strictEqual(unverifiedCash.label, 'Cash');
+      assert.strictEqual(unverifiedCash.tone, 'warning');
+      assert.ok(unverifiedCash.className.includes('var(--color-warning)'));
+
+      const transfer = getPaymentBadgeClasses('Transfer', true);
+      assert.strictEqual(transfer.label, 'Transfer');
+      assert.strictEqual(transfer.tone, 'neutral');
+      assert.ok(transfer.className.includes('var(--color-surface-2)'));
     });
   });
 
