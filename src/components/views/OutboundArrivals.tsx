@@ -1,41 +1,40 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { User } from '../../lib/types';
 import { supabase } from '../../lib/supabase';
 import { useToast } from '../../lib/ToastContext';
-import { RefreshCw, CheckCircle2 } from 'lucide-react';
-import { PageHeader, Spinner } from '../ui';
+import { useDensity } from '../../lib/useDensity';
+import { BackButton } from '../BackButton';
+import { Spinner } from '../ui';
+import {
+  RefreshCw,
+  CheckCircle2,
+  Search,
+  X,
+  Download,
+  Copy,
+  Check,
+} from 'lucide-react';
+import {
+  timeSince,
+  formatOutboundSpecs,
+  formatAwbDisplay,
+  formatRouteDisplay,
+  filterOutboundArrivals,
+  calculateOutboundMetrics,
+  formatOutboundTelemetry,
+  generateOutboundCsv,
+  OutboundArrivalItem,
+  OutboundSourceFilter,
+} from '../../lib/outboundLogic';
 
-function timeSince(dateStr: string): string {
-  const diffMs = Date.now() - new Date(dateStr).getTime();
-  const hours = Math.floor(diffMs / 3600000);
-  if (hours < 1) {
-    const mins = Math.max(1, Math.floor(diffMs / 60000));
-    return `${mins}m`;
-  }
-  if (hours < 24) return `${hours}h`;
-  return `${Math.floor(hours / 24)}d`;
-}
-
-type Source = 'Cargo' | 'Legacy' | 'Package';
-
-interface OutboundArrivalRow {
-  key: string;
-  source: Source;
-  entryRef: string;
-  customerName: string;
-  destinationLabel: string;
-  pcs?: number;
-  kg?: number;
-  awb?: string;
-  airline?: string;
-  contentType?: string;
-  createdAt: string;
-}
-
-export const OutboundArrivals = ({ user, onBack }: { user: User; onBack: () => void }) => {
-  const [rows, setRows] = useState<OutboundArrivalRow[]>([]);
+export const OutboundArrivals = ({ user, onBack }: { user: User; onBack?: () => void }) => {
+  const [rows, setRows] = useState<OutboundArrivalItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sourceFilter, setSourceFilter] = useState<OutboundSourceFilter>('all');
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const { showToast } = useToast();
+  const { isCompact } = useDensity();
 
   const fetchArrivals = async () => {
     setLoading(true);
@@ -62,7 +61,7 @@ export const OutboundArrivals = ({ user, onBack }: { user: User; onBack: () => v
       ]);
 
       let errorCount = 0;
-      const merged: OutboundArrivalRow[] = [];
+      const merged: OutboundArrivalItem[] = [];
 
       if (cargoRes.error) {
         console.error('Outbound arrivals (cargo) fetch error:', cargoRes.error);
@@ -139,61 +138,361 @@ export const OutboundArrivals = ({ user, onBack }: { user: User; onBack: () => v
     }
   };
 
-  useEffect(() => { fetchArrivals(); }, [user.hub_id]);
+  useEffect(() => {
+    fetchArrivals();
+  }, [user.hub_id]);
+
+  const filteredRows = useMemo(() => {
+    return filterOutboundArrivals(rows, searchQuery, sourceFilter);
+  }, [rows, searchQuery, sourceFilter]);
+
+  const metrics = useMemo(() => {
+    return calculateOutboundMetrics(rows);
+  }, [rows]);
+
+  const isFiltered = Boolean(searchQuery.trim() || sourceFilter !== 'all');
+
+  const telemetry = useMemo(() => {
+    return formatOutboundTelemetry(
+      filteredRows.length,
+      rows.length,
+      metrics.totalPieces,
+      metrics.totalWeight,
+      isFiltered
+    );
+  }, [filteredRows.length, rows.length, metrics.totalPieces, metrics.totalWeight, isFiltered]);
+
+  const handleCopyIdentifier = useCallback((text: string, id: string) => {
+    if (!text) return;
+    try {
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(text);
+      }
+      setCopiedId(id);
+      showToast({ message: `Copied ${text}`, type: 'success' });
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch {
+      showToast({ message: text, type: 'info' });
+    }
+  }, [showToast]);
+
+  const handleExportCsv = () => {
+    if (filteredRows.length === 0) {
+      showToast({ message: 'No confirmed arrivals to export', type: 'info' });
+      return;
+    }
+    try {
+      const csv = generateOutboundCsv(filteredRows);
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const hubSlug = (user.hub || 'hub').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      link.setAttribute('download', `outbound-arrivals-${hubSlug}-${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      showToast({ message: `Exported ${filteredRows.length} confirmed arrivals`, type: 'success' });
+    } catch (err) {
+      console.error('Failed to export CSV:', err);
+      showToast({ message: 'Failed to export arrivals CSV', type: 'error' });
+    }
+  };
 
   return (
-    <div className="flex flex-col h-full bg-[var(--color-canvas)] text-[var(--color-foreground)] overflow-hidden">
-      <PageHeader
-        title="Outbound Arrivals"
-        onBack={onBack}
-        actions={
-          <button onClick={fetchArrivals} aria-label="Refresh" className="p-1.5 rounded hover:bg-[var(--color-surface-2)] transition-colors">
-            <RefreshCw size={14} className={`text-[var(--color-muted)] ${loading ? 'animate-spin' : ''}`} />
-          </button>
-        }
-      />
-
-      <div className="px-4 py-3 text-[11px] font-sans text-[var(--color-muted)] border-b border-[var(--color-border)]">
-        Shipments dispatched from <strong className="text-[var(--color-foreground)]">{user.hub}</strong> — confirmed arrived at destination
-      </div>
-
-      <div className="flex-1 overflow-y-auto">
-        <div className="ehi-page-body px-4 py-4 space-y-3">
-          {loading ? (
-            <div className="flex justify-center py-12">
-              <Spinner size="lg" tone="current" className="text-[var(--color-success)]" />
-            </div>
-          ) : rows.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-14 border border-dashed border-[var(--color-border)] rounded-xl">
-              <CheckCircle2 size={32} className="text-[var(--color-muted)] mb-3 opacity-40" />
-              <p className="text-[13px] font-sans font-medium text-[var(--color-muted)]">
-                Nothing dispatched from this hub has been confirmed as arrived yet.
+    <div className="flex flex-col h-full bg-[var(--color-canvas)] text-[var(--color-foreground)] overflow-hidden select-none">
+      {/* ── 1. Unified Quiet Header Toolbar ──────────────────────────── */}
+      <header className={`border-b border-[var(--color-border)] px-4 sm:px-6 shrink-0 bg-[var(--color-canvas)] ${isCompact ? 'py-2.5' : 'py-3'}`}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            {onBack && <BackButton onClick={onBack} />}
+            <div className="min-w-0">
+              <h1 className="text-[18px] sm:text-[20px] font-sans font-semibold text-[var(--color-foreground)] tracking-tight truncate">
+                Outbound Arrivals
+              </h1>
+              <p className="text-[12px] font-sans text-[var(--color-muted)] truncate mt-0.5">
+                Shipments dispatched from{' '}
+                <strong className="font-medium text-[var(--color-foreground)]">{user.hub}</strong>
+                {' '}confirmed arrived at destination
               </p>
             </div>
-          ) : rows.map((r) => (
-            <div key={r.key} className="ehi-card p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <div className="space-y-1 min-w-0">
-                <div className="text-[15px] font-bold text-[var(--color-foreground)] font-sans">{r.customerName}</div>
-                <div className="text-[10px] font-mono text-[var(--color-muted)]">
-                  <span className="text-[var(--color-success)]">{r.entryRef}</span>
-                  <span className="ml-2 px-1.5 py-0.5 rounded bg-[var(--color-surface-2)] text-[var(--color-muted)]">{r.source}</span>
-                  {r.awb && <span className="ml-2 text-[var(--color-muted)]">· AWB {r.awb}</span>}
-                  {r.airline && <span className="ml-2 text-[var(--color-muted)]">· {r.airline}</span>}
-                </div>
-                <div className="text-[12px] font-sans text-[var(--color-muted)]">
-                  {r.destinationLabel} &nbsp;·&nbsp; {r.pcs || '?'} pcs {r.kg ? `· ${r.kg} kg` : ''} &nbsp;·&nbsp; {r.contentType || 'Package'}
-                </div>
-              </div>
-              <div className="shrink-0 flex flex-col items-end gap-0.5">
-                <div className="flex items-center gap-1 text-[var(--color-success)] text-[11px] font-bold font-mono">
-                  <CheckCircle2 size={12} /> ARRIVED
-                </div>
-                <div className="text-[10px] font-mono text-[var(--color-muted)]">
-                  arrived {timeSince(r.createdAt)} ago
-                </div>
-              </div>
+          </div>
+
+          {/* Action Toolbar: Search + Refresh + Flat White Pill Primary Action */}
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
+            {/* Search Input with 44px Clear Button */}
+            <div className="relative flex-1 sm:w-64 sm:flex-initial">
+              <Search
+                size={14}
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-muted)] pointer-events-none"
+              />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setSearchQuery('');
+                    (e.target as HTMLElement).blur();
+                  }
+                }}
+                autoComplete="off"
+                spellCheck="false"
+                placeholder="Filter outbound arrivals..."
+                aria-label="Filter outbound arrivals"
+                className="w-full min-h-[44px] h-11 pl-9 pr-11 text-[13px] font-sans rounded-full bg-[var(--color-surface-1)] border border-[var(--color-border)] text-[var(--color-foreground)] placeholder:text-[var(--color-muted)] focus:outline-none focus:border-[var(--color-border-strong)] transition-colors"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  aria-label="Clear filter"
+                  className="absolute right-0 top-1/2 -translate-y-1/2 min-w-[44px] min-h-[44px] w-11 h-11 flex items-center justify-center rounded-full text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
+                >
+                  <X size={14} />
+                </button>
+              )}
             </div>
-          ))}
+
+            {/* Refresh Button */}
+            <button
+              type="button"
+              onClick={fetchArrivals}
+              disabled={loading}
+              aria-label="Refresh outbound arrivals"
+              className="min-h-[44px] h-11 px-3.5 sm:px-4 rounded-full text-[12px] font-sans font-medium bg-[var(--color-surface-2)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 disabled:opacity-50"
+            >
+              <RefreshCw size={14} className={`text-[var(--color-muted)] shrink-0 ${loading ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">Refresh</span>
+            </button>
+
+            {/* Flat White Pill Primary Action Button */}
+            <button
+              type="button"
+              onClick={handleExportCsv}
+              disabled={rows.length === 0}
+              aria-label="Export confirmed arrivals to CSV"
+              className="min-h-[44px] h-11 px-4 sm:px-5 rounded-full text-[13px] font-sans font-semibold bg-white text-black hover:bg-neutral-200 dark:bg-white dark:text-black shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Download size={14} className="shrink-0" />
+              <span>Export CSV</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* ── 2. KPI Summary Telemetry Bar (No Duplication) ─────────────── */}
+      <div className={`bg-[var(--color-surface-1)] border-b border-[var(--color-border)] px-4 sm:px-6 flex items-center justify-between text-[12px] font-sans text-[var(--color-muted)] flex-wrap gap-2 shrink-0 ${isCompact ? 'py-2' : 'py-2.5'}`}>
+        <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
+          <span className="inline-flex items-center gap-1.5 font-medium text-[var(--color-foreground)]">
+            <span className="w-2 h-2 rounded-full bg-[var(--color-success)]"></span>
+            <span className="tabular-nums font-mono">{telemetry.arrivedText}</span>
+          </span>
+          <span className="text-[var(--color-border-strong)] hidden sm:inline">·</span>
+          <div className="flex items-center gap-1.5">
+            <span>Total:</span>
+            <span className="tabular-nums font-mono font-medium text-[var(--color-foreground)]">
+              {telemetry.piecesText}
+            </span>
+            <span className="text-[var(--color-border-strong)]">·</span>
+            <span className="tabular-nums font-mono font-medium text-[var(--color-foreground)]">
+              {telemetry.weightText}
+            </span>
+          </div>
+        </div>
+
+        {/* Source Segmented Filters (strict touch targets) */}
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setSourceFilter('all')}
+            className={`min-h-[36px] px-3 rounded-full text-[12px] font-sans transition-colors cursor-pointer ${
+              sourceFilter === 'all'
+                ? 'bg-[var(--color-foreground)] text-[var(--color-canvas)] font-semibold'
+                : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)]'
+            }`}
+          >
+            All <span className="tabular-nums font-mono text-[11px]">({metrics.totalCount})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setSourceFilter('cargo')}
+            className={`min-h-[36px] px-3 rounded-full text-[12px] font-sans transition-colors cursor-pointer ${
+              sourceFilter === 'cargo'
+                ? 'bg-[var(--color-foreground)] text-[var(--color-canvas)] font-semibold'
+                : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)]'
+            }`}
+          >
+            Air Cargo <span className="tabular-nums font-mono text-[11px]">({metrics.cargoCount})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setSourceFilter('package')}
+            className={`min-h-[36px] px-3 rounded-full text-[12px] font-sans transition-colors cursor-pointer ${
+              sourceFilter === 'package'
+                ? 'bg-[var(--color-foreground)] text-[var(--color-canvas)] font-semibold'
+                : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)]'
+            }`}
+          >
+            Packages <span className="tabular-nums font-mono text-[11px]">({metrics.packageCount})</span>
+          </button>
+        </div>
+      </div>
+
+      {/* ── 3. Content Stream (Density Aware) ────────────────────────── */}
+      <div className="flex-1 overflow-y-auto">
+        <div className={`max-w-7xl mx-auto ${isCompact ? 'p-3 sm:p-4 space-y-2' : 'p-4 sm:p-6 space-y-3.5'}`}>
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-3">
+              <Spinner size="lg" tone="current" className="text-[var(--color-muted)]" />
+              <p className="text-[13px] font-sans text-[var(--color-muted)]">
+                Loading outbound arrivals...
+              </p>
+            </div>
+          ) : rows.length === 0 ? (
+            /* Empty State: Nothing dispatched has arrived yet */
+            <div className="flex flex-col items-center justify-center py-16 px-4 text-center border border-dashed border-[var(--color-border)] rounded-2xl bg-[var(--color-surface-card)]">
+              <div className="w-12 h-12 rounded-full bg-[var(--color-surface-2)] border border-[var(--color-border)] flex items-center justify-center mb-3">
+                <CheckCircle2 size={22} className="text-[var(--color-muted)]" />
+              </div>
+              <h3 className="text-[15px] font-sans font-semibold text-[var(--color-foreground)] mb-1">
+                No confirmed arrivals yet
+              </h3>
+              <p className="text-[13px] font-sans text-[var(--color-muted)] max-w-md mb-5">
+                Shipments dispatched from{' '}
+                <strong className="font-medium text-[var(--color-foreground)]">{user.hub}</strong>
+                {' '}will appear here once confirmed arrived at their destination station.
+              </p>
+              <button
+                type="button"
+                onClick={fetchArrivals}
+                aria-label="Refresh outbound arrivals"
+                className="min-h-[44px] h-11 px-4 rounded-full text-[13px] font-sans font-medium bg-[var(--color-surface-2)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+                <span>Refresh list</span>
+              </button>
+            </div>
+          ) : filteredRows.length === 0 ? (
+            /* Filter Empty State */
+            <div className="flex flex-col items-center justify-center py-16 px-4 text-center border border-dashed border-[var(--color-border)] rounded-2xl bg-[var(--color-surface-card)]">
+              <div className="w-12 h-12 rounded-full bg-[var(--color-surface-2)] border border-[var(--color-border)] flex items-center justify-center mb-3">
+                <Search size={22} className="text-[var(--color-muted)]" />
+              </div>
+              <h3 className="text-[15px] font-sans font-semibold text-[var(--color-foreground)] mb-1">
+                No matching outbound arrivals
+              </h3>
+              <p className="text-[13px] font-sans text-[var(--color-muted)] max-w-md mb-5">
+                No confirmed arrivals matched your filter. Try adjusting your query or switching categories.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  setSourceFilter('all');
+                }}
+                aria-label="Clear filter"
+                className="min-h-[44px] h-11 px-5 rounded-full text-[13px] font-sans font-semibold bg-[var(--color-surface-2)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] transition-colors cursor-pointer"
+              >
+                Clear filter
+              </button>
+            </div>
+          ) : (
+            filteredRows.map((r) => {
+              const specs = formatOutboundSpecs(r.pcs, r.kg);
+              const awbFormatted = formatAwbDisplay(r.awb);
+              const routeFormatted = formatRouteDisplay(r.destinationLabel);
+              const isCopied = copiedId === r.key;
+
+              return (
+                <div
+                  key={r.key}
+                  className="border border-[var(--color-border)] rounded-2xl bg-[var(--color-surface-card)] hover:border-[var(--color-border-strong)] transition-colors p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"
+                >
+                  <div className="space-y-1.5 min-w-0 flex-1">
+                    {/* Consignee / Customer Name */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[15px] font-semibold text-[var(--color-foreground)] font-sans tracking-tight">
+                        {r.customerName}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full text-[11px] font-sans font-medium bg-[var(--color-surface-2)] text-[var(--color-muted)] border border-[var(--color-border)]">
+                        {r.source === 'Cargo' ? 'Air Cargo' : r.source === 'Package' ? 'Package' : 'Legacy'}
+                      </span>
+                    </div>
+
+                    {/* Metadata line: Entry Ref, AWB, Airline */}
+                    <div className="flex items-center gap-2 text-[12px] font-sans text-[var(--color-muted)] flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => handleCopyIdentifier(r.entryRef, r.key)}
+                        title="Click to copy entry ref"
+                        aria-label={`Copy entry reference ${r.entryRef}`}
+                        className="inline-flex items-center gap-1 font-mono tabular-nums text-[var(--color-foreground)] font-medium hover:text-[var(--color-foreground)] cursor-pointer py-0.5 rounded transition-colors group"
+                      >
+                        <span>{r.entryRef}</span>
+                        {isCopied ? (
+                          <Check size={12} className="text-[var(--color-success)] shrink-0" />
+                        ) : (
+                          <Copy size={12} className="text-[var(--color-muted)] opacity-60 group-hover:opacity-100 shrink-0" />
+                        )}
+                      </button>
+
+                      {awbFormatted && (
+                        <>
+                          <span className="text-[var(--color-border-strong)]">·</span>
+                          <span className="font-mono tabular-nums text-[var(--color-muted)]">
+                            {awbFormatted}
+                          </span>
+                        </>
+                      )}
+
+                      {r.airline && (
+                        <>
+                          <span className="text-[var(--color-border-strong)]">·</span>
+                          <span className="text-[var(--color-muted)]">{r.airline}</span>
+                        </>
+                      )}
+                    </div>
+
+                    {/* Specs Line: Route, Pieces, Weight, Content Type */}
+                    <div className="text-[12px] font-sans text-[var(--color-muted)] flex items-center gap-2 flex-wrap">
+                      <span className="text-[var(--color-foreground)] font-medium">
+                        {routeFormatted}
+                      </span>
+                      <span className="text-[var(--color-border-strong)]">·</span>
+                      <span className="tabular-nums font-mono font-medium text-[var(--color-foreground)]">
+                        {specs.pcsStr}
+                      </span>
+                      {r.kg ? (
+                        <>
+                          <span className="text-[var(--color-border-strong)]">·</span>
+                          <span className="tabular-nums font-mono font-medium text-[var(--color-foreground)]">
+                            {specs.kgStr}
+                          </span>
+                        </>
+                      ) : null}
+                      <span className="text-[var(--color-border-strong)]">·</span>
+                      <span className="text-[var(--color-muted)]">
+                        {r.contentType || 'General Goods'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Status telemetry: Arrived dot + relative timestamp */}
+                  <div className="shrink-0 flex flex-col items-start sm:items-end gap-1">
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--color-surface-2)] border border-[var(--color-border)] text-[var(--color-success)] text-[12px] font-sans font-medium">
+                      <CheckCircle2 size={13} className="shrink-0" />
+                      <span>Arrived</span>
+                    </div>
+                    <div className="text-[11px] font-sans text-[var(--color-muted)] tabular-nums">
+                      {timeSince(r.createdAt)}
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
     </div>
