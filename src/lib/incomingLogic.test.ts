@@ -11,6 +11,7 @@ import {
   formatAwbDisplay,
   formatRoutePath,
   formatTelemetryMetrics,
+  formatIncomingSubtitle,
   type IncomingCargoItem,
 } from './incomingLogic';
 
@@ -294,6 +295,19 @@ describe('Incoming to Hub Logic & Helpers', () => {
       assert.strictEqual(canAccessIncomingRole('guest'), false);
       assert.strictEqual(canAccessIncomingRole('auditor'), false);
       assert.strictEqual(canAccessIncomingRole('viewer'), false);
+    });
+  });
+
+  describe('formatIncomingSubtitle', () => {
+    test('formats subtitle cleanly with provided hub name', () => {
+      assert.strictEqual(formatIncomingSubtitle('Lagos Hub'), 'In-transit cargo en route to Lagos Hub');
+      assert.strictEqual(formatIncomingSubtitle('Abuja Station'), 'In-transit cargo en route to Abuja Station');
+    });
+
+    test('falls back gracefully when hub name is null or undefined', () => {
+      assert.strictEqual(formatIncomingSubtitle(null), 'In-transit cargo en route to this hub');
+      assert.strictEqual(formatIncomingSubtitle(undefined), 'In-transit cargo en route to this hub');
+      assert.strictEqual(formatIncomingSubtitle(''), 'In-transit cargo en route to this hub');
     });
   });
 });

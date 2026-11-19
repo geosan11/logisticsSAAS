@@ -76,26 +76,28 @@ export const LiveCreditFeed: React.FC<LiveCreditFeedProps> = ({
     // Uses its own classes -- not `ehi-credit-feed` (that is the expanded
     // side panel below).
     return (
-      <div className="select-none" style={{ position: 'fixed', top: '50%', right: 0, transform: 'translateY(-50%)', zIndex: 20 }}>
-        <div className="w-7 sm:w-9 rounded-l-xl rounded-r-none bg-[var(--color-surface-card)]/95 backdrop-blur-sm border border-r-0 border-[var(--color-border)] shadow-sm flex flex-col items-center py-2 sm:py-2.5 gap-2 transition-colors hover:border-[var(--color-border-strong)]">
-          <button
-            type="button"
-            onClick={() => setCollapsed(false)}
-            className="p-1 sm:p-1.5 text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-2)] rounded-full transition-colors cursor-pointer"
-            title="Expand customer credit feed"
-          >
+      <div
+        className="select-none"
+        style={{ position: 'fixed', top: '50%', right: 0, transform: 'translateY(-50%)', zIndex: 20 }}
+      >
+        <button
+          type="button"
+          onClick={() => setCollapsed(false)}
+          className="w-8 sm:w-9 rounded-l-xl rounded-r-none bg-[var(--color-surface-card)]/95 backdrop-blur-sm border border-r-0 border-[var(--color-border)] shadow-sm flex flex-col items-center py-2.5 sm:py-3 gap-2 transition-colors hover:border-[var(--color-border-strong)] cursor-pointer group focus:outline-none min-h-[44px]"
+          title="Expand customer credit feed"
+          aria-label="Expand customer credit feed"
+        >
+          <div className="min-w-[44px] min-h-[44px] flex items-center justify-center -my-2 text-[var(--color-muted)] group-hover:text-[var(--color-foreground)] transition-colors">
             <ChevronLeft size={16} />
-          </button>
-          <div className="flex flex-col items-center gap-2 max-h-[calc(100vh-220px)] overflow-hidden">
-            <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-muted)] shrink-0" />
-            <span
-              className="text-[11px] font-sans font-medium text-[var(--color-muted)] hover:text-[var(--color-foreground)] whitespace-nowrap transition-colors"
-              style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
-            >
-              Prepaid credit · ₦{fmt(totalLiability)}
-            </span>
           </div>
-        </div>
+          <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-muted)] shrink-0" />
+          <span
+            className="text-[11px] font-sans font-medium text-[var(--color-muted)] group-hover:text-[var(--color-foreground)] whitespace-nowrap transition-colors"
+            style={{ writingMode: 'vertical-rl' }}
+          >
+            Prepaid credit · ₦{fmt(totalLiability)}
+          </span>
+        </button>
       </div>
     );
   }

@@ -3832,8 +3832,8 @@ export const TransactionLedger = ({
             {/* ── TIER 2: Collapsible KPI Ribbon & Progressive Disclosure Drawer ── */}
             <div className="shrink-0 bg-[var(--color-surface-1)] border-b border-[var(--color-border)] relative">
               {/* Slim Always-Visible KPI Strip (Pinned) */}
-              <div className="sticky top-0 z-20 bg-[var(--color-surface-1)] border-b border-[var(--color-border)] px-3 py-2 flex items-center justify-between gap-2 flex-wrap">
-                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+              <div className="sticky top-0 z-20 bg-[var(--color-surface-1)] border-b border-[var(--color-border)] px-3 py-2 flex items-center justify-between gap-2 flex-nowrap">
+                <div className="flex-1 min-w-0 flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
                   {/* Total Pill */}
                   <button
                     type="button"
@@ -4423,7 +4423,7 @@ export const TransactionLedger = ({
             )}
 
             {/* ── TIER 4: Bounded Virtualized Table / Mobile Cards Container ── */}
-            <div ref={tableRef} className="flex-1 min-h-0 overflow-auto p-3 sm:p-4 pb-4 relative">
+            <div ref={tableRef} className="flex-1 min-h-0 overflow-auto p-3 sm:p-4 pr-11 sm:pr-12 pb-4 relative">
               {allTimeFirstLoadInFlight && (
                 <div
                   className="absolute inset-0 flex flex-col items-center justify-center gap-2 z-20"
@@ -4661,10 +4661,10 @@ export const TransactionLedger = ({
               {!isMobileView && (
               <div className="hidden sm:block ehi-card shadow-sm border border-[var(--color-border)] rounded-2xl overflow-hidden bg-[var(--color-surface-card)]">
                 <div className="overflow-x-auto">
-                <table className="w-full min-w-[720px] text-left border-collapse">
+                <table className="w-full min-w-[700px] text-left border-collapse table-fixed">
             <thead className="sticky top-0 z-10 bg-[var(--color-surface-card)] shadow-[0_1px_0_var(--color-border)]">
               <tr className="text-[var(--color-muted)] border-b border-[var(--color-border)] font-sans text-[11px] font-medium">
-                <th className={`${density.tableRowPadding} w-[44px] text-center`} title="Select all entries for batch actions">
+                <th className={`${density.tableRowPadding} w-[36px] text-center`} title="Select all entries for batch actions">
                   <label className="min-w-[44px] min-h-[44px] -my-2 flex items-center justify-center cursor-pointer">
                     <input
                       type="checkbox"
@@ -4683,19 +4683,19 @@ export const TransactionLedger = ({
                   </label>
                 </th>
                 {(isAccountantOrAdmin || !viewOnly) && (
-                  <th className={`${density.tableRowPadding} w-[44px] text-center`} title="Confirm payment">
+                  <th className={`${density.tableRowPadding} w-[36px] text-center`} title="Confirm payment">
                     <span className="sr-only">Confirm payment</span>
                     <CheckSquare size={13} className="mx-auto text-[var(--color-muted)]" />
                   </th>
                 )}
-                {canSeePin && <th className={`${density.tableRowPadding} w-[68px]`}>Pin</th>}
-                <th className={`${density.tableRowPadding} w-[150px]`}>Ref</th>
-                <th className={`${density.tableRowPadding} w-[84px]`}>Date</th>
-                <th className={`${density.tableRowPadding} min-w-[140px]`}>Customer / detail</th>
-                <th className={`${density.tableRowPadding} w-[84px] text-center`}>Status</th>
-                <th className={`${density.tableRowPadding} w-[100px] text-right`}>Amount</th>
-                <th className={`${density.tableRowPadding} w-[80px] text-center`}>Mode</th>
-                <th className={`${density.tableRowPadding} w-[36px] text-center`}>
+                {canSeePin && <th className={`${density.tableRowPadding} w-[52px]`}>Pin</th>}
+                <th className={`${density.tableRowPadding} w-[114px]`}>Ref</th>
+                <th className={`${density.tableRowPadding} w-[74px]`}>Date</th>
+                <th className={`${density.tableRowPadding} w-[160px]`}>Customer / detail</th>
+                <th className={`${density.tableRowPadding} w-[74px] text-center`}>Status</th>
+                <th className={`${density.tableRowPadding} w-[88px] text-right`}>Amount</th>
+                <th className={`${density.tableRowPadding} w-[72px] text-center`}>Mode</th>
+                <th className={`${density.tableRowPadding} w-[24px] text-center`}>
                   <span className="sr-only">Details</span>
                 </th>
               </tr>

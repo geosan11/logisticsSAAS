@@ -17,6 +17,7 @@ import {
   isBatchSelectable,
   summariseSelection,
   formatDestinationFilter,
+  calculateDesktopTableMinWidth,
 } from './ledgerLogic';
 
 describe('Transaction Ledger Logic & Formatting (Grok UI)', () => {
@@ -270,6 +271,22 @@ describe('Transaction Ledger Logic & Formatting (Grok UI)', () => {
       assert.strictEqual(formatDestinationFilter(null), 'All destinations');
       assert.strictEqual(formatDestinationFilter('ABV/Abuja'), 'ABV · Abuja');
       assert.strictEqual(formatDestinationFilter('LOS-KAN'), 'LOS-KAN');
+    });
+  });
+
+  describe('calculateDesktopTableMinWidth', () => {
+    test('fits within 760px bounded table width across role configurations', () => {
+      // Basic viewer: no pin, no confirm payment
+      const viewerWidth = calculateDesktopTableMinWidth(false, false);
+      assert.ok(viewerWidth <= 760);
+
+      // Accountant / Admin: confirm payment enabled, pin disabled
+      const acctWidth = calculateDesktopTableMinWidth(false, true);
+      assert.ok(acctWidth <= 760);
+
+      // Full super_admin: canSeePin + canConfirmPayment enabled
+      const superAdminWidth = calculateDesktopTableMinWidth(true, true);
+      assert.ok(superAdminWidth <= 760);
     });
   });
 });

@@ -32,6 +32,7 @@ import {
   formatScanResultBadge,
   getScannerDensityClasses,
   truncateConsignee,
+  SCANNER_MANUAL_INPUT_PLACEHOLDER,
 } from '../../lib/scannerLogic';
 import { supabase } from '../../lib/supabase';
 import { useConfirm } from '../../lib/ConfirmContext';
@@ -1271,7 +1272,7 @@ export const Scanner = ({
                     {formatScanModeLabel(m)}
                   </span>
                 </div>
-                <span className="text-[11px] font-sans text-[var(--color-muted)] truncate max-w-full">
+                <span className="hidden sm:block text-[11px] font-sans text-[var(--color-muted)] truncate max-w-full">
                   {getScanModeSublabel(m)}
                 </span>
               </button>
@@ -1455,7 +1456,7 @@ export const Scanner = ({
               type="text"
               value={manualRef}
               onChange={e => setManualRef(e.target.value.toUpperCase())}
-              placeholder="Enter waybill or package reference (e.g. AWB-LOS-9021)..."
+              placeholder={SCANNER_MANUAL_INPUT_PLACEHOLDER}
               aria-label="Enter waybill or package reference"
               className="w-full min-h-[44px] h-11 pl-10 pr-9 text-[13px] font-sans rounded-full bg-[var(--color-surface-1)] border border-[var(--color-border)] text-[var(--color-foreground)] placeholder:text-[var(--color-muted)] focus:outline-none focus:border-[var(--color-border-strong)] transition-colors"
             />

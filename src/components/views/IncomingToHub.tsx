@@ -141,7 +141,7 @@ export const IncomingToHub = ({ user, onBack }: { user: User; onBack?: () => voi
               <h1 className="text-[18px] sm:text-[20px] font-sans font-semibold text-[var(--color-foreground)] tracking-tight truncate">
                 Incoming to Hub
               </h1>
-              <p className="text-[12px] font-sans text-[var(--color-muted)] truncate mt-0.5">
+              <p className="text-[12px] font-sans text-[var(--color-muted)] mt-0.5 leading-snug">
                 In-transit cargo en route to{' '}
                 <strong className="font-medium text-[var(--color-foreground)]">{user.hub}</strong>
               </p>
@@ -151,7 +151,7 @@ export const IncomingToHub = ({ user, onBack }: { user: User; onBack?: () => voi
           {/* Action Toolbar: Search + Refresh + Scan Primary Pill */}
           <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
             {/* Search Input with 44px Clear Button */}
-            <div className="relative flex-1 sm:w-64 sm:flex-initial">
+            <div className="relative flex-1 sm:w-48 lg:w-64 sm:flex-initial">
               <Search
                 size={14}
                 className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-muted)] pointer-events-none"

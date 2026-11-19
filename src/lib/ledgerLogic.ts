@@ -367,3 +367,11 @@ export function formatDestinationFilter(dest: string | null | undefined): string
   return trimmed;
 }
 
+/**
+ * Calculates estimated desktop table minimum width from visible column configuration.
+ * Ensures the table layout stays bounded and fits 1024px screens without cutting off the Amount column.
+ */
+export function calculateDesktopTableMinWidth(canSeePin: boolean, canConfirmPayment: boolean): number {
+  return 36 + (canConfirmPayment ? 36 : 0) + (canSeePin ? 56 : 0) + 124 + 76 + 130 + 76 + 92 + 76 + 28;
+}
+

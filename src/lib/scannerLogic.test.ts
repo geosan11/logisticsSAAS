@@ -13,6 +13,7 @@ import {
   isDuplicateInBatch,
   formatScanTimestamp,
   canAccessScannerRole,
+  SCANNER_MANUAL_INPUT_PLACEHOLDER,
 } from './scannerLogic';
 
 describe('QR Scanner Logic & Formatting (Grok UI)', () => {
@@ -42,6 +43,11 @@ describe('QR Scanner Logic & Formatting (Grok UI)', () => {
       assert.strictEqual(getScanModeSublabel('ARRIVE'), 'Cargo landed here');
       assert.strictEqual(getScanModeSublabel('DEPART'), 'Sending to carrier');
       assert.strictEqual(getScanModeSublabel('DELIVER'), 'Handover to consignee');
+    });
+
+    test('manual reference placeholder is bounded for 390px mobile viewports and preserves package', () => {
+      assert.ok(SCANNER_MANUAL_INPUT_PLACEHOLDER.toLowerCase().includes('package'));
+      assert.ok(SCANNER_MANUAL_INPUT_PLACEHOLDER.length <= 35);
     });
 
     test('returns unambiguous action button labels for each mode', () => {

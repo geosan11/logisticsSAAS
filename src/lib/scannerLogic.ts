@@ -17,6 +17,12 @@ export function formatScanModeLabel(mode: ScanMode): string {
 }
 
 /**
+ * Default short placeholder for the manual reference lookup input.
+ * Compact to prevent clipping on 390px mobile viewports while preserving the Package keyword.
+ */
+export const SCANNER_MANUAL_INPUT_PLACEHOLDER = 'Enter waybill or package ref…';
+
+/**
  * Returns descriptive operational helper text for the active scan mode.
  */
 export function getScanModeDescription(mode: ScanMode): string {

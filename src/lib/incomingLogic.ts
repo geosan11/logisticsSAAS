@@ -194,3 +194,11 @@ export function canAccessIncomingRole(role: string): boolean {
   const authorized = ['super_admin', 'admin', 'cargo_agent', 'baggage_agent', 'driver', 'office_work'];
   return authorized.includes(role);
 }
+
+/**
+ * Formats incoming hub header subtitle string cleanly.
+ */
+export function formatIncomingSubtitle(hubName?: string | null): string {
+  const cleanHub = (hubName || 'this hub').trim();
+  return `In-transit cargo en route to ${cleanHub}`;
+}
