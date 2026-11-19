@@ -8,6 +8,7 @@ import {
   matchesDestination,
   computeHubCounts,
   ConsignmentItem,
+  fetchHubCountsFromDb,
 } from './hubCounts';
 import { NavBadge } from '../components/NavBadge';
 
@@ -169,21 +170,41 @@ describe('Hub Counts & Navigation Badge Logic', () => {
       assert.strictEqual(abujaCounts.outbound, 1);
     });
 
-    test('supports Package, Cargo, and Marketing entries consistently', () => {
+    test('counts Package and Cargo entries consistently', () => {
       const items: ConsignmentItem[] = [
         // Package entry with destination
         { id: 'PKG-101', status: 'In-Transit', destination: 'Lagos Hub', hub_id: 'hub-abv-02' },
         // Air Cargo entry with route
         { id: 'CRG-202', status: 'In-Transit', route: 'Lagos Hub', hub_id: 'hub-abv-02' },
-        // Marketing bag with route
-        { id: 'MKT-303', status: 'In-Transit', route: 'Lagos MMA2 Cargo', hub_id: 'hub-abv-02' },
       ];
 
       const counts = computeHubCounts(items, hubLagos);
-      assert.strictEqual(counts.incoming, 3);
+      assert.strictEqual(counts.incoming, 2);
 
       const abujaCounts = computeHubCounts(items, hubAbuja);
-      assert.strictEqual(abujaCounts.outbound, 3);
+      assert.strictEqual(abujaCounts.outbound, 2);
+    });
+  });
+
+  describe('Marketing and Baggage exclusion', () => {
+    test('live counts never query marketing or baggage tables', async () => {
+      const tables: string[] = [];
+      const makeQ = (rows: unknown[]) => {
+        const q: any = {
+          select: () => q, eq: () => q, or: () => q, limit: () => q,
+          then: (res: (v: unknown) => void) => res({ count: rows.length, data: rows }),
+        };
+        return q;
+      };
+      const fake: any = {
+        from: (t: string) => { tables.push(t); return makeQ([{ id: '1', route: 'Lagos Hub', destination: 'Lagos Hub' }]); },
+      };
+      const res = await fetchHubCountsFromDb({ hub: 'Lagos Hub', hub_id: 'hub-lag' }, fake);
+      assert.deepStrictEqual(res, { incoming: 2, outbound: 2 });
+      assert.ok(tables.length > 0);
+      for (const t of tables) {
+        assert.ok(!/marketing|baggage/i.test(t), `unexpected table ${t}`);
+      }
     });
   });
 

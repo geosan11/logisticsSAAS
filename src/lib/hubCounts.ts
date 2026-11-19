@@ -74,6 +74,7 @@ export function matchesDestination(destStr: string | null | undefined, hubName: 
 
 /**
  * Pure counting function for testability and offline/deterministic count derivation.
+ * Marketing and Excess Baggage records are excluded (modules removed; old records stay in ledger/reports only).
  * - incoming: In-Transit items with destination matching activeHub.name
  * - outbound: In-Transit items dispatched from activeHub.id (still on the way)
  */
@@ -133,7 +134,7 @@ export async function fetchHubCountsFromDb(
   try {
     let outbound = 0;
     if (hubId) {
-      const [cargoOut, pkgOut, mktOut] = await Promise.all([
+      const [cargoOut, pkgOut] = await Promise.all([
         supabaseClient
           .from('cargo_entries')
           .select('id', { count: 'exact', head: true })
@@ -144,14 +145,9 @@ export async function fetchHubCountsFromDb(
           .select('id', { count: 'exact', head: true })
           .eq('hub_id', hubId)
           .eq('status', 'In-Transit'),
-        supabaseClient
-          .from('marketing_entries')
-          .select('id', { count: 'exact', head: true })
-          .eq('hub_id', hubId)
-          .eq('status', 'In-Transit'),
       ]);
 
-      outbound = (cargoOut.count || 0) + (pkgOut.count || 0) + (mktOut.count || 0);
+      outbound = (cargoOut.count || 0) + (pkgOut.count || 0);
     }
 
     let incoming = 0;
@@ -168,40 +164,31 @@ export async function fetchHubCountsFromDb(
         .select('id, destination')
         .eq('status', 'In-Transit');
 
-      let qMkt = supabaseClient
-        .from('marketing_entries')
-        .select('id, route')
-        .eq('status', 'In-Transit');
-
       if (hubWords.length > 0) {
         const cargoOr = hubWords.map(w => `route.ilike.%${w}%`).join(',');
         const pkgOr = hubWords.map(w => `destination.ilike.%${w}%`).join(',');
         qCargo = qCargo.or(cargoOr);
         qPkg = qPkg.or(pkgOr);
-        qMkt = qMkt.or(cargoOr);
       }
 
-      const [cargoIn, pkgIn, mktIn] = await Promise.all([
+      const [cargoIn, pkgIn] = await Promise.all([
         qCargo.limit(200),
         qPkg.limit(200),
-        qMkt.limit(200),
       ]);
 
       const cargoRows = (cargoIn.data || []).filter(c => matchesDestination(c.route, hubName));
       const pkgRows = (pkgIn.data || []).filter(p => matchesDestination(p.destination, hubName));
-      const mktRows = (mktIn.data || []).filter(m => matchesDestination(m.route, hubName));
 
-      incoming = cargoRows.length + pkgRows.length + mktRows.length;
+      incoming = cargoRows.length + pkgRows.length;
     }
 
     return { incoming, outbound };
   } catch (err) {
     // Offline / Network fallback: compute from local Dexie database
     try {
-      const [cargoLocal, pkgLocal, mktLocal] = await Promise.all([
+      const [cargoLocal, pkgLocal] = await Promise.all([
         db.cargo_entries.toArray().catch(() => []),
         db.package_entries.toArray().catch(() => []),
-        db.marketing_entries.toArray().catch(() => []),
       ]);
 
       const items: ConsignmentItem[] = [
@@ -214,11 +201,6 @@ export async function fetchHubCountsFromDb(
           status: (p.data?.status as string) || null,
           destination: (p.data?.destination as string) || null,
           hub_id: (p.data?.hub_id as string) || null,
-        })),
-        ...mktLocal.map(m => ({
-          status: (m.data?.status as string) || null,
-          route: (m.data?.route as string) || null,
-          hub_id: (m.data?.hub_id as string) || null,
         })),
       ];
 
