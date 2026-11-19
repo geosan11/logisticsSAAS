@@ -82,12 +82,14 @@ export function getScannerDensityClasses(isCompact: boolean): {
 } {
   return {
     workspace: isCompact ? 'p-3 sm:p-4 space-y-3' : 'p-4 sm:p-6 space-y-4',
-    modeButton: isCompact ? 'min-h-[44px] py-1.5 px-2.5' : 'min-h-[48px] py-2 px-3',
+    modeButton: isCompact
+      ? 'min-h-[56px] py-1.5 px-2'
+      : 'min-h-[58px] sm:min-h-[64px] py-2 px-3',
     cameraCard: isCompact
       ? 'p-4 sm:p-5 min-h-[160px] sm:min-h-[180px] gap-2'
       : 'p-6 sm:p-8 min-h-[190px] sm:min-h-[220px] gap-3',
-    telemetryCard: isCompact ? 'p-2.5 sm:p-3' : 'p-3 sm:p-3.5',
-    recentCard: isCompact ? 'p-3' : 'p-4',
+    telemetryCard: isCompact ? 'px-2 py-1.5 min-h-[36px]' : 'px-2.5 sm:px-3 py-1.5 sm:py-2 min-h-[38px]',
+    recentCard: isCompact ? 'p-2.5 sm:p-3' : 'p-3 sm:p-4',
   };
 }
 

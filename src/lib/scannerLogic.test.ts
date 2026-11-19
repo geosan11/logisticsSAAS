@@ -67,6 +67,9 @@ describe('QR Scanner Logic & Formatting (Grok UI)', () => {
       assert.ok(spacious.cameraCard.includes('min-h-[190px]'));
       assert.ok(compact.modeButton.includes('py-1.5'));
       assert.ok(spacious.modeButton.includes('py-2'));
+      assert.ok(compact.modeButton.includes('min-h-[56px]'));
+      assert.ok(spacious.modeButton.includes('min-h-[58px]'));
+      assert.ok(spacious.modeButton.includes('sm:min-h-[64px]'));
     });
 
     test('truncates consignee names cleanly when exceeding maxLen', () => {
@@ -230,6 +233,135 @@ describe('QR Scanner Logic & Formatting (Grok UI)', () => {
       assert.strictEqual(canAccessScannerRole('customer'), false);
       assert.strictEqual(canAccessScannerRole('guest'), false);
       assert.strictEqual(canAccessScannerRole(''), false);
+    });
+  });
+
+  describe('QR Scanner Component Presentation & Focus (Depart / Arrive / Deliver)', async () => {
+    // Dynamic import to support component rendering under node test runner
+    const React = (await import('react')).default;
+    const { renderToString } = await import('react-dom/server');
+    const { Scanner } = await import('../components/views/Scanner');
+    const { ConfirmProvider } = await import('./ConfirmContext');
+
+    const mockUser = {
+      id: 'test-user-id',
+      name: 'Musa Ibrahim',
+      role: 'cargo_agent',
+      hub: 'LOS',
+      hub_id: 'hub-los',
+    };
+
+    const renderScannerView = (initialMode: 'DEPART' | 'ARRIVE' | 'DELIVER' = 'DEPART') => {
+      return renderToString(
+        React.createElement(
+          ConfirmProvider,
+          null,
+          React.createElement(Scanner, {
+            user: mockUser as any,
+            transactions: [],
+            initialMode,
+          })
+        )
+      );
+    };
+
+    test('renders screen header with title QR Scanner and active station', () => {
+      const html = renderScannerView();
+      assert.ok(html.includes('QR Scanner'), 'Must include screen title QR Scanner');
+      assert.ok(html.includes('Active station:'), 'Must display active station label');
+      assert.ok(html.includes('LOS'), 'Must display active hub name');
+    });
+
+    test('renders all three primary actions: Depart, Arrive and Deliver', () => {
+      const html = renderScannerView();
+      assert.ok(html.includes('data-mode="DEPART"'), 'Must render Depart action button');
+      assert.ok(html.includes('data-mode="ARRIVE"'), 'Must render Arrive action button');
+      assert.ok(html.includes('data-mode="DELIVER"'), 'Must render Deliver action button');
+      assert.ok(html.includes('Depart'), 'Must render Depart text');
+      assert.ok(html.includes('Arrive'), 'Must render Arrive text');
+      assert.ok(html.includes('Deliver'), 'Must render Deliver text');
+    });
+
+    test('primary action buttons are prominent with minimum 56px height', () => {
+      const html = renderScannerView();
+      // All action buttons must contain touch-friendly min-h-[56px] or greater
+      assert.ok(
+        html.includes('min-h-[56px]') || html.includes('min-h-[58px]'),
+        'Action buttons must have at least 56px height on CF-31 and phone'
+      );
+    });
+
+    test('switches selected state cleanly when initialMode is DEPART', () => {
+      const html = renderScannerView('DEPART');
+      // DEPART must be selected
+      assert.match(
+        html,
+        /data-mode="DEPART"[^>]*data-selected="true"/,
+        'DEPART action must have selected state'
+      );
+      assert.match(
+        html,
+        /data-mode="ARRIVE"[^>]*data-selected="false"/,
+        'ARRIVE action must be unselected'
+      );
+      assert.match(
+        html,
+        /data-mode="DELIVER"[^>]*data-selected="false"/,
+        'DELIVER action must be unselected'
+      );
+      // Selected button has obvious stark high-contrast Grok monochrome style
+      assert.ok(
+        html.includes('bg-black text-white dark:bg-white dark:text-black'),
+        'Selected button must have prominent monochrome selected styling'
+      );
+    });
+
+    test('switches selected state cleanly when initialMode is ARRIVE', () => {
+      const html = renderScannerView('ARRIVE');
+      assert.match(
+        html,
+        /data-mode="ARRIVE"[^>]*data-selected="true"/,
+        'ARRIVE action must have selected state'
+      );
+      assert.match(
+        html,
+        /data-mode="DEPART"[^>]*data-selected="false"/,
+        'DEPART action must be unselected'
+      );
+      assert.match(
+        html,
+        /data-mode="DELIVER"[^>]*data-selected="false"/,
+        'DELIVER action must be unselected'
+      );
+    });
+
+    test('switches selected state cleanly when initialMode is DELIVER', () => {
+      const html = renderScannerView('DELIVER');
+      assert.match(
+        html,
+        /data-mode="DELIVER"[^>]*data-selected="true"/,
+        'DELIVER action must have selected state'
+      );
+      assert.match(
+        html,
+        /data-mode="DEPART"[^>]*data-selected="false"/,
+        'DEPART action must be unselected'
+      );
+      assert.match(
+        html,
+        /data-mode="ARRIVE"[^>]*data-selected="false"/,
+        'ARRIVE action must be unselected'
+      );
+    });
+
+    test('order-related UI is compact and secondary while preserving 44px tap targets', () => {
+      const html = renderScannerView();
+      // Recent scans card is secondary with compact heading and tap target
+      assert.ok(html.includes('Recent scans'), 'Recent scans card is present');
+      // Preservation of "Package" keyword
+      assert.ok(html.toLowerCase().includes('package'), 'Must preserve the word Package');
+      // Direct log and batch queue controls keep 44px tap targets
+      assert.ok(html.includes('min-h-[44px]'), 'Must maintain at least 44px tap targets');
     });
   });
 });

@@ -6,6 +6,9 @@ import {
   RefreshCw,
   Package,
   ArrowDown,
+  ArrowUpRight,
+  ArrowDownLeft,
+  PackageCheck,
   CheckCircle,
   Bell,
   X,
@@ -222,19 +225,27 @@ function CameraPermissionDenied({ onRetry }: { onRetry: () => void }) {
   );
 }
 
+const SCAN_MODE_ICONS: Record<ScanMode, React.ComponentType<{ size?: number; className?: string }>> = {
+  DEPART: ArrowUpRight,
+  ARRIVE: ArrowDownLeft,
+  DELIVER: PackageCheck,
+};
+
 export const Scanner = ({
   user,
   transactions,
   showToast,
+  initialMode = 'DEPART',
 }: {
   user: User;
   transactions: any[];
   showToast?: (opts: any) => void;
+  initialMode?: ScanMode;
 }) => {
   const confirm = useConfirm();
   const { isCompact } = useDensity();
   const density = getScannerDensityClasses(isCompact);
-  const [mode, setMode] = useState<ScanMode>('DEPART');
+  const [mode, setMode] = useState<ScanMode>(initialMode);
   const [isScanning, setIsScanning] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [permissionDenied, setPermissionDenied] = useState(false);
@@ -1164,27 +1175,27 @@ export const Scanner = ({
                 </button>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {batchQueue.map((item, i) => (
-                  <div key={i} className="flex items-center justify-between p-3.5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] hover:border-[var(--color-border-strong)] transition-all gap-3 shadow-xs">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className={`w-2 h-2 rounded-full shrink-0 ${
+                  <div key={i} className="flex items-center justify-between p-2.5 min-h-[44px] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-card)] hover:border-[var(--color-border-strong)] transition-all gap-2.5 shadow-xs">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
                         item.mode === 'ARRIVE' ? 'bg-[var(--color-success)]' : item.mode === 'DEPART' ? 'bg-[var(--color-info)]' : 'bg-[var(--color-success)]'
                       }`} />
                       <div className="min-w-0">
-                        <div className="text-[13px] font-medium text-[var(--color-foreground)] truncate">{item.name}</div>
-                        <div className="text-[11px] font-mono text-[var(--color-muted)] flex items-center gap-2 tabular-nums">
+                        <div className="text-[12px] font-medium text-[var(--color-foreground)] truncate">{item.name}</div>
+                        <div className="text-[10px] font-mono text-[var(--color-muted)] flex items-center gap-1.5 tabular-nums">
                           <span>{item.ref}</span>
                           {item.kg && <span>· {item.kg} kg</span>}
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 shrink-0">
+                    <div className="flex items-center gap-2.5 shrink-0">
                       <div className="text-right">
-                        <div className="text-[11px] font-sans font-semibold text-[var(--color-foreground)]">
+                        <div className="text-[10px] font-sans font-semibold text-[var(--color-foreground)]">
                           {formatScanModeLabel(item.mode)}
                         </div>
-                        <div className="text-[10px] text-[var(--color-muted)] tabular-nums font-sans">{item.time}</div>
+                        <div className="text-[9px] text-[var(--color-muted)] tabular-nums font-sans">{item.time}</div>
                       </div>
                       <button
                         type="button"
@@ -1192,7 +1203,7 @@ export const Scanner = ({
                           setBatchQueue(prev => prev.filter((_, idx) => idx !== i));
                           if (showToast) showToast({ message: `Removed ${item.ref} from queue`, type: 'info' });
                         }}
-                        className="min-h-[44px] h-11 px-3 text-[12px] font-sans text-[var(--color-error)] hover:bg-[var(--color-error)]/10 rounded-full transition-colors cursor-pointer"
+                        className="min-h-[44px] h-11 px-3 text-[11px] font-sans text-[var(--color-error)] hover:bg-[var(--color-error)]/10 rounded-full transition-colors cursor-pointer"
                       >
                         Remove
                       </button>
@@ -1250,29 +1261,42 @@ export const Scanner = ({
 
       {/* ── 2. Scanner Main Viewport ────────────────────────────────────── */}
       <section aria-label="Scanner workspace" className={`flex-1 ${density.workspace} max-w-4xl mx-auto w-full`} style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom))' }}>
-        {/* Mode Toggle Segment: Arrive / Depart / Deliver */}
-        <div className="flex bg-[var(--color-surface-1)] p-1 rounded-2xl border border-[var(--color-border)] w-full gap-1">
+        {/* Mode Toggle Segment: Depart / Arrive / Deliver (Primary prominent controls) */}
+        <div
+          role="tablist"
+          aria-label="Scan mode actions"
+          className="grid grid-cols-3 gap-1.5 sm:gap-2 p-1.5 rounded-2xl bg-[var(--color-surface-1)] border border-[var(--color-border)] w-full"
+        >
           {(['DEPART', 'ARRIVE', 'DELIVER'] as ScanMode[]).map((m) => {
             const active = mode === m;
             const dotColor = m === 'ARRIVE' ? 'bg-[var(--color-success)]' : m === 'DEPART' ? 'bg-[var(--color-info)]' : 'bg-[var(--color-success)]';
+            const Icon = SCAN_MODE_ICONS[m];
             return (
               <button
                 key={m}
                 type="button"
+                role="tab"
+                aria-selected={active}
+                aria-label={formatScanModeLabel(m)}
+                data-mode={m}
+                data-selected={active ? 'true' : 'false'}
                 onClick={() => { setMode(m); dismissAlert(); }}
-                className={`flex-1 min-w-0 ${density.modeButton} rounded-xl transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
+                className={`flex-1 min-w-0 ${density.modeButton} rounded-xl transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5 sm:gap-1 select-none ${
                   active
-                    ? 'bg-[var(--color-surface-2)] text-[var(--color-foreground)] border border-[var(--color-border-strong)] shadow-xs font-semibold'
+                    ? 'bg-black text-white dark:bg-white dark:text-black shadow-md border border-transparent font-semibold'
                     : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)] border border-transparent hover:bg-[var(--color-surface-hover)]'
                 }`}
               >
-                <div className="flex items-center gap-2">
-                  <span className={`w-2 h-2 rounded-full ${active ? dotColor : 'bg-[var(--color-muted)]/40'} shrink-0`} />
-                  <span className="text-[13px] font-sans font-medium">
+                <div className="flex items-center justify-center gap-1.5 sm:gap-2">
+                  <span className={`w-2 h-2 rounded-full ${active ? dotColor : `${dotColor} opacity-50`} shrink-0`} />
+                  <Icon size={19} className={`shrink-0 ${active ? 'text-white dark:text-black' : 'text-[var(--color-muted)]'}`} />
+                  <span className="text-[14px] sm:text-[15px] font-sans font-semibold tracking-tight">
                     {formatScanModeLabel(m)}
                   </span>
                 </div>
-                <span className="hidden sm:block text-[11px] font-sans text-[var(--color-muted)] truncate max-w-full">
+                <span className={`hidden sm:block text-[11px] font-sans truncate max-w-full px-1 ${
+                  active ? 'text-white/80 dark:text-black/75 font-medium' : 'text-[var(--color-muted)]'
+                }`}>
                   {getScanModeSublabel(m)}
                 </span>
               </button>
@@ -1313,19 +1337,19 @@ export const Scanner = ({
           </div>
         </div>
 
-        {/* In batch mode: show the batch queue staging card */}
+        {/* In batch mode: show the compact secondary batch queue staging card */}
         {isBatchQueueMode && (
-          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-card)] p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-xs">
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <span className="text-[13px] font-sans font-semibold text-[var(--color-foreground)]">
+                <span className="text-[12px] font-sans font-medium text-[var(--color-foreground)]">
                   Staged batch queue
                 </span>
-                <span className="px-2 py-0.5 rounded-full text-[11px] font-mono font-medium bg-[var(--color-surface-1)] border border-[var(--color-border)] text-[var(--color-foreground)] tabular-nums">
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono font-medium bg-[var(--color-surface-1)] border border-[var(--color-border)] text-[var(--color-muted)] tabular-nums">
                   {batchQueue.length} {batchQueue.length === 1 ? 'item' : 'items'}
                 </span>
               </div>
-              <p className="text-[12px] font-sans text-[var(--color-muted)] mt-0.5">
+              <p className="text-[11px] font-sans text-[var(--color-muted)] mt-0.5">
                 {batchQueue.length === 0
                   ? 'Queue is empty. Scans in this mode will be staged locally before committing.'
                   : 'Scans are staged locally on this device. Review before committing to the database.'}
@@ -1336,7 +1360,7 @@ export const Scanner = ({
                 <button
                   type="button"
                   onClick={() => setShowQueueSummary(true)}
-                  className="min-h-[44px] h-11 px-4 rounded-full text-[12px] font-sans font-medium bg-[var(--color-surface-2)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] transition-colors cursor-pointer"
+                  className="min-h-[44px] h-11 px-3.5 rounded-full text-[11px] font-sans font-medium bg-[var(--color-surface-2)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] transition-colors cursor-pointer"
                 >
                   Review queue
                 </button>
@@ -1344,11 +1368,11 @@ export const Scanner = ({
                   type="button"
                   onClick={() => handleConfirmSubmitBatch()}
                   disabled={submittingBatch}
-                  className="min-h-[44px] h-11 px-5 rounded-full text-[13px] font-sans font-semibold bg-white text-black hover:bg-neutral-200 dark:bg-white dark:text-black transition-colors cursor-pointer flex items-center gap-1.5 disabled:opacity-50 shadow-xs"
+                  className="min-h-[44px] h-11 px-4 rounded-full text-[12px] font-sans font-semibold bg-white text-black hover:bg-neutral-200 dark:bg-white dark:text-black transition-colors cursor-pointer flex items-center gap-1.5 disabled:opacity-50 shadow-xs"
                 >
                   {submittingBatch ? (
                     <>
-                      <RefreshCw size={14} className="animate-spin text-black" />
+                      <RefreshCw size={13} className="animate-spin text-black" />
                       <span>Committing…</span>
                     </>
                   ) : (
@@ -1362,7 +1386,7 @@ export const Scanner = ({
 
         {/* In direct log mode: compact inline reminder if uncommitted batch items exist */}
         {!isBatchQueueMode && batchQueue.length > 0 && (
-          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-card)] px-4 py-2.5 flex items-center justify-between gap-3 text-[12px] font-sans shadow-xs">
+          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-card)] px-3 py-2 flex items-center justify-between gap-2.5 text-[11px] font-sans shadow-xs">
             <span className="text-[var(--color-muted)]">
               <strong className="text-[var(--color-foreground)] font-medium tabular-nums">{batchQueue.length}</strong> uncommitted batch {batchQueue.length === 1 ? 'item' : 'items'} staged
             </span>
@@ -1370,7 +1394,7 @@ export const Scanner = ({
               <button
                 type="button"
                 onClick={() => setShowQueueSummary(true)}
-                className="min-h-[44px] h-11 px-3.5 rounded-full text-[12px] font-sans font-medium text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] transition-colors cursor-pointer"
+                className="min-h-[44px] h-11 px-3 rounded-full text-[11px] font-sans font-medium text-[var(--color-foreground)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] transition-colors cursor-pointer"
               >
                 Review
               </button>
@@ -1378,7 +1402,7 @@ export const Scanner = ({
                 type="button"
                 onClick={() => handleConfirmSubmitBatch()}
                 disabled={submittingBatch}
-                className="min-h-[44px] h-11 px-4 rounded-full bg-white text-black hover:bg-neutral-200 font-semibold text-[12px] cursor-pointer disabled:opacity-50 transition-colors shadow-xs"
+                className="min-h-[44px] h-11 px-3.5 rounded-full bg-white text-black hover:bg-neutral-200 font-semibold text-[11px] cursor-pointer disabled:opacity-50 transition-colors shadow-xs"
               >
                 Commit
               </button>
@@ -1498,51 +1522,51 @@ export const Scanner = ({
           </div>
         </form>
 
-        {/* Telemetry Counter Cards (when session or batch items exist) */}
+        {/* Telemetry Counter Chips (compact, secondary stat chips) */}
         {sessionScansCount > 0 && (
-          <div className="grid grid-cols-3 gap-3">
-            <div className={`rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] ${density.telemetryCard} text-center shadow-xs`}>
-              <div className="flex items-center justify-center gap-1.5 mb-0.5">
-                <span className="w-2 h-2 rounded-full bg-[var(--color-success)]" />
-                <span className="text-[11px] font-sans text-[var(--color-muted)]">Logged</span>
+          <div className="grid grid-cols-3 gap-2">
+            <div className={`rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-card)] ${density.telemetryCard} flex items-center justify-between sm:justify-center sm:gap-2 text-center shadow-xs`}>
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-success)] shrink-0" />
+                <span className="text-[10px] sm:text-[11px] font-sans text-[var(--color-muted)]">Logged</span>
               </div>
-              <div className="text-[20px] font-sans font-bold text-[var(--color-foreground)] tabular-nums">
+              <span className="text-[13px] sm:text-[14px] font-sans font-semibold text-[var(--color-foreground)] tabular-nums">
                 {sessionSuccessCount}
-              </div>
+              </span>
             </div>
-            <div className={`rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] ${density.telemetryCard} text-center shadow-xs`}>
-              <div className="flex items-center justify-center gap-1.5 mb-0.5">
-                <span className={`w-2 h-2 rounded-full ${sessionAlertsCount > 0 ? 'bg-[var(--color-error)]' : 'bg-[var(--color-muted)]'}`} />
-                <span className="text-[11px] font-sans text-[var(--color-muted)]">Alerts</span>
+            <div className={`rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-card)] ${density.telemetryCard} flex items-center justify-between sm:justify-center sm:gap-2 text-center shadow-xs`}>
+              <div className="flex items-center gap-1.5">
+                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${sessionAlertsCount > 0 ? 'bg-[var(--color-error)]' : 'bg-[var(--color-muted)]'}`} />
+                <span className="text-[10px] sm:text-[11px] font-sans text-[var(--color-muted)]">Alerts</span>
               </div>
-              <div className={`text-[20px] font-sans font-bold tabular-nums ${sessionAlertsCount > 0 ? 'text-[var(--color-error)]' : 'text-[var(--color-foreground)]'}`}>
+              <span className={`text-[13px] sm:text-[14px] font-sans font-semibold tabular-nums ${sessionAlertsCount > 0 ? 'text-[var(--color-error)]' : 'text-[var(--color-foreground)]'}`}>
                 {sessionAlertsCount}
-              </div>
+              </span>
             </div>
-            <div className={`rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] ${density.telemetryCard} text-center shadow-xs`}>
-              <div className="text-[11px] font-sans text-[var(--color-muted)] mb-0.5">Total scans</div>
-              <div className="text-[20px] font-sans font-bold text-[var(--color-foreground)] tabular-nums">
+            <div className={`rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-card)] ${density.telemetryCard} flex items-center justify-between sm:justify-center sm:gap-2 text-center shadow-xs`}>
+              <span className="text-[10px] sm:text-[11px] font-sans text-[var(--color-muted)]">Total</span>
+              <span className="text-[13px] sm:text-[14px] font-sans font-semibold text-[var(--color-foreground)] tabular-nums">
                 {sessionScansCount}
-              </div>
+              </span>
             </div>
           </div>
         )}
 
-        {/* Recent Scans List Card */}
-        <div className={`rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] ${density.recentCard} shadow-xs`}>
-          <div className="flex items-center justify-between mb-3 border-b border-[var(--color-border)] pb-2.5">
+        {/* Recent Scans List Card (compact, secondary order-related UI) */}
+        <div className={`rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-card)] ${density.recentCard} shadow-xs`}>
+          <div className="flex items-center justify-between mb-2 border-b border-[var(--color-border)] pb-2">
             <div className="flex items-center gap-2">
-              <h2 className="text-[14px] font-sans font-semibold text-[var(--color-foreground)]">
+              <h2 className="text-[11px] font-sans font-semibold uppercase tracking-wider text-[var(--color-muted)]">
                 Recent scans
               </h2>
-              <span className="text-[11px] font-sans px-2 py-0.5 rounded-full bg-[var(--color-surface-1)] border border-[var(--color-border)] text-[var(--color-muted)]">
+              <span className="text-[10px] font-sans px-1.5 py-0.5 rounded-full bg-[var(--color-surface-1)] border border-[var(--color-border)] text-[var(--color-muted)]">
                 Last 10
               </span>
             </div>
           </div>
 
           {successfulScans.length === 0 ? (
-            <div className="text-center py-8 text-[12px] font-sans text-[var(--color-muted)]">
+            <div className="text-center py-6 text-[11px] font-sans text-[var(--color-muted)]">
               No scans recorded in this session yet
             </div>
           ) : (
@@ -1563,26 +1587,26 @@ export const Scanner = ({
                     role="button"
                     tabIndex={0}
                     onKeyDown={(e) => e.key === 'Enter' && handleTrackLookup(item.ref)}
-                    className="flex items-center justify-between py-2.5 px-2 min-h-[44px] text-[13px] gap-3 rounded-xl hover:bg-[var(--color-surface-hover)] cursor-pointer transition-colors group focus:outline-none focus:ring-1 focus:ring-[var(--color-border-strong)]"
+                    className="flex items-center justify-between py-1.5 px-2 min-h-[44px] text-[12px] gap-2.5 rounded-lg hover:bg-[var(--color-surface-hover)] cursor-pointer transition-colors group focus:outline-none focus:ring-1 focus:ring-[var(--color-border-strong)]"
                   >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-8 h-8 rounded-lg bg-[var(--color-surface-1)] border border-[var(--color-border)] flex items-center justify-center shrink-0 group-hover:border-[var(--color-border-strong)] transition-colors">
-                        <Package size={14} className="text-[var(--color-muted)]" />
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-6 h-6 rounded-md bg-[var(--color-surface-1)] border border-[var(--color-border)] flex items-center justify-center shrink-0 group-hover:border-[var(--color-border-strong)] transition-colors">
+                        <Package size={12} className="text-[var(--color-muted)]" />
                       </div>
                       <div className="min-w-0">
-                        <div className="font-medium text-[var(--color-foreground)] truncate">
-                          {truncateConsignee(item.name)}
+                        <div className="font-medium text-[var(--color-foreground)] truncate text-[12px]">
+                          {truncateConsignee(item.name, 28)}
                         </div>
-                        <div className="font-mono text-[11px] text-[var(--color-muted)] truncate tabular-nums">
+                        <div className="font-mono text-[10px] text-[var(--color-muted)] truncate tabular-nums">
                           {item.ref}
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <span className={`px-2.5 py-0.5 text-[11px] font-sans font-medium rounded-full ${toneClass}`}>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={`px-2 py-0.5 text-[10px] font-sans font-medium rounded-full ${toneClass}`}>
                         {badge.label}
                       </span>
-                      <span className="text-[11px] font-sans text-[var(--color-muted)] tabular-nums">
+                      <span className="text-[10px] font-sans text-[var(--color-muted)] tabular-nums">
                         {item.time}
                       </span>
                     </div>
