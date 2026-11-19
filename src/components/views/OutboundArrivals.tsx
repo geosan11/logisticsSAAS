@@ -14,6 +14,7 @@ import {
   Copy,
   Check,
 } from 'lucide-react';
+import { NavBadge } from '../NavBadge';
 import {
   timeSince,
   formatOutboundSpecs,
@@ -27,7 +28,15 @@ import {
   OutboundSourceFilter,
 } from '../../lib/outboundLogic';
 
-export const OutboundArrivals = ({ user, onBack }: { user: User; onBack?: () => void }) => {
+export const OutboundArrivals = ({
+  user,
+  onBack,
+  outboundCount,
+}: {
+  user: User;
+  onBack?: () => void;
+  outboundCount?: number;
+}) => {
   const [rows, setRows] = useState<OutboundArrivalItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -39,6 +48,17 @@ export const OutboundArrivals = ({ user, onBack }: { user: User; onBack?: () => 
   const fetchArrivals = async () => {
     setLoading(true);
     try {
+      if (typeof localStorage !== 'undefined' && localStorage.getItem('ehi_outbound_mock')) {
+        try {
+          const mock = JSON.parse(localStorage.getItem('ehi_outbound_mock') || '[]');
+          if (Array.isArray(mock) && mock.length > 0) {
+            setRows(mock);
+            setLoading(false);
+            return;
+          }
+        } catch {}
+      }
+
       const isAdmin = ['super_admin', 'admin', 'accountant', 'auditor'].includes(user.role);
       const addHubFilter = (q: any) => (!isAdmin && user.hub_id) ? q.eq('hub_id', user.hub_id) : q;
 
@@ -212,9 +232,14 @@ export const OutboundArrivals = ({ user, onBack }: { user: User; onBack?: () => 
           <div className="flex items-center gap-3 min-w-0">
             {onBack && <BackButton onClick={onBack} />}
             <div className="min-w-0">
-              <h1 className="text-[18px] sm:text-[20px] font-sans font-semibold text-[var(--color-foreground)] tracking-tight truncate">
-                Outbound Arrivals
-              </h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-[18px] sm:text-[20px] font-sans font-semibold text-[var(--color-foreground)] tracking-tight truncate">
+                  Outbound Arrivals
+                </h1>
+                {outboundCount !== undefined && outboundCount > 0 && (
+                  <NavBadge count={outboundCount} type="outbound" />
+                )}
+              </div>
               <p className="text-[12px] font-sans text-[var(--color-muted)] truncate mt-0.5">
                 Shipments dispatched from{' '}
                 <strong className="font-medium text-[var(--color-foreground)]">{user.hub}</strong>

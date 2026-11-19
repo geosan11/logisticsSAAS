@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 import { useLogisticsMode } from '../lib/modeContext';
 import { getAllowedTabs } from '../lib/permissions';
+import { NavBadge } from './NavBadge';
+import { getAccessibleBadgeLabel } from '../lib/hubCounts';
 
 const VIEW_ICON: Record<string, any> = {
   Tower: Home,
@@ -45,10 +47,12 @@ export const BottomNav = ({
   user,
   currentTab,
   onChangeTab,
+  hubCounts,
 }: {
   user: User;
   currentTab: TabView;
   onChangeTab: (t: TabView) => void;
+  hubCounts?: { incoming: number; outbound: number };
 }) => {
   const { mode } = useLogisticsMode();
   const allowedTabs = getAllowedTabs(user, mode);
@@ -66,7 +70,7 @@ export const BottomNav = ({
     const finalTabs = overrideTabs.length > 5
       ? [...overrideTabs.slice(0, 4), { id: 'More' as TabView, title: 'Settings', icon: Settings }]
       : overrideTabs;
-    return <BottomNavTabs tabs={finalTabs} currentTab={currentTab} onChangeTab={onChangeTab} />;
+    return <BottomNavTabs tabs={finalTabs} currentTab={currentTab} onChangeTab={onChangeTab} hubCounts={hubCounts} />;
   }
 
   // Operational tab candidates
@@ -108,7 +112,7 @@ export const BottomNav = ({
     finalTabs = allowedCandidates;
   }
 
-  return <BottomNavTabs tabs={finalTabs} currentTab={currentTab} onChangeTab={onChangeTab} />;
+  return <BottomNavTabs tabs={finalTabs} currentTab={currentTab} onChangeTab={onChangeTab} hubCounts={hubCounts} />;
 };
 
 type NavTab = { id: TabView; title: string; icon: any };
@@ -117,10 +121,12 @@ const BottomNavTabs = ({
   tabs,
   currentTab,
   onChangeTab,
+  hubCounts,
 }: {
   tabs: NavTab[];
   currentTab: TabView;
   onChangeTab: (t: TabView) => void;
+  hubCounts?: { incoming: number; outbound: number };
 }) => {
   return (
     <div
@@ -146,6 +152,17 @@ const BottomNavTabs = ({
               currentTab.startsWith('More:'));
           const Icon = tab.icon;
 
+          const badgeCount =
+            tab.id === 'Incoming'
+              ? (hubCounts?.incoming || 0)
+              : tab.id === 'OutboundArrivals'
+              ? (hubCounts?.outbound || 0)
+              : 0;
+          const badgeType = tab.id === 'Incoming' ? 'incoming' : 'outbound';
+          const buttonAriaLabel = badgeCount > 0
+            ? `${tab.title} (${getAccessibleBadgeLabel(badgeCount, badgeType)})`
+            : tab.title;
+
           return (
             <button
               key={tab.id}
@@ -156,11 +173,11 @@ const BottomNavTabs = ({
                 border: 'none',
               }}
               aria-current={isActive ? 'page' : undefined}
-              aria-label={tab.title}
+              aria-label={buttonAriaLabel}
             >
               {/* Icon Container with subtle pill highlight for active tab */}
               <div
-                className="w-12 h-7 rounded-full flex items-center justify-center transition-all duration-150"
+                className="w-12 h-7 rounded-full flex items-center justify-center transition-all duration-150 relative"
                 style={{
                   background: isActive ? 'var(--color-surface-3)' : 'transparent',
                   border: isActive
@@ -176,6 +193,11 @@ const BottomNavTabs = ({
                   strokeWidth={isActive ? 2.3 : 1.8}
                   className="transition-colors group-hover:text-[var(--color-foreground)]"
                 />
+                {badgeCount > 0 && (
+                  <span className="absolute -top-1 -right-1 z-10">
+                    <NavBadge count={badgeCount} compact type={badgeType} />
+                  </span>
+                )}
               </div>
 
               {/* Clean text label below icon */}

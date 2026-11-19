@@ -19,6 +19,8 @@ import { Theme } from "../lib/useTheme";
 import { getAllowedTabs } from "../lib/permissions";
 import { useLogisticsMode } from "../lib/modeContext";
 import { getHubCode } from "../lib/helpers";
+import { NavBadge } from "./NavBadge";
+import { getAccessibleBadgeLabel } from "../lib/hubCounts";
 
 const getRoleDisplay = (role: string) => {
   switch (role) {
@@ -83,6 +85,7 @@ export const SideNav = ({
   theme: _theme,
   onToggleTheme: _onToggleTheme,
   docked = false,
+  hubCounts,
 }: {
   user: User;
   currentTab: TabView;
@@ -94,6 +97,7 @@ export const SideNav = ({
   // document.body with their own fixed inset-0 z-50 layer. `docked` renders
   // a second, in-flow instance inside that overlay.
   docked?: boolean;
+  hubCounts?: { incoming: number; outbound: number };
 }) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const effectiveExpanded = docked ? false : isExpanded;
@@ -275,12 +279,23 @@ export const SideNav = ({
           const Icon = tab.icon;
           const isActive = currentTab === tab.id;
 
+          const badgeCount =
+            tab.id === 'Incoming' && allowedSet.has('Incoming')
+              ? (hubCounts?.incoming || 0)
+              : tab.id === 'OutboundArrivals' && allowedSet.has('OutboundArrivals')
+              ? (hubCounts?.outbound || 0)
+              : 0;
+          const badgeType = tab.id === 'Incoming' ? 'incoming' : 'outbound';
+          const tabTitle = badgeCount > 0
+            ? `${tab.label} (${getAccessibleBadgeLabel(badgeCount, badgeType)})`
+            : tab.label;
+
           return (
             <button
               key={tab.id}
               onClick={() => onChangeTab(tab.id)}
-              title={tab.label}
-              aria-label={tab.label}
+              title={tabTitle}
+              aria-label={tabTitle}
               aria-current={isActive ? 'page' : undefined}
               className="group select-none"
               style={{
@@ -313,6 +328,7 @@ export const SideNav = ({
                   alignItems: "center",
                   flexShrink: 0,
                   transition: "all 0.15s ease",
+                  position: "relative",
                 }}
               >
                 <Icon
@@ -325,6 +341,11 @@ export const SideNav = ({
                       : "text-[var(--color-muted)] group-hover:text-[var(--color-foreground)]"
                   }
                 />
+                {!effectiveExpanded && badgeCount > 0 && (
+                  <span className="absolute -top-1.5 -right-2.5 z-10">
+                    <NavBadge count={badgeCount} compact type={badgeType} />
+                  </span>
+                )}
               </div>
 
               {effectiveExpanded ? (
@@ -335,14 +356,18 @@ export const SideNav = ({
                     display: "flex",
                     alignItems: "center",
                     flex: 1,
+                    justifyContent: "space-between",
                   }}
                 >
                   <span
-                    className={`${isActive ? "text-[var(--color-foreground)] font-semibold" : "text-[var(--color-muted)] group-hover:text-[var(--color-foreground)] font-medium"} transition-colors`}
+                    className={`${isActive ? "text-[var(--color-foreground)] font-semibold" : "text-[var(--color-muted)] group-hover:text-[var(--color-foreground)] font-medium"} transition-colors truncate`}
                     style={{ fontSize: 12 }}
                   >
                     {tab.label}
                   </span>
+                  {badgeCount > 0 && (
+                    <NavBadge count={badgeCount} type={badgeType} className="ml-1.5 shrink-0" />
+                  )}
                 </div>
               ) : (
                 <span

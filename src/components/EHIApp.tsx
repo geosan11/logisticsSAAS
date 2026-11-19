@@ -38,6 +38,7 @@ function compareIsoDesc(aIso?: string, bIso?: string): number {
 import { useTheme } from '../lib/useTheme';
 import { getAllowedTabs, canAccessTab } from '../lib/permissions';
 import { useLogisticsMode } from '../lib/modeContext';
+import { useHubCounts } from '../lib/hubCounts';
 import { Header as HeaderRaw } from './Header';
 import { BottomNav as BottomNavRaw } from './BottomNav';
 import { SideNav as SideNavRaw } from './SideNav';
@@ -323,6 +324,7 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
   const [isSyncing, setIsSyncing] = useState(false);
   const [isSessionExpired, setIsSessionExpired] = useState(false);
   const pendingSyncCount = pendingSummary.pending_total;
+  const { counts: hubCounts, refreshCounts: refreshHubCounts } = useHubCounts(user);
 
   const refreshPendingSummary = useCallback(async () => {
     try {
@@ -2990,6 +2992,7 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
         onLogout={onLogout}
         theme={theme}
         onToggleTheme={toggle}
+        hubCounts={hubCounts}
       />
 
       <div
@@ -3099,8 +3102,8 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
               {currentTab === 'Scan' && <Scanner transactions={transactions} user={user} showToast={showToast} />}
               {currentTab === 'Dispatch' && <Dispatch onBack={() => setCurrentTab('Tower')} />}
               {currentTab === 'Fleet' && <Fleet onBack={() => setCurrentTab('Tower')} user={user} />}
-              {currentTab === 'Incoming' && <IncomingToHub user={user} onBack={() => setCurrentTab('More')} />}
-              {currentTab === 'OutboundArrivals' && <OutboundArrivals user={user} onBack={() => setCurrentTab('More')} />}
+              {currentTab === 'Incoming' && <IncomingToHub user={user} onBack={() => setCurrentTab('More')} incomingCount={hubCounts.incoming} />}
+              {currentTab === 'OutboundArrivals' && <OutboundArrivals user={user} onBack={() => setCurrentTab('More')} outboundCount={hubCounts.outbound} />}
               {currentTab === 'MyTrips' && <MyTrips user={user} />}
               {currentTab === 'IT Debug' && <ITDashboard user={user} onBack={() => setCurrentTab('More')} />}
               {currentTab === 'Credit & Debit' && <CreditDebit user={user} transactions={transactions} onBack={() => setCurrentTab('More')} />}
@@ -3147,6 +3150,7 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
           user={user}
           currentTab={currentTab}
           onChangeTab={setCurrentTab}
+          hubCounts={hubCounts}
         />
       </div>
 
@@ -3190,6 +3194,7 @@ export const EHIApp = ({ user, onLogout }: { user: User; onLogout: () => void })
               theme={theme}
               onToggleTheme={toggle}
               docked
+              hubCounts={hubCounts}
             />
           {/* min-h-0 is load-bearing: a flex row's default min-height:auto
               lets a column-flex child grow past its share of the row

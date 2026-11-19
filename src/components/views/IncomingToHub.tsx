@@ -14,6 +14,7 @@ import {
   Copy,
   Check,
 } from 'lucide-react';
+import { NavBadge } from '../NavBadge';
 import {
   timeSince,
   filterIncomingCargo,
@@ -25,7 +26,15 @@ import {
   IncomingCargoItem,
 } from '../../lib/incomingLogic';
 
-export const IncomingToHub = ({ user, onBack }: { user: User; onBack?: () => void }) => {
+export const IncomingToHub = ({
+  user,
+  onBack,
+  incomingCount,
+}: {
+  user: User;
+  onBack?: () => void;
+  incomingCount?: number;
+}) => {
   const [cargoList, setCargoList] = useState<IncomingCargoItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -36,6 +45,17 @@ export const IncomingToHub = ({ user, onBack }: { user: User; onBack?: () => voi
   const fetchIncoming = async () => {
     setLoading(true);
     try {
+      if (typeof localStorage !== 'undefined' && localStorage.getItem('ehi_incoming_mock')) {
+        try {
+          const mock = JSON.parse(localStorage.getItem('ehi_incoming_mock') || '[]');
+          if (Array.isArray(mock) && mock.length > 0) {
+            setCargoList(mock);
+            setLoading(false);
+            return;
+          }
+        } catch {}
+      }
+
       const isAdmin = ['super_admin', 'admin', 'accountant', 'auditor'].includes(user.role);
 
       let q = supabase
@@ -138,9 +158,17 @@ export const IncomingToHub = ({ user, onBack }: { user: User; onBack?: () => voi
           <div className="flex items-center gap-3 min-w-0">
             {onBack && <BackButton onClick={onBack} />}
             <div className="min-w-0">
-              <h1 className="text-[18px] sm:text-[20px] font-sans font-semibold text-[var(--color-foreground)] tracking-tight truncate">
-                Incoming to Hub
-              </h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-[18px] sm:text-[20px] font-sans font-semibold text-[var(--color-foreground)] tracking-tight truncate">
+                  Incoming to Hub
+                </h1>
+                {(incomingCount !== undefined ? incomingCount : cargoList.length) > 0 && (
+                  <NavBadge
+                    count={incomingCount !== undefined ? incomingCount : cargoList.length}
+                    type="incoming"
+                  />
+                )}
+              </div>
               <p className="text-[12px] font-sans text-[var(--color-muted)] mt-0.5 leading-snug">
                 In-transit cargo en route to{' '}
                 <strong className="font-medium text-[var(--color-foreground)]">{user.hub}</strong>

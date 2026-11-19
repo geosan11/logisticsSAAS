@@ -626,5 +626,23 @@ export async function logScanEvent(
     }).catch(() => {});
   }
 
+  // Notify listeners (such as nav count badges) for immediate optimistic updates
+  if (typeof window !== 'undefined') {
+    try {
+      window.dispatchEvent(
+        new CustomEvent('ehi-scan-completed', {
+          detail: {
+            mode,
+            ref,
+            hub: currentHub,
+            destination: cargoDestination,
+          },
+        })
+      );
+    } catch {
+      // safe fallback if CustomEvent not supported
+    }
+  }
+
   return { ok: true };
 }
