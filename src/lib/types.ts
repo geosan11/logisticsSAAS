@@ -156,6 +156,20 @@ export interface BatchScanItem {
   time: string;
 }
 
+export interface Tenant {
+  id: string;
+  slug: string;
+  name: string;
+  tag_prefix: string; // 3 to 5 uppercase letters A-Z
+  brand_logo_url?: string | null;
+  brand_color?: string;
+  active_modes?: string[];
+  is_active?: boolean;
+  settings?: Record<string, unknown>;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface CargoEntry {
   id: string;
   entry_ref: string;
@@ -165,6 +179,7 @@ export interface CargoEntry {
   consignee_name: string;
   consignee_id?: string;
   awb_tag_number: string;
+  airline_awb?: string | null;
   total_pcs: number;
   total_kg: number;
   route: string;
@@ -202,6 +217,7 @@ export interface Transaction {
   debtClearedBy?: string;
   // Cargo specifics
   awb_tag_number?: string;
+  airline_awb?: string | null;
   airline?: string;
   // Commission % locked in at entry time -- must not be recomputed later
   // against a since-changed pricing_config rate (that would silently

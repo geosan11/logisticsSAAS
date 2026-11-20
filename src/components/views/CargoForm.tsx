@@ -20,6 +20,7 @@ import { useBanks } from "../../lib/banks";
 import { useEnterToNextField } from "../../lib/useEnterToNextField";
 import { isTagAlreadyDelivered } from "../../lib/scanLogic";
 import { getNextTag, getTenantTagPrefix } from "../../lib/tagPool";
+import { buildTagNumber, isValidAirlineAwb, formatAirlineAwb } from "../../lib/tagNumber";
 import { CustomerWalletPicker } from "../CustomerWalletPicker";
 import { DepartmentSalesAnalysisModal } from "../DepartmentSalesAnalysis";
 import { PrintRangeModal } from "../PrintRangeModal";
@@ -228,6 +229,8 @@ export const CargoForm = ({
   // board -- see the matching effect after actualAirline.
   const [flightNumber, setFlightNumber] = useState("");
   const [flightAutoFilled, setFlightAutoFilled] = useState(false);
+  const [airlineAwb, setAirlineAwb] = useState("");
+  const [airlineAwbError, setAirlineAwbError] = useState<string | null>(null);
   const [departuresBoard, setDeparturesBoard] = useState<{ flightNumber: string | null; airline: string | null; destinationIata: string | null; scheduledDeparture: string | null; status: string }[]>([]);
 
   // Fetched once per hub (server-side cached ~20min, see server/
@@ -1643,6 +1646,7 @@ export const CargoForm = ({
       type: "cargo",
       status: "Intake",
       awb_tag_number: resolvedAwb,
+      airline_awb: airlineAwb.trim() ? formatAirlineAwb(airlineAwb) : undefined,
       airline: actualAirline,
       flight: flightNumber.trim() || undefined,
       commissionRate,
@@ -1799,6 +1803,8 @@ export const CargoForm = ({
     setCustomAirline("");
     setFlightNumber("");
     setFlightAutoFilled(false);
+    setAirlineAwb("");
+    setAirlineAwbError(null);
     fetchAwbPreview();
     saleIdempotencyKeyRef.current = crypto.randomUUID();
     setPcs("1");
@@ -2118,9 +2124,14 @@ export const CargoForm = ({
                     : "Credit sale logged"
                   : "Cargo saved successfully"}
               </span>
-              <span className="text-[11px] font-mono text-[var(--color-muted)]">
-                Ref: {successTx.id.slice(0, 8)}…
+              <span className="text-[11px] font-mono text-[var(--color-muted)] block">
+                {successTx.id}
               </span>
+              {(successTx as any).airline_awb && (
+                <span className="text-[10px] font-mono text-[var(--color-muted)] block">
+                  Airline AWB: {(successTx as any).airline_awb}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -2160,8 +2171,13 @@ export const CargoForm = ({
             </div>
           ) : (
             <div className="flex-1 flex flex-col justify-center border border-[var(--color-border)] rounded-2xl bg-[var(--color-surface-card)] px-4 py-2.5 shadow-xs">
-              <span className="text-[11px] font-sans font-medium text-[var(--color-muted)]">Reference ID</span>
+              <span className="text-[11px] font-sans font-medium text-[var(--color-muted)]">Tag Number</span>
               <span className="text-[12px] font-mono font-medium text-[var(--color-foreground)] truncate mt-0.5">{successTx.id}</span>
+              {(successTx as any).airline_awb && (
+                <span className="text-[10px] font-mono text-[var(--color-muted)] truncate mt-0.5">
+                  Airline AWB: {(successTx as any).airline_awb}
+                </span>
+              )}
               <p className="text-[11px] text-[var(--color-muted)] font-sans leading-tight mt-0.5">
                 Scannable cargo QR code generated for waybill tags
               </p>
@@ -2719,7 +2735,7 @@ export const CargoForm = ({
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     {renderLabel(Plane, "Airline")}
                     <select
@@ -2763,6 +2779,31 @@ export const CargoForm = ({
                       onChange={(e) => { setFlightNumber(e.target.value.toUpperCase()); setFlightAutoFilled(false); }}
                       className={formInputClass}
                     />
+                  </div>
+
+                  <div>
+                    {renderLabel(Plane, "Airline AWB (optional)")}
+                    <input
+                      id="retail-airline-awb"
+                      name="airline-awb"
+                      type="text"
+                      placeholder="e.g. 072-12345678"
+                      maxLength={12}
+                      value={airlineAwb}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^0-9-]/g, '');
+                        setAirlineAwb(val);
+                        if (val && !isValidAirlineAwb(val)) {
+                          setAirlineAwbError('11 digits (e.g. 072-12345678)');
+                        } else {
+                          setAirlineAwbError(null);
+                        }
+                      }}
+                      className={formInputClass}
+                    />
+                    {airlineAwbError && (
+                      <div className="text-[11px] font-sans text-[var(--color-error)] mt-1">{airlineAwbError}</div>
+                    )}
                   </div>
                 </div>
 

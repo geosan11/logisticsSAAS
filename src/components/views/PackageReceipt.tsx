@@ -212,7 +212,7 @@ const PackageReceiptPDF = ({ data }: { data: PackageReceiptData }) => {
         </View>
 
         <View style={styles.row}>
-          <Text style={styles.label}>Ref</Text>
+          <Text style={styles.label}>Tag Number</Text>
           <Text style={styles.refValue}>{data.entryRef}</Text>
         </View>
         <View style={styles.row}>

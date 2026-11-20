@@ -24,6 +24,7 @@ export interface CargoReceiptData {
   airline: string;
   consignee: string;
   awbTagNumber: string;
+  airlineAwb?: string | null;
   pieces: number;
   kg: number;
   route: string;
@@ -263,9 +264,15 @@ const CargoReceiptOnlyPDF = ({ data }: { data: CargoReceiptData }) => {
       </View>
 
       <View style={styles.row}>
-        <Text style={styles.label}>Entry Ref</Text>
-        <Text style={styles.value}>{data.entryRef}</Text>
+        <Text style={styles.label}>Tag Number</Text>
+        <Text style={styles.value}>{data.awbTagNumber || data.entryRef}</Text>
       </View>
+      {data.airlineAwb ? (
+        <View style={styles.row}>
+          <Text style={styles.label}>Airline AWB</Text>
+          <Text style={styles.value}>{data.airlineAwb}</Text>
+        </View>
+      ) : null}
       <View style={styles.row}>
         <Text style={styles.label}>S/N</Text>
         <Text style={styles.value}>Entry #{data.serialNumber}</Text>
@@ -281,10 +288,6 @@ const CargoReceiptOnlyPDF = ({ data }: { data: CargoReceiptData }) => {
       <View style={styles.row}>
         <Text style={styles.label}>Airline</Text>
         <Text style={styles.value}>{data.airline}</Text>
-      </View>
-      <View style={styles.row}>
-        <Text style={styles.label}>AWB/Tag</Text>
-        <Text style={styles.value}>{data.awbTagNumber}</Text>
       </View>
       <View style={styles.row}>
         <Text style={styles.label}>Consignee</Text>
@@ -344,7 +347,7 @@ const CargoReceiptOnlyPDF = ({ data }: { data: CargoReceiptData }) => {
       <View style={[styles.divider, { marginTop: 6 }]} />
 
       <Text style={styles.footerText}>app.haulwey.com</Text>
-      <Text style={styles.footerText}>{data.entryRef} • {data.date}</Text>
+      <Text style={styles.footerText}>{data.awbTagNumber || data.entryRef} • {data.date}</Text>
     </Page>
   );
 

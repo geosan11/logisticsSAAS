@@ -99,7 +99,7 @@ export default function TagPrintHistory({ user }: { user: User }) {
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-muted)]" />
             <input
               type="text"
-              placeholder="Search Ref, AWB or Agent..."
+              placeholder="Search tag number or agent..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9 pr-4 py-2 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-md text-[13px] font-sans focus:outline-none focus:border-[var(--color-accent-amber)]"
@@ -123,7 +123,7 @@ export default function TagPrintHistory({ user }: { user: User }) {
               <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-2)]">
                 <th className="px-4 py-3 text-[12px] font-sans font-semibold text-[var(--color-muted)] uppercase tracking-wider">Date & Time</th>
                 <th className="px-4 py-3 text-[12px] font-sans font-semibold text-[var(--color-muted)] uppercase tracking-wider">Method</th>
-                <th className="px-4 py-3 text-[12px] font-sans font-semibold text-[var(--color-muted)] uppercase tracking-wider">Ref / AWB</th>
+                <th className="px-4 py-3 text-[12px] font-sans font-semibold text-[var(--color-muted)] uppercase tracking-wider">Tag Number</th>
                 <th className="px-4 py-3 text-[12px] font-sans font-semibold text-[var(--color-muted)] uppercase tracking-wider">Printed By</th>
                 <th className="px-4 py-3 text-[12px] font-sans font-semibold text-[var(--color-muted)] uppercase tracking-wider">Hub</th>
                 <th className="px-4 py-3 text-[12px] font-sans font-semibold text-[var(--color-muted)] uppercase tracking-wider">Pieces</th>

@@ -31,6 +31,7 @@ export interface CargoTagPDFData {
   pieces: number; // total piece count for this shipment -- one page is rendered per piece
   weight: number | string;
   airline?: string;
+  airlineAwb?: string | null;
   hubName?: string;
   date?: string;
   contentType?: string;
@@ -267,12 +268,17 @@ const CargoTagPage = ({
         <Text style={styles.routeValue}>{cleanRoute(data.route)}</Text>
 
         <View style={styles.awbBand}>
-          <Text style={styles.awbLabel}>AWB / Tag</Text>
+          <Text style={styles.awbLabel}>Tag Number</Text>
           {/* Each physical piece gets its own sequential tag number
               (base AWB + piece suffix) so two tags in the same shipment
               are never visually identical -- the QR code/tracking
               reference still points at the shared base AWB below. */}
           <Text style={styles.awbValue}>{data.id}-{pieceIndex}</Text>
+          {data.airlineAwb && (
+            <Text style={{ fontSize: 7, fontFamily: "Helvetica-Bold", color: "#555555", marginTop: 1 }}>
+              AIRLINE AWB: {data.airlineAwb}
+            </Text>
+          )}
         </View>
 
         <View style={styles.pieceBadge}>

@@ -623,7 +623,7 @@ export const PackageForm = ({
                   </div>
                 ) : (
                   <div className="flex-1 flex flex-col justify-center border border-[var(--color-border)] rounded-xl bg-[var(--color-surface-2)] px-3.5 py-2.5">
-                    <span className="text-[11px] font-sans font-medium text-[var(--color-muted)]">Tracking reference</span>
+                    <span className="text-[11px] font-sans font-medium text-[var(--color-muted)]">Tag number</span>
                     <span className="text-[13px] font-mono font-semibold text-[var(--color-foreground)] truncate mt-0.5 tabular-nums">{successTx.id}</span>
                     <p className="text-[11px] font-sans text-[var(--color-muted)] leading-tight mt-0.5">
                       Scannable tracking QR code generated for package tags.
@@ -647,7 +647,7 @@ export const PackageForm = ({
                 )}
 
                 <div className="flex justify-between border-b border-[var(--color-border)] pb-1.5">
-                  <span className="text-[12px] font-sans text-[var(--color-muted)]">Tracking reference</span>
+                  <span className="text-[12px] font-sans text-[var(--color-muted)]">Tag number</span>
                   <span className="text-[12px] font-mono font-semibold text-[var(--color-foreground)] tabular-nums">{successTx.id}</span>
                 </div>
 
@@ -830,9 +830,9 @@ export const PackageForm = ({
                 </div>
 
                 <div className="space-y-3 pt-1">
-                  {/* Tracking Ref Row */}
+                  {/* Tracking Tag Row */}
                   <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-[var(--color-surface-2)] border border-[var(--color-border)]">
-                    <span className="text-[12px] font-sans text-[var(--color-muted)]">Tracking reference</span>
+                    <span className="text-[12px] font-sans text-[var(--color-muted)]">Tag number</span>
                     <span className="text-[13px] font-mono font-semibold text-[var(--color-foreground)] tabular-nums">
                       {trackingRef || 'Allocating…'}
                     </span>

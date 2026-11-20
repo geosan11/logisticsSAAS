@@ -105,7 +105,7 @@ function mapCargoRow(r: any, profileLookup: Record<string, string>): Transaction
     amount: r.amount || 0,
     mode: computeDebtDisplayModeFromRow(r, 'cargo'),
     time: safeTimeString(r.created_at),
-    type: 'cargo', status: r.status || 'Intake', awb_tag_number: r.awb_tag_number, kg: r.total_kg,
+    type: 'cargo', status: r.status || 'Intake', awb_tag_number: r.awb_tag_number, airline_awb: r.airline_awb || undefined, kg: r.total_kg,
     sizeInches: r.size_inches ?? undefined, pieces: r.total_pcs, pickupPin: r.pickup_pin || undefined,
     created_at: r.created_at, airline: r.airline, commissionRate: r.commission_rate ?? undefined,
     bank: r.bank, route: r.route, hub_id: r.hub_id, terminal: r.terminal, contentType: r.content_type,

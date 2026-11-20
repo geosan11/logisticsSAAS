@@ -264,7 +264,7 @@ const PackageTagPage = ({
         <Text style={styles.destValue}>{cleanRoute(data.destination)}</Text>
 
         <View style={styles.refBand}>
-          <Text style={styles.refLabel}>Tracking Ref</Text>
+          <Text style={styles.refLabel}>Tag Number</Text>
           {/* Each physical piece gets its own sequential tag suffix, same
               convention as CargoTagPDF, so multiple tags on one shipment
               are never visually identical -- the QR code still points at

@@ -26,9 +26,15 @@ export const HtmlPrintReceipt = ({ data }: { data: CargoReceiptData }) => {
           <span className="font-bold text-[10px]">{data.date}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-[8px] uppercase">Ref:</span>{" "}
-          <span className="font-bold text-[10px]">{data.entryRef}</span>
+          <span className="text-[8px] uppercase">Tag:</span>{" "}
+          <span className="font-bold text-[10px]">{data.awbTagNumber || data.entryRef}</span>
         </div>
+        {data.airlineAwb && (
+          <div className="flex justify-between">
+            <span className="text-[8px] uppercase">Airline AWB:</span>{" "}
+            <span className="font-bold text-[9px]">{data.airlineAwb}</span>
+          </div>
+        )}
       </div>
 
       <div className="border-t border-black pt-1 mb-1 space-y-0.5">
@@ -37,10 +43,6 @@ export const HtmlPrintReceipt = ({ data }: { data: CargoReceiptData }) => {
           <span className="font-bold text-[10px] truncate max-w-[70%]">
             {data.consignee}
           </span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-[8px] uppercase">AWB/Tag:</span>{" "}
-          <span className="font-bold text-[10px]">{data.awbTagNumber}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-[8px] uppercase">Pieces:</span>{" "}

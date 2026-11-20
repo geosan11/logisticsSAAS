@@ -1031,7 +1031,10 @@ export const Scanner = ({
                 {trackCargo.consignee_name || trackCargo.passenger_name || trackCargo.customer_name || 'Unknown consignee'}
               </div>
               <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-[12px] font-sans text-[var(--color-muted)]">
-                <span>Ref: <strong className="font-mono text-[var(--color-foreground)] tabular-nums">{trackRef}</strong></span>
+                <span>Tag: <strong className="font-mono text-[var(--color-foreground)] tabular-nums">{trackRef}</strong></span>
+                {trackCargo.airline_awb && (
+                  <span>Airline AWB: <strong className="font-mono text-[var(--color-foreground)] tabular-nums">{trackCargo.airline_awb}</strong></span>
+                )}
                 {trackCargo.route && <span>Route: <strong className="text-[var(--color-foreground)]">{trackCargo.route}</strong></span>}
                 {trackCargo.total_pcs && <span>Pieces: <strong className="text-[var(--color-foreground)] tabular-nums">{trackCargo.total_pcs} pcs</strong></span>}
                 {trackCargo.total_kg && <span>Weight: <strong className="text-[var(--color-foreground)] tabular-nums">{trackCargo.total_kg} kg</strong></span>}

@@ -193,9 +193,9 @@ describe('Money & Formatting Helpers', () => {
   });
 
   describe('generatePaymentNarration & extractNarrationFromText', () => {
-    test('generates expected narration code format: HW-[HUB]-[YYMMDD]-[SERIAL] (fallback prefix)', () => {
+    test('generates expected narration code format: HWY-[HUB]-[YYMMDD]-[SERIAL] (fallback prefix)', () => {
       const narration = generatePaymentNarration('Lagos Air Cargo Station', 42);
-      assert.match(narration, /^HW-LOS-\d{6}-0042$/);
+      assert.match(narration, /^HWY-LOS-\d{6}-0042$/);
     });
 
     test('extractNarrationFromText parses legacy EHI- code out of unstructured SMS alert text', () => {
@@ -204,10 +204,10 @@ describe('Money & Formatting Helpers', () => {
       assert.strictEqual(extracted, 'EHI-LOS-261116-0042');
     });
 
-    test('extractNarrationFromText parses new HW- code out of unstructured SMS alert text', () => {
-      const sms = 'Credit alert of NGN 50,000 ref: HW-LOS-261116-0042 from Access Bank';
+    test('extractNarrationFromText parses modern HWY- and tenant code out of unstructured SMS alert text', () => {
+      const sms = 'Credit alert of NGN 50,000 ref: HWY-LOS-261116-0042 from Access Bank';
       const extracted = extractNarrationFromText(sms);
-      assert.strictEqual(extracted, 'HW-LOS-261116-0042');
+      assert.strictEqual(extracted, 'HWY-LOS-261116-0042');
     });
   });
 });

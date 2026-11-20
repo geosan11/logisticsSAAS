@@ -146,7 +146,7 @@ describe('Outbound Arrivals Pure Logic & Helpers', () => {
       {
         key: 'Cargo-1',
         source: 'Cargo',
-        entryRef: 'EHI-CRG-001',
+        entryRef: 'HWY-CRG-001',
         customerName: 'Dangote Industries',
         destinationLabel: 'Lagos Hub -> Kano Station',
         pcs: 20,
@@ -159,7 +159,7 @@ describe('Outbound Arrivals Pure Logic & Helpers', () => {
       {
         key: 'Package-2',
         source: 'Package',
-        entryRef: 'EHI-PKG-002',
+        entryRef: 'HWY-PKG-002',
         customerName: 'Adeola Chambers',
         destinationLabel: 'Abuja Central Office',
         pcs: 3,
@@ -170,7 +170,7 @@ describe('Outbound Arrivals Pure Logic & Helpers', () => {
       {
         key: 'Cargo-3',
         source: 'Cargo',
-        entryRef: 'EHI-CRG-003',
+        entryRef: 'HWY-CRG-003',
         customerName: 'Zenith Tech',
         destinationLabel: 'Port Harcourt',
         pcs: 12,
@@ -200,7 +200,7 @@ describe('Outbound Arrivals Pure Logic & Helpers', () => {
     it('filters by customer name', () => {
       const res = filterOutboundArrivals(mockItems, 'dangote', 'all');
       assert.strictEqual(res.length, 1);
-      assert.strictEqual(res[0].entryRef, 'EHI-CRG-001');
+      assert.strictEqual(res[0].entryRef, 'HWY-CRG-001');
     });
 
     it('filters by entry reference', () => {
@@ -212,13 +212,13 @@ describe('Outbound Arrivals Pure Logic & Helpers', () => {
     it('filters by destination', () => {
       const res = filterOutboundArrivals(mockItems, 'kano', 'all');
       assert.strictEqual(res.length, 1);
-      assert.strictEqual(res[0].entryRef, 'EHI-CRG-001');
+      assert.strictEqual(res[0].entryRef, 'HWY-CRG-001');
     });
 
     it('filters by AWB tag', () => {
       const res = filterOutboundArrivals(mockItems, 'LOS-202', 'all');
       assert.strictEqual(res.length, 1);
-      assert.strictEqual(res[0].entryRef, 'EHI-CRG-003');
+      assert.strictEqual(res[0].entryRef, 'HWY-CRG-003');
     });
 
     it('filters by airline', () => {
@@ -230,25 +230,25 @@ describe('Outbound Arrivals Pure Logic & Helpers', () => {
     it('supports multi-token searching across different fields (e.g. customer + route)', () => {
       const res = filterOutboundArrivals(mockItems, 'dangote kano', 'all');
       assert.strictEqual(res.length, 1);
-      assert.strictEqual(res[0].entryRef, 'EHI-CRG-001');
+      assert.strictEqual(res[0].entryRef, 'HWY-CRG-001');
     });
 
     it('supports multi-token searching for airline + destination', () => {
       const res = filterOutboundArrivals(mockItems, 'air peace kano', 'all');
       assert.strictEqual(res.length, 1);
-      assert.strictEqual(res[0].entryRef, 'EHI-CRG-001');
+      assert.strictEqual(res[0].entryRef, 'HWY-CRG-001');
     });
 
     it('supports multi-token searching for customer + content type', () => {
       const res = filterOutboundArrivals(mockItems, 'zenith telecom spares', 'all');
       assert.strictEqual(res.length, 1);
-      assert.strictEqual(res[0].entryRef, 'EHI-CRG-003');
+      assert.strictEqual(res[0].entryRef, 'HWY-CRG-003');
     });
 
     it('handles excess whitespace in multi-token queries safely', () => {
       const res = filterOutboundArrivals(mockItems, '   adeola    chambers   abuja   ', 'all');
       assert.strictEqual(res.length, 1);
-      assert.strictEqual(res[0].entryRef, 'EHI-PKG-002');
+      assert.strictEqual(res[0].entryRef, 'HWY-PKG-002');
     });
 
     it('returns empty array when one of the tokens fails to match', () => {

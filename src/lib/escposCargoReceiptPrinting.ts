@@ -13,6 +13,7 @@ export interface CargoReceiptPrintData {
   airline: string;
   consignee: string;
   awbTagNumber: string;
+  airlineAwb?: string | null;
   pieces: number;
   kg: number;
   route: string;
@@ -62,12 +63,14 @@ export async function compileCargoReceiptStream(data: CargoReceiptPrintData, wid
 
     chunks.push(new Uint8Array(LEFT));
     chunks.push(encoder.encode(divider(maxChars)));
-    chunks.push(encoder.encode(fieldRow('ENTRY REF:', data.entryRef, maxChars)));
+    chunks.push(encoder.encode(fieldRow('TAG NUMBER:', data.awbTagNumber || data.entryRef, maxChars)));
+    if (data.airlineAwb) {
+      chunks.push(encoder.encode(fieldRow('AIRLINE AWB:', data.airlineAwb, maxChars)));
+    }
     chunks.push(encoder.encode(fieldRow('S/N:', `Entry #${data.serialNumber}`, maxChars)));
     chunks.push(encoder.encode(fieldRow('DATE:', data.date, maxChars)));
     chunks.push(encoder.encode(divider(maxChars)));
     chunks.push(encoder.encode(fieldRow('AIRLINE:', data.airline, maxChars)));
-    chunks.push(encoder.encode(fieldRow('AWB/TAG:', data.awbTagNumber, maxChars)));
     chunks.push(encoder.encode(fieldRow('CONSIGNEE:', data.consignee, maxChars)));
     chunks.push(encoder.encode(fieldRow('ROUTE:', data.route, maxChars)));
     

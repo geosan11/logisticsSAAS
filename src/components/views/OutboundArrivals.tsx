@@ -468,43 +468,36 @@ export const OutboundArrivals = ({
                       </div>
                     </div>
 
-                    {/* Identifiers Tier: Tactile 44px Copy Buttons for Entry Ref + AWB Tag */}
+                    {/* Identifiers Tier: Tactile 44px Copy Button for Tag */}
                     <div className="flex items-center gap-2 flex-wrap text-[12px] font-sans text-[var(--color-muted)]">
-                      {/* Entry Ref with 44px hit target */}
-                      <button
-                        type="button"
-                        onClick={() => handleCopyIdentifier(r.entryRef, `${r.key}-ref`)}
-                        title="Click to copy entry reference"
-                        aria-label={`Copy entry reference ${r.entryRef}`}
-                        className="min-h-[44px] h-11 inline-flex items-center gap-2 px-3.5 rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] transition-colors cursor-pointer group"
-                      >
-                        <span className="text-[11px] font-sans text-[var(--color-muted)]">Ref:</span>
-                        <span className="font-mono tabular-nums font-medium text-[13px]">{r.entryRef}</span>
-                        {isRefCopied ? (
-                          <Check size={14} className="text-[var(--color-success)] shrink-0" />
-                        ) : (
-                          <Copy size={13} className="text-[var(--color-muted)] opacity-60 group-hover:opacity-100 shrink-0" />
-                        )}
-                      </button>
-
-                      {/* AWB Tag with 44px hit target if available */}
-                      {awbFormatted ? (
-                        <button
-                          type="button"
-                          onClick={() => handleCopyIdentifier(r.awb || '', `${r.key}-awb`)}
-                          title="Click to copy AWB tag"
-                          aria-label={`Copy AWB tag ${awbFormatted}`}
-                          className="min-h-[44px] h-11 inline-flex items-center gap-2 px-3.5 rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] transition-colors cursor-pointer group"
-                        >
-                          <span className="text-[11px] font-sans text-[var(--color-muted)]">AWB:</span>
-                          <span className="font-mono tabular-nums font-medium text-[13px]">{awbFormatted}</span>
-                          {isAwbCopied ? (
-                            <Check size={14} className="text-[var(--color-success)] shrink-0" />
-                          ) : (
-                            <Copy size={13} className="text-[var(--color-muted)] opacity-60 group-hover:opacity-100 shrink-0" />
-                          )}
-                        </button>
-                      ) : null}
+                      {(() => {
+                        const primaryTag = awbFormatted || r.entryRef;
+                        const hasDiffRef = Boolean(awbFormatted && r.entryRef && awbFormatted !== r.entryRef);
+                        return (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyIdentifier(primaryTag, `${r.key}-tag`)}
+                              title="Click to copy tag number"
+                              aria-label={`Copy tag number ${primaryTag}`}
+                              className="min-h-[44px] h-11 inline-flex items-center gap-2 px-3.5 rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] transition-colors cursor-pointer group"
+                            >
+                              <span className="text-[11px] font-sans text-[var(--color-muted)]">Tag:</span>
+                              <span className="font-mono tabular-nums font-medium text-[13px]">{primaryTag}</span>
+                              {copiedId === `${r.key}-tag` ? (
+                                <Check size={14} className="text-[var(--color-success)] shrink-0" />
+                              ) : (
+                                <Copy size={13} className="text-[var(--color-muted)] opacity-60 group-hover:opacity-100 shrink-0" />
+                              )}
+                            </button>
+                            {hasDiffRef && (
+                              <span className="text-[11px] font-mono text-[var(--color-muted)]">
+                                (Legacy: {r.entryRef})
+                              </span>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
 
                     {/* Cargo Physical Specs Row: Pieces · Weight · Contents (Zero stutter/repetition) */}

@@ -218,7 +218,7 @@ export function seedDemoDataIfEmpty(user: UserProfile): void {
     if (!existing || JSON.parse(existing).length === 0) {
       const demoTxs = [
         {
-          id: 'EHI-LOS-CG-001042',
+          id: 'HWY-LOS-CG-001042',
           name: 'Dangote Industries Ltd',
           detail: 'Arik Air · 4pcs · 128KG · LOS-ABV · Industrial Spares',
           amount: 89600,
@@ -227,7 +227,8 @@ export function seedDemoDataIfEmpty(user: UserProfile): void {
           time: '11:45',
           type: 'cargo',
           status: 'Intake',
-          awb_tag_number: 'EHI-LOS-CG-001042',
+          awb_tag_number: 'HWY-LOS-CG-001042',
+          airline_awb: '072-12345678',
           airline: 'Arik Air',
           flight: 'W3 331',
           pieces: 4,
@@ -241,7 +242,7 @@ export function seedDemoDataIfEmpty(user: UserProfile): void {
           created_at: new Date(Date.now() - 3600000).toISOString(),
         },
         {
-          id: 'EHI-LOS-PKG-000512',
+          id: 'HWY-LOS-PKG-000512',
           name: 'Chukwuma Electronics',
           detail: 'ABV · Electronics · 2pcs · 45kg · Solar Inverters · 🚚 KJA-482XA',
           amount: 32000,
@@ -263,7 +264,7 @@ export function seedDemoDataIfEmpty(user: UserProfile): void {
           created_at: new Date(Date.now() - 7200000).toISOString(),
         },
         {
-          id: 'EHI-LOS-CG-001041',
+          id: 'HWY-LOS-CG-001041',
           name: 'Prime Pharmaceuticals',
           detail: 'Air Peace · 2pcs · 18KG · LOS-KAN · Cold-chain Vaccines',
           amount: 27500,
@@ -271,7 +272,8 @@ export function seedDemoDataIfEmpty(user: UserProfile): void {
           time: '09:15',
           type: 'cargo',
           status: 'Intake',
-          awb_tag_number: 'EHI-LOS-CG-001041',
+          awb_tag_number: 'HWY-LOS-CG-001041',
+          airline_awb: '072-84920194',
           airline: 'Air Peace',
           flight: 'P4 7122',
           pieces: 2,

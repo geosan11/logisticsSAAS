@@ -25,8 +25,13 @@ export const HtmlPrintWaybill = ({ data }: { data: CargoReceiptData }) => {
 
       <div className="flex justify-between font-bold text-[10px] mb-1 border-b border-black pb-0.5">
         <span>{data.airline}</span>
-        <span>AWB: {data.awbTagNumber}</span>
+        <span>Tag: {data.awbTagNumber || data.entryRef}</span>
       </div>
+      {data.airlineAwb && (
+        <div className="text-right text-[8px] font-semibold text-gray-700 -mt-1 mb-1">
+          Airline AWB: {data.airlineAwb}
+        </div>
+      )}
 
       <div className="space-y-0.5 mb-1">
         <div className="flex justify-between">
@@ -50,10 +55,6 @@ export const HtmlPrintWaybill = ({ data }: { data: CargoReceiptData }) => {
         <div className="flex justify-between">
           <span className="text-[7px] uppercase">Date:</span>{" "}
           <span className="font-bold text-[9px]">{data.date}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-[7px] uppercase">Ref:</span>{" "}
-          <span className="font-bold text-[9px]">{data.entryRef}</span>
         </div>
       </div>
 

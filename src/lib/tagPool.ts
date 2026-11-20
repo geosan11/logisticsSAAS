@@ -1,97 +1,40 @@
 import { db } from './db';
 import { supabase } from './supabase';
 import { appLogger } from './logger';
+import {
+  buildTagNumber,
+  getTenantTagPrefix,
+  setTenantTagPrefix,
+  parseTagNumber,
+  isValidTagNumber,
+  isValidTagPrefix,
+  isValidAirlineAwb,
+  formatAirlineAwb,
+  hasTenantIssuedTags,
+  DEFAULT_TAG_PREFIX,
+  TAG_PREFIX_REGEX,
+  type ParsedTag,
+  type BuildTagNumberOptions,
+} from './tagNumber';
 
-// Pre-reserves blocks of real, atomically-allocated AWB/tag numbers
-// (reserve_awb_block RPC, supabase/migrations/20260728_reserve_awb_block.sql)
-// while online, and hands them out from a local Dexie pool instantly --
-// online or offline. next_awb_number()/peek_next_awb_number() are
-// synchronous, un-cached network calls that gate every cargo/marketing/
-// package/excess-baggage submission with no offline fallback; this is the
-// same atomic server-side counter, just claimed in batches ahead of time
-// so tag generation itself becomes a zero-network operation in the common
-// case. Numbers popped from the pool are never returned to the shared
-// counter even if the form is abandoned -- an accepted gap-in-sequence
-// tradeoff for offline availability, same idea as clustered AUTO_INCREMENT.
+export {
+  buildTagNumber,
+  getTenantTagPrefix,
+  setTenantTagPrefix,
+  parseTagNumber,
+  isValidTagNumber,
+  isValidTagPrefix,
+  isValidAirlineAwb,
+  formatAirlineAwb,
+  hasTenantIssuedTags,
+  DEFAULT_TAG_PREFIX,
+  TAG_PREFIX_REGEX,
+  type ParsedTag,
+  type BuildTagNumberOptions,
+};
 
 const DEFAULT_THRESHOLD = 5;
 const DEFAULT_REFILL_SIZE = 20;
-
-let memoryPrefixOverride: string | null = null;
-
-/**
- * Returns the tenant-configured tag/AWB prefix for NEW numbers,
- * falling back to "HW" (Haulwey) if not explicitly set.
- */
-export function getTenantTagPrefix(): string {
-  if (memoryPrefixOverride !== null) {
-    return memoryPrefixOverride || 'HW';
-  }
-  try {
-    if (typeof localStorage !== 'undefined') {
-      const stored = localStorage.getItem('ehi_tag_prefix');
-      if (stored && stored.trim()) {
-        return stored.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
-      }
-    }
-  } catch {}
-  return 'HW';
-}
-
-/**
- * Persists the tenant's chosen prefix for new numbers.
- */
-export function setTenantTagPrefix(prefix: string | null): void {
-  if (!prefix || !prefix.trim()) {
-    memoryPrefixOverride = null;
-    try {
-      if (typeof localStorage !== 'undefined') {
-        localStorage.removeItem('ehi_tag_prefix');
-      }
-    } catch {}
-    return;
-  }
-  const sanitized = prefix.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
-  memoryPrefixOverride = sanitized;
-  try {
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem('ehi_tag_prefix', sanitized);
-    }
-  } catch {}
-}
-
-export interface ParsedTag {
-  prefix: string;
-  hubCode: string;
-  stream: string;
-  sequence: number;
-  raw: string;
-  isLegacyEhi: boolean;
-}
-
-/**
- * Parses and validates any tag / AWB number (both new HW-/custom and legacy EHI-).
- */
-export function parseTagNumber(tag: string): ParsedTag | null {
-  if (!tag || typeof tag !== 'string') return null;
-  const trimmed = tag.trim().toUpperCase();
-  // Matches HW-LOS-CG-001042, EHI-LOS-PKG-000512, EHI-LOS-001042, HW-KAN-123456, etc.
-  const match = trimmed.match(/^([A-Z0-9]{2,6})-([A-Z]{2,4})(?:-([A-Z]{2,3}))?-(\d{4,6})$/);
-  if (!match) return null;
-  const [, prefix, hubCode, streamOrNull, seqStr] = match;
-  return {
-    prefix,
-    hubCode,
-    stream: streamOrNull || '',
-    sequence: parseInt(seqStr, 10),
-    raw: trimmed,
-    isLegacyEhi: prefix === 'EHI',
-  };
-}
-
-export function isValidTagNumber(tag: string): boolean {
-  return parseTagNumber(tag) !== null;
-}
 
 function isOnline(): boolean {
   try {
@@ -117,14 +60,6 @@ async function poolCount(poolKey: string): Promise<number> {
   return db.tag_pools.where('pool_key').equals(poolKey).count();
 }
 
-// Emergency-fallback entropy: a per-device random seed (drawn once,
-// persisted) plus a per-device monotonic counter (persisted, incremented
-// every fallback tag issued). A same-device fallback tag can never repeat
-// (the counter never goes backward); a cross-device collision would
-// require two devices to have independently drawn the identical seed AND
-// landed on the identical counter value, which is what actually protects
-// against the birthday-paradox collision risk a bare Math.random() 6-digit
-// number carries under concurrent offline submissions at a busy hub.
 function getDeviceFallbackSeed(): number {
   const KEY = 'ehi_tag_fallback_device_seed';
   try {
@@ -149,9 +84,6 @@ function nextFallbackCounter(): number {
   }
 }
 
-// Claims a fresh block from the server and adds it to the local pool.
-// Never throws -- a failed refill just leaves the pool as it was; the
-// caller (getNextTag) has its own online-RPC fallback for an empty pool.
 async function reserveBlock(poolKey: string, count: number): Promise<void> {
   try {
     const { data: blockStart, error } = await supabase.rpc('reserve_awb_block', {
@@ -169,9 +101,6 @@ async function reserveBlock(poolKey: string, count: number): Promise<void> {
   }
 }
 
-// Fire-and-forget top-up -- never awaited by a form's critical path. Safe
-// to call as often as convenient (on mount, after every pop, on reconnect);
-// it's a no-op whenever offline or the pool is already above threshold.
 export function refillPoolIfLow(
   poolKey: string,
   threshold: number = DEFAULT_THRESHOLD,
@@ -185,27 +114,54 @@ export function refillPoolIfLow(
   }).catch(() => { /* non-critical */ });
 }
 
-// Returns a fully-formatted tag string (e.g. "HW-LOS-CG-001042").
-// If the local Dexie pool is empty AND online RPC fails (or device is offline),
-// it generates a guaranteed unique 6-digit sequence fallback tag so staff
-// are never blocked from issuing waybills.
-export async function getNextTag(poolKey: string, displayPrefix?: string): Promise<string> {
-  const effectivePrefix = displayPrefix || `${getTenantTagPrefix()}-${poolKey}`;
+function formatFinalTag(sequence: number, displayPrefix?: string, poolKey?: string): string {
+  if (displayPrefix) {
+    const parts = displayPrefix.split('-');
+    if (parts.length >= 3) {
+      return buildTagNumber({
+        prefix: parts[0],
+        hubCode: parts[1],
+        contentCode: parts[2],
+        sequence,
+      });
+    }
+    if (parts.length === 2) {
+      return buildTagNumber({
+        prefix: parts[0],
+        hubCode: parts[1],
+        contentCode: 'CG',
+        sequence,
+      });
+    }
+  }
+  const poolParts = (poolKey || 'LOS').split('-');
+  const hub = poolParts[0] || 'LOS';
+  const content = poolParts[1] || 'CG';
+  return buildTagNumber({
+    prefix: getTenantTagPrefix(),
+    hubCode: hub,
+    contentCode: content,
+    sequence,
+  });
+}
 
+/**
+ * Returns a fully-formatted tag string (e.g. "RED-LOS-CG-001042").
+ * Centralized via buildTagNumber in src/lib/tagNumber.ts.
+ */
+export async function getNextTag(poolKey: string, displayPrefix?: string): Promise<string> {
   const pooled = await popFromPool(poolKey);
   if (pooled != null) {
-    // Opportunistically top up in the background now that we've consumed one.
     refillPoolIfLow(poolKey);
-    return `${effectivePrefix}-${String(pooled).padStart(6, '0')}`;
+    return formatFinalTag(pooled, displayPrefix, poolKey);
   }
 
   if (isOnline()) {
-    // Pool was empty but we're online -- fall back to a single-shot claim
     try {
       const { data: seq, error } = await supabase.rpc('next_awb_number', { p_hub_code: poolKey });
       if (!error && seq != null) {
         refillPoolIfLow(poolKey);
-        return `${effectivePrefix}-${String(seq).padStart(6, '0')}`;
+        return formatFinalTag(seq, displayPrefix, poolKey);
       } else {
         appLogger.log('ERROR', 'SYNC', `next_awb_number fallback failed for ${poolKey}: ${error?.message || 'no data returned'}`);
       }
@@ -214,21 +170,9 @@ export async function getNextTag(poolKey: string, displayPrefix?: string): Promi
     }
   }
 
-  // Emergency fallback: pool empty + RPC unavailable. A bare Math.random()
-  // 6-digit number here (the prior implementation, despite its comment
-  // claiming "guaranteed unique") can collide across devices during an
-  // extended outage -- for cargo_entries/package_entries, entry_ref IS the
-  // tag, and sync.ts's upsert silently overwrites one real shipment's row
-  // with another's on collision; for marketing_entries, awb_tag_number's
-  // UNIQUE constraint instead throws an error that isn't treated as
-  // permanent, so the sale retries forever and never syncs. The seed+
-  // counter combination below makes a same-device collision impossible and
-  // a cross-device one require both an independently-drawn matching seed
-  // AND a matching counter value.
   refillPoolIfLow(poolKey);
   const seed = getDeviceFallbackSeed();
   const counter = nextFallbackCounter();
   const fallbackNum = ((seed + counter * 97) % 900000) + 100000;
-  return `${effectivePrefix}-${String(fallbackNum).padStart(6, '0')}`;
+  return formatFinalTag(fallbackNum, displayPrefix, poolKey);
 }
-

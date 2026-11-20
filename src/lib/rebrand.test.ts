@@ -17,9 +17,9 @@ describe('Haulwey Rebranding Verification', () => {
   });
 
   describe('Tag Prefix Configuration & Fallback', () => {
-    test('defaults to HW fallback when no tenant tag prefix is configured', () => {
+    test('defaults to HWY fallback when no tenant tag prefix is configured', () => {
       setTenantTagPrefix(null);
-      assert.strictEqual(getTenantTagPrefix(), 'HW');
+      assert.strictEqual(getTenantTagPrefix(), 'HWY');
     });
 
     test('accepts tenant custom override prefix and sanitizes input', () => {
@@ -31,16 +31,16 @@ describe('Haulwey Rebranding Verification', () => {
 
       // Revert back
       setTenantTagPrefix(null);
-      assert.strictEqual(getTenantTagPrefix(), 'HW');
+      assert.strictEqual(getTenantTagPrefix(), 'HWY');
     });
   });
 
   describe('Legacy EHI- Numbers Backward Compatibility', () => {
-    test('validates both legacy EHI numbers and new HW/tenant numbers', () => {
+    test('validates both legacy EHI numbers and new HWY/tenant numbers', () => {
       assert.strictEqual(isValidTagNumber('EHI-LOS-CG-001042'), true);
       assert.strictEqual(isValidTagNumber('EHI-ABV-PKG-000512'), true);
-      assert.strictEqual(isValidTagNumber('HW-LOS-PKG-000101'), true);
-      assert.strictEqual(isValidTagNumber('HW-KAN-CG-009999'), true);
+      assert.strictEqual(isValidTagNumber('HWY-LOS-PKG-000101'), true);
+      assert.strictEqual(isValidTagNumber('HWY-KAN-CG-009999'), true);
       assert.strictEqual(isValidTagNumber('EXP-LOS-PKG-000001'), true);
 
       // Invalid formats
@@ -48,7 +48,7 @@ describe('Haulwey Rebranding Verification', () => {
       assert.strictEqual(isValidTagNumber(''), false);
     });
 
-    test('parses legacy EHI- and new HW- tag numbers into structured segments', () => {
+    test('parses legacy EHI- and new HWY- tag numbers into structured segments', () => {
       const legacy = parseTagNumber('EHI-LOS-CG-001042');
       assert.deepStrictEqual(legacy, {
         prefix: 'EHI',
@@ -59,13 +59,13 @@ describe('Haulwey Rebranding Verification', () => {
         isLegacyEhi: true,
       });
 
-      const modern = parseTagNumber('HW-ABV-PKG-000512');
+      const modern = parseTagNumber('HWY-ABV-PKG-000512');
       assert.deepStrictEqual(modern, {
-        prefix: 'HW',
+        prefix: 'HWY',
         hubCode: 'ABV',
         stream: 'PKG',
         sequence: 512,
-        raw: 'HW-ABV-PKG-000512',
+        raw: 'HWY-ABV-PKG-000512',
         isLegacyEhi: false,
       });
 

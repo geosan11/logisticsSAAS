@@ -16,6 +16,12 @@ import { useToast } from '../../lib/ToastContext';
 import { useConfirm } from '../../lib/ConfirmContext';
 import { useAirlines } from '../../lib/airlines';
 import { GlassToggle } from '../ui/GlassToggle';
+import {
+  isValidTagPrefix,
+  hasTenantIssuedTags,
+  setTenantTagPrefix,
+  DEFAULT_TAG_PREFIX,
+} from '../../lib/tagNumber';
 
 
 export const Settings = ({
@@ -71,8 +77,10 @@ export const Settings = ({
          'Haulwey'
   );
   const [tagPrefix, setTagPrefix] = useState(
-    () => localStorage.getItem('ehi_tag_prefix') || 'HW'
+    () => localStorage.getItem('ehi_tag_prefix') || DEFAULT_TAG_PREFIX
   );
+  const [isPrefixLocked, setIsPrefixLocked] = useState(false);
+  const [prefixError, setPrefixError] = useState<string | null>(null);
   const [companyPhone, setCompanyPhone] = useState(
     () => localStorage.getItem('ehi_company_phone') || ''
   );
@@ -90,13 +98,30 @@ export const Settings = ({
   const [savingCompany, setSavingCompany] = useState(false);
 
   useEffect(() => {
+    // Check if prefix is locked because tenant has issued tags
+    hasTenantIssuedTags(user?.tenant_id).then(issued => {
+      setIsPrefixLocked(issued);
+    });
+
+    if (user?.tenant_id) {
+      supabase.from('tenants').select('tag_prefix, name, brand_color, brand_logo_url, active_modes').eq('id', user.tenant_id).maybeSingle().then(({ data }) => {
+        if (data?.tag_prefix) {
+          setTagPrefix(data.tag_prefix);
+          setTenantTagPrefix(data.tag_prefix);
+        }
+      });
+    }
+
     supabase.from('pricing_config').select('config_value').eq('config_key', 'company_settings').single()
       .then(({ data, error }) => {
         if (!data?.config_value || error) return;
         const c = data.config_value as { name?: string; phone?: string; address?: string; brandColor?: string; logoUrl?: string; activeModes?: string[]; tag_prefix?: string; tagPrefix?: string };
         if (c.name) setCompanyName(c.name);
         const loadedPrefix = c.tag_prefix || c.tagPrefix;
-        if (loadedPrefix) setTagPrefix(loadedPrefix);
+        if (loadedPrefix && isValidTagPrefix(loadedPrefix)) {
+          setTagPrefix(loadedPrefix);
+          setTenantTagPrefix(loadedPrefix);
+        }
         if (c.phone != null) setCompanyPhone(c.phone);
         if (c.address != null) setCompanyAddress(c.address);
         if (c.brandColor) setBrandColor(c.brandColor);
@@ -116,7 +141,7 @@ export const Settings = ({
           // localStorage unavailable -- state above is already updated
         }
       });
-  }, []);
+  }, [user?.tenant_id]);
 
   const connectionMode = getConnectionMode();
 
@@ -155,7 +180,14 @@ export const Settings = ({
     const address = companyAddress.trim();
     const color = brandColor.trim() || '#3b82f6';
     const logo = brandLogoUrl.trim();
-    const prefix = (tagPrefix.trim().toUpperCase() || 'HW').replace(/[^A-Z0-9]/g, '');
+    const prefix = tagPrefix.trim().toUpperCase().replace(/[^A-Z]/g, '') || DEFAULT_TAG_PREFIX;
+
+    if (!isPrefixLocked) {
+      if (!isValidTagPrefix(prefix)) {
+        showToast({ message: 'Tag prefix must be 3 to 5 uppercase letters (A-Z).', type: 'error' });
+        return;
+      }
+    }
 
     const activeModes: string[] = [];
     if (allowAirMode) activeModes.push('air');
@@ -176,6 +208,7 @@ export const Settings = ({
         brand_color: color,
         brand_logo_url: logo || null,
         active_modes: activeModes,
+        tag_prefix: prefix,
         updated_at: new Date().toISOString()
       }).eq('id', user.tenant_id);
     }
@@ -187,6 +220,7 @@ export const Settings = ({
     }
     localStorage.setItem('ehi_company_name', name);
     localStorage.setItem('ehi_tag_prefix', prefix);
+    setTenantTagPrefix(prefix);
     localStorage.setItem('ehi_company_phone', phone);
     localStorage.setItem('ehi_company_address', address);
     localStorage.setItem('ehi_brand_color', color);
@@ -655,20 +689,39 @@ export const Settings = ({
                 </div>
                 <div>
                   <label htmlFor="settings-tag-prefix" className="block text-[9px] font-mono text-[var(--color-muted)] uppercase tracking-wider mb-1">
-                    Tag &amp; Waybill Number Prefix (Fallback: HW)
+                    Tag &amp; Waybill Number Prefix (Fallback: HWY)
                   </label>
                   <input
                     id="settings-tag-prefix"
                     type="text"
-                    maxLength={6}
+                    maxLength={5}
                     value={tagPrefix}
-                    onChange={e => setTagPrefix(e.target.value.toUpperCase())}
-                    placeholder="HW"
-                    className="w-full h-10 px-3 text-[12px] font-mono rounded bg-[var(--color-surface-2)] border border-[var(--color-border)] text-[var(--color-foreground)] focus:outline-none focus:border-[var(--color-accent-amber)] uppercase"
+                    disabled={isPrefixLocked}
+                    readOnly={isPrefixLocked}
+                    onChange={e => {
+                      const val = e.target.value.toUpperCase().replace(/[^A-Z]/g, '');
+                      setTagPrefix(val);
+                      if (val && !isValidTagPrefix(val)) {
+                        setPrefixError('3 to 5 uppercase letters (A-Z)');
+                      } else {
+                        setPrefixError(null);
+                      }
+                    }}
+                    placeholder="HWY"
+                    className={`w-full h-10 px-3 text-[12px] font-mono rounded bg-[var(--color-surface-2)] border border-[var(--color-border)] text-[var(--color-foreground)] focus:outline-none focus:border-[var(--color-accent-amber)] uppercase ${isPrefixLocked ? 'opacity-60 cursor-not-allowed bg-[var(--color-surface-1)]' : ''}`}
                   />
-                  <p className="text-[10px] font-mono text-[var(--color-muted)] mt-1">
-                    Applies to newly issued cargo AWBs and package tags. Existing EHI- records remain scannable and valid.
-                  </p>
+                  {prefixError && (
+                    <div className="text-[10px] font-mono text-[var(--color-error)] mt-1">{prefixError}</div>
+                  )}
+                  {isPrefixLocked ? (
+                    <p className="text-[10px] font-mono text-[var(--color-muted)] mt-1">
+                      Prefix is locked because shipments have already been issued under this prefix. Existing records remain scannable and valid.
+                    </p>
+                  ) : (
+                    <p className="text-[10px] font-mono text-[var(--color-muted)] mt-1">
+                      3 to 5 uppercase letters (A-Z). Unique per company. Locked permanently once tags are issued.
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label htmlFor="settings-company-phone" className="block text-[9px] font-mono text-[var(--color-muted)] uppercase tracking-wider mb-1">

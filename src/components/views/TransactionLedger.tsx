@@ -23,6 +23,7 @@ import { useSizeTierRates, resolveSizeTier, useSizeTierContentTypeNames } from "
 import { useMinimumCharges, resolveMinimumCharge } from "../../lib/minimumCharges";
 import { isOfficeWorkEntry as isOfficeWorkEntryCore } from "../../lib/officeWork";
 import { useBanks } from "../../lib/banks";
+import { formatAirlineAwb, isValidAirlineAwb } from "../../lib/tagNumber";
 import { BackButton } from "../BackButton";
 import { useDensity } from "../../lib/useDensity";
 import {
@@ -91,6 +92,7 @@ type Entry = {
   mode: string;
   status: string;
   source: "transaction" | "expense";
+  airline_awb?: string | null;
   raw: any;
   paymentConfirmed?: boolean;
   posApprovalCode?: string;
@@ -1366,7 +1368,7 @@ export const TransactionLedger = ({
       // Comprehensive searchable text surface: IDs, names (sender, consignee, passenger),
       // references (AWB, tag, PNR, flight, bank ref, POS code, PIN), amounts, routes, and remarks.
       const text =
-        `${e.id} ${e.time} ${e.type} ${e.name} ${e.detail} ${e.mode} ${e.amount} ${fmt(e.amount)} ${raw?.awb_tag_number || ''} ${raw?.remarks || ''} ${raw?.remark || ''} ${raw?.related_tx_id || ''} ${raw?.phone || ''} ${raw?.consignee_phone || ''} ${raw?.consigneePhone || ''} ${raw?.customer_phone || ''} ${raw?.passenger_phone || ''} ${raw?.consignee || ''} ${raw?.consignee_name || ''} ${raw?.passenger_name || ''} ${raw?.customer_name || ''} ${raw?.pnr || ''} ${raw?.flight || ''} ${raw?.flight_no || ''} ${raw?.pickupPin || ''} ${raw?.pickup_pin || ''} ${raw?.bankReference || ''} ${raw?.bank_reference || ''} ${raw?.bankSender || ''} ${raw?.bank_sender || ''} ${raw?.posApprovalCode || ''} ${raw?.pos_approval_code || ''} ${raw?.airline || ''} ${raw?.contents || ''} ${raw?.contentType || ''} ${raw?.content_type || ''} ${raw?.route || ''} ${raw?.destination || ''} ${(e as any).enteredByName || raw?.entered_by || ''}`.toLowerCase();
+        `${e.id} ${e.time} ${e.type} ${e.name} ${e.detail} ${e.mode} ${e.amount} ${fmt(e.amount)} ${raw?.awb_tag_number || ''} ${e.airline_awb || raw?.airline_awb || ''} ${raw?.remarks || ''} ${raw?.remark || ''} ${raw?.related_tx_id || ''} ${raw?.phone || ''} ${raw?.consignee_phone || ''} ${raw?.consigneePhone || ''} ${raw?.customer_phone || ''} ${raw?.passenger_phone || ''} ${raw?.consignee || ''} ${raw?.consignee_name || ''} ${raw?.passenger_name || ''} ${raw?.customer_name || ''} ${raw?.pnr || ''} ${raw?.flight || ''} ${raw?.flight_no || ''} ${raw?.pickupPin || ''} ${raw?.pickup_pin || ''} ${raw?.bankReference || ''} ${raw?.bank_reference || ''} ${raw?.bankSender || ''} ${raw?.bank_sender || ''} ${raw?.posApprovalCode || ''} ${raw?.pos_approval_code || ''} ${raw?.airline || ''} ${raw?.contents || ''} ${raw?.contentType || ''} ${raw?.content_type || ''} ${raw?.route || ''} ${raw?.destination || ''} ${(e as any).enteredByName || raw?.entered_by || ''}`.toLowerCase();
       if (!text.includes(q)) return false;
     }
 
@@ -1693,6 +1695,18 @@ export const TransactionLedger = ({
       const finalTx: Transaction = { ...editingTx, pieces, kg, amount, mode: finalMode, bank: finalBank, wallet_id: walletId, wallet_deduction_amount: walletDeduction };
       finalTx.editedBy = user.name;
       finalTx.editedAt = new Date().toISOString();
+      if (finalTx.type === 'cargo') {
+        const rawAwb = (editingTx.airline_awb || '').trim();
+        if (rawAwb) {
+          if (!isValidAirlineAwb(rawAwb)) {
+            showToast({ message: "Airline AWB must be 11 digits (e.g. 072-12345678)", type: "error" });
+            return;
+          }
+          finalTx.airline_awb = formatAirlineAwb(rawAwb);
+        } else {
+          finalTx.airline_awb = null;
+        }
+      }
       if (finalTx.type === 'cargo') {
         finalTx.sizeInches = sizeTierContentTypeNames.has(finalTx.contentType || '') && sizeInchesInput
           ? (Math.round(parseFloat(sizeInchesInput)) || undefined)
@@ -4141,7 +4155,7 @@ export const TransactionLedger = ({
                       id="ledger-search"
                       name="search"
                       type="text"
-                      placeholder="Search name, amount, ref…"
+                      placeholder="Search name, amount, tag, AWB…"
                       value={searchInput}
                       onChange={(e) => handleSearchInputChange(e.target.value)}
                       onKeyDown={(e) => { if (e.key === 'Enter') commitSearch(searchInput); }}
@@ -4500,9 +4514,14 @@ export const TransactionLedger = ({
                               {e.type === 'package' && <Truck size={12} />}
                               {e.source === 'expense' && <Minus size={12} />}
                             </div>
-                            <span className="font-mono tabular-nums font-semibold text-[12px] text-[var(--color-foreground)] truncate">{e.id}</span>
+                            <div className="flex flex-col min-w-0">
+                              <span className="font-mono tabular-nums font-semibold text-[12px] text-[var(--color-foreground)] truncate">{e.id}</span>
+                              {e.type === 'cargo' && (e.airline_awb || e.raw?.airline_awb) && (
+                                <span className="font-mono tabular-nums text-[10px] text-[var(--color-muted)] truncate">AWB: {e.airline_awb || e.raw?.airline_awb}</span>
+                              )}
+                            </div>
                             {canSeePin && e.raw.pickupPin && (
-                              <span className="font-mono tabular-nums text-[10px] text-[var(--color-foreground)] bg-[var(--color-surface-2)] border border-[var(--color-border)] px-1.5 py-0.5 rounded-full">PIN: {e.raw.pickupPin}</span>
+                              <span className="font-mono tabular-nums text-[10px] text-[var(--color-foreground)] bg-[var(--color-surface-2)] border border-[var(--color-border)] px-1.5 py-0.5 rounded-full shrink-0">PIN: {e.raw.pickupPin}</span>
                             )}
                           </div>
                           <div className="text-right shrink-0">
@@ -4689,7 +4708,7 @@ export const TransactionLedger = ({
                   </th>
                 )}
                 {canSeePin && <th className={`${density.tableRowPadding} w-[52px]`}>Pin</th>}
-                <th className={`${density.tableRowPadding} w-[114px]`}>Ref</th>
+                <th className={`${density.tableRowPadding} w-[114px]`}>Tag / Waybill</th>
                 <th className={`${density.tableRowPadding} w-[74px]`}>Date</th>
                 <th className={`${density.tableRowPadding} w-[160px]`}>Customer / detail</th>
                 <th className={`${density.tableRowPadding} w-[74px] text-center`}>Status</th>
@@ -4830,9 +4849,16 @@ export const TransactionLedger = ({
                           {e.type === 'package' && <Truck size={11} />}
                           {e.source === 'expense' && <Minus size={11} />}
                         </div>
-                        <span className="truncate min-w-0 font-mono tabular-nums text-[12px] font-semibold" title={e.id}>
-                          {e.id.length > 20 ? `${e.id.slice(0, 6)}…${e.id.slice(-6)}` : e.id}
-                        </span>
+                        <div className="flex flex-col min-w-0">
+                          <span className="truncate min-w-0 font-mono tabular-nums text-[12px] font-semibold" title={e.id}>
+                            {e.id.length > 20 ? `${e.id.slice(0, 6)}…${e.id.slice(-6)}` : e.id}
+                          </span>
+                          {e.type === 'cargo' && (e.airline_awb || e.raw?.airline_awb) && (
+                            <span className="font-mono tabular-nums text-[10px] text-[var(--color-muted)] truncate block" title={e.airline_awb || e.raw?.airline_awb}>
+                              AWB: {e.airline_awb || e.raw?.airline_awb}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </td>
                     {/* Date + Time */}
@@ -5119,6 +5145,11 @@ export const TransactionLedger = ({
                 </div>
                 <div>
                   <h3 className="font-mono tabular-nums text-[15px] font-semibold text-[var(--color-foreground)]">{viewingDetail.id}</h3>
+                  {viewingDetail.type === 'cargo' && (viewingDetail.airline_awb || viewingDetail.raw?.airline_awb) && (
+                    <div className="text-[11px] font-mono tabular-nums text-[var(--color-muted)]">
+                      Airline AWB: {viewingDetail.airline_awb || viewingDetail.raw?.airline_awb}
+                    </div>
+                  )}
                   <span className="text-[12px] font-sans text-[var(--color-muted)]">
                     {(viewingDetail.type === 'marketing' || viewingDetail.type === 'baggage' || viewingDetail.type === 'legacy') ? 'Legacy shipment' : `${formatEntryTypeLabel(viewingDetail.type)} transaction`}
                   </span>
@@ -5515,7 +5546,7 @@ export const TransactionLedger = ({
 
             <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
               <div className="text-[12px] font-mono tabular-nums text-[var(--color-muted)] bg-[var(--color-surface-1)] border border-[var(--color-border)] p-3 rounded-xl">
-                Ref:{" "}
+                Tag:{" "}
                 <span className="text-[var(--color-foreground)] font-semibold">
                   {editingTx.id}
                 </span>
@@ -5564,20 +5595,38 @@ export const TransactionLedger = ({
                       {editAirlines.map(a => <option key={a} value={a}>{a}</option>)}
                     </select>
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-sans font-medium text-[var(--color-muted)]">
-                      Flight number (optional — for flight radar)
-                    </label>
-                    <input
-                      id="edit-tx-flight-number"
-                      name="edit-tx-flight-number"
-                      type="text"
-                      disabled={!canEdit}
-                      value={editingTx.flight || ''}
-                      onChange={(e) => setEditingTx({ ...editingTx, flight: e.target.value.toUpperCase() })}
-                      placeholder="e.g. W3 331"
-                      className="w-full min-h-[44px] h-11 px-3.5 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl text-[var(--color-foreground)] font-sans text-[14px] focus:outline-none focus:border-[var(--color-border-strong)] focus:bg-[var(--color-surface-hover)] disabled:opacity-60"
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-sans font-medium text-[var(--color-muted)]">
+                        Flight number (optional)
+                      </label>
+                      <input
+                        id="edit-tx-flight-number"
+                        name="edit-tx-flight-number"
+                        type="text"
+                        disabled={!canEdit}
+                        value={editingTx.flight || ''}
+                        onChange={(e) => setEditingTx({ ...editingTx, flight: e.target.value.toUpperCase() })}
+                        placeholder="e.g. W3 331"
+                        className="w-full min-h-[44px] h-11 px-3.5 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl text-[var(--color-foreground)] font-sans text-[14px] focus:outline-none focus:border-[var(--color-border-strong)] focus:bg-[var(--color-surface-hover)] disabled:opacity-60"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-sans font-medium text-[var(--color-muted)]">
+                        Airline AWB (optional)
+                      </label>
+                      <input
+                        id="edit-tx-airline-awb"
+                        name="edit-tx-airline-awb"
+                        type="text"
+                        disabled={!canEdit}
+                        value={editingTx.airline_awb || ''}
+                        onChange={(e) => setEditingTx({ ...editingTx, airline_awb: e.target.value })}
+                        placeholder="e.g. 072-12345678"
+                        maxLength={12}
+                        className="w-full min-h-[44px] h-11 px-3.5 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl text-[var(--color-foreground)] font-mono text-[14px] focus:outline-none focus:border-[var(--color-border-strong)] focus:bg-[var(--color-surface-hover)] disabled:opacity-60"
+                      />
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">

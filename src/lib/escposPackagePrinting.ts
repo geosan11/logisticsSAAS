@@ -60,7 +60,7 @@ export async function compilePackageReceiptStream(data: PackageReceiptPrintData,
 
     chunks.push(new Uint8Array(LEFT));
     chunks.push(encoder.encode(divider(maxChars)));
-    chunks.push(encoder.encode(fieldRow('REF:', data.entryRef, maxChars)));
+    chunks.push(encoder.encode(fieldRow('TAG NUMBER:', data.entryRef, maxChars)));
     chunks.push(encoder.encode(fieldRow('DATE:', data.date, maxChars)));
     chunks.push(encoder.encode(fieldRow('AGENT:', data.agentName, maxChars)));
     chunks.push(encoder.encode(divider(maxChars)));

@@ -77,13 +77,13 @@ describe('Tag Number Allocation & Pool Concurrency', () => {
       { pool_key: 'LOS', number: 102 },
     ]);
 
-    const tag1 = await getNextTag('LOS', 'EHI-LOS-CG');
-    const tag2 = await getNextTag('LOS', 'EHI-LOS-CG');
-    const tag3 = await getNextTag('LOS', 'EHI-LOS-CG');
+    const tag1 = await getNextTag('LOS', 'HWY-LOS-CG');
+    const tag2 = await getNextTag('LOS', 'HWY-LOS-CG');
+    const tag3 = await getNextTag('LOS', 'HWY-LOS-CG');
 
-    assert.strictEqual(tag1, 'EHI-LOS-CG-000100');
-    assert.strictEqual(tag2, 'EHI-LOS-CG-000101');
-    assert.strictEqual(tag3, 'EHI-LOS-CG-000102');
+    assert.strictEqual(tag1, 'HWY-LOS-CG-000100');
+    assert.strictEqual(tag2, 'HWY-LOS-CG-000101');
+    assert.strictEqual(tag3, 'HWY-LOS-CG-000102');
 
     // Pool should now be empty
     const remaining = await db.tag_pools.where('pool_key').equals('LOS').count();
@@ -100,7 +100,7 @@ describe('Tag Number Allocation & Pool Concurrency', () => {
 
     // Concurrently trigger 50 pops at once
     const popPromises = Array.from({ length: 50 }, () =>
-      getNextTag('ABV', 'EHI-ABV-CG')
+      getNextTag('ABV', 'HWY-ABV-CG')
     );
 
     const results = await Promise.all(popPromises);
@@ -133,11 +133,11 @@ describe('Tag Number Allocation & Pool Concurrency', () => {
     });
 
     // Request multiple fallback tags
-    const fallback1 = await getNextTag('KAN', 'EHI-KAN-PKG');
-    const fallback2 = await getNextTag('KAN', 'EHI-KAN-PKG');
+    const fallback1 = await getNextTag('KAN', 'HWY-KAN-PKG');
+    const fallback2 = await getNextTag('KAN', 'HWY-KAN-PKG');
 
-    assert.match(fallback1, /^EHI-KAN-PKG-\d{6}$/);
-    assert.match(fallback2, /^EHI-KAN-PKG-\d{6}$/);
+    assert.match(fallback1, /^HWY-KAN-PKG-\d{6}$/);
+    assert.match(fallback2, /^HWY-KAN-PKG-\d{6}$/);
     assert.notStrictEqual(fallback1, fallback2, 'Emergency fallback tags must not collide on the same device');
   });
 

@@ -61,6 +61,7 @@ class EHILocalDB extends Dexie {
   sync_queue!: Table<SyncQueueItem>;
   tag_pools!: Table<TagPoolItem>;
   device_meta!: Table<DeviceMetaItem, string>;
+  tenants!: Table<any>;
 
   constructor() {
     super('EHILocalDB');
@@ -131,6 +132,18 @@ class EHILocalDB extends Dexie {
       sync_queue: '++id, table_name, record_id, synced, created_at',
       tag_pools: '++id, pool_key, number',
       device_meta: 'key',
+    });
+    this.version(9).stores({
+      cargo_entries: 'id, synced, created_at, airline_awb',
+      manifests: 'id, synced, created_at',
+      marketing_entries: 'id, synced, created_at',
+      package_entries: 'id, synced, created_at',
+      proof_of_delivery: 'id, awbNumber, synced, deliveredAt',
+      trip_pings: '++id, tripId, timestamp, synced',
+      sync_queue: '++id, table_name, record_id, synced, created_at',
+      tag_pools: '++id, pool_key, number',
+      device_meta: 'key',
+      tenants: 'id, tag_prefix',
     });
   }
 }
