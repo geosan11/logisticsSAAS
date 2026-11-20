@@ -19,8 +19,8 @@ import {
   CheckCircle,
   ClipboardList,
   BarChart2,
-  Printer,
-  Bluetooth,
+  Receipt,
+  Tag,
   Copy,
   AlertTriangle,
   User as UserIcon,
@@ -683,7 +683,7 @@ export const PackageForm = ({
                 <span>Log another package</span>
               </button>
 
-              {/* Action Buttons: Bluetooth POS & PDF Documents */}
+              {/* Action Buttons: 80mm receipt & USB tag print */}
               <div className="grid grid-cols-2 gap-2 pt-1">
                 <button
                   type="button"
@@ -717,78 +717,15 @@ export const PackageForm = ({
                   }}
                   className="min-h-[44px] h-11 px-3 rounded-full bg-[var(--color-surface-2)] text-[var(--color-foreground)] text-[12px] font-sans font-medium hover:bg-[var(--color-surface-3)] border border-[var(--color-border)] cursor-pointer flex items-center justify-center gap-1.5 transition-colors"
                 >
-                  <Bluetooth size={14} className="text-[var(--color-muted)]" />
-                  <span>POS (80mm)</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    import('../../lib/escpos').then(async ({ printViaBluetooth }) => {
-                      await printViaBluetooth(async () => {
-                        const m = await import('../../lib/escposPackagePrinting');
-                        const printData = {
-                          entryRef: successTx.id,
-                          date: `${new Date().toLocaleDateString("en-GB")} ${tnow()}`,
-                          agentName: user.name,
-                          customerName: successTx.name,
-                          phone: phone || undefined,
-                          destination,
-                          contentType,
-                          pieces: successTx.pieces,
-                          kg: successTx.kg,
-                          contents: successTx.contents,
-                          amount: successTx.amount,
-                          paymentMode: formatPaymentModeDisplay(successTx.mode, successTx.wallet_deduction_amount, successTx.amount),
-                          paymentNarration: successTx.paymentNarration,
-                          bankName: bank || undefined,
-                          trackingUrl: `https://app.haulwey.com/track/${successTx.id}`,
-                        };
-                        return await m.compilePackageReceiptStream(printData, '58mm');
-                      });
-                    }).catch((err: any) => {
-                      console.error('Bluetooth print failed:', err);
-                      showToast({ message: err?.message || 'Bluetooth print failed. Ensure the printer is paired and powered on.', type: 'error' });
-                    });
-                  }}
-                  className="min-h-[44px] h-11 px-3 rounded-full bg-[var(--color-surface-2)] text-[var(--color-foreground)] text-[12px] font-sans font-medium hover:bg-[var(--color-surface-3)] border border-[var(--color-border)] cursor-pointer flex items-center justify-center gap-1.5 transition-colors"
-                >
-                  <Bluetooth size={14} className="text-[var(--color-muted)]" />
-                  <span>POS (58mm)</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    import('./PackageReceipt').then(m => m.downloadPackageReceipt({
-                      entryRef: successTx.id,
-                      date: `${new Date().toLocaleDateString("en-GB")} ${tnow()}`,
-                      agentName: user.name,
-                      customerName: successTx.name,
-                      phone: phone || undefined,
-                      destination,
-                      contentType,
-                      pieces: successTx.pieces,
-                      kg: successTx.kg,
-                      contents: successTx.contents,
-                      vehiclePlate: successTx.vehiclePlate,
-                      driverName: successTx.driverName,
-                      amount: successTx.amount,
-                      paymentMode: formatPaymentModeDisplay(successTx.mode, successTx.wallet_deduction_amount, successTx.amount),
-                      paymentNarration: successTx.paymentNarration,
-                      bankName: bank || undefined,
-                    }));
-                  }}
-                  className="min-h-[44px] h-11 px-3 rounded-full bg-[var(--color-surface-2)] text-[var(--color-foreground)] text-[12px] font-sans font-medium hover:bg-[var(--color-surface-3)] border border-[var(--color-border)] cursor-pointer flex items-center justify-center gap-1.5 transition-colors"
-                >
-                  <FileText size={14} className="text-[var(--color-muted)]" />
-                  <span>Receipt PDF</span>
+                  <Receipt size={14} className="shrink-0 text-[var(--color-muted)]" />
+                  <span>80mm receipt</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={async () => {
                     const preOpenedWindow = isStandalonePWA() ? null : window.open('', '_blank');
-                    showToast({ message: 'Generating tag PDF…', type: 'info' });
+                    showToast({ message: 'Generating tag…', type: 'info' });
                     try {
                       const { printPackageTagPDF } = await import('./PackageTagPDF');
                       await printPackageTagPDF({
@@ -805,16 +742,16 @@ export const PackageForm = ({
                         phone: successTx.consigneePhone,
                       }, preOpenedWindow);
                     } catch (err) {
-                      console.error('Failed to open tag PDF', err);
+                      console.error('Failed to open tag', err);
                       preOpenedWindow?.close();
-                      showToast({ message: 'Failed to open tag PDF', type: 'error' });
+                      showToast({ message: 'Failed to open tag', type: 'error' });
                     }
                   }}
                   className="min-h-[44px] h-11 px-3 rounded-full bg-[var(--color-surface-2)] text-[var(--color-foreground)] text-[12px] font-sans font-medium hover:bg-[var(--color-surface-3)] border border-[var(--color-border)] cursor-pointer flex items-center justify-center gap-1.5 transition-colors"
-                  title="Fixed 100mm x 80mm label -- for thermal label printers or browser print"
+                  title="Print USB tag label (100×80mm)"
                 >
-                  <Printer size={14} className="text-[var(--color-muted)]" />
-                  <span>Tag PDF</span>
+                  <Tag size={14} className="shrink-0 text-[var(--color-muted)]" />
+                  <span>USB tag print</span>
                 </button>
               </div>
             </div>

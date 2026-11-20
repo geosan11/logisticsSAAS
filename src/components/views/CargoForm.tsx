@@ -54,7 +54,8 @@ import {
   AlertTriangle,
   Rocket,
   Zap,
-  Bluetooth,
+  Receipt,
+  Tag,
   Lock,
   Calendar,
   Ruler,
@@ -1877,32 +1878,24 @@ export const CargoForm = ({
     pickupPin: (tx as any).pickupPin || undefined,
   });
 
-  // One item's worth of either PDF print path -- same underlying calls the
-  // per-item success screen buttons already use, just parameterized by tx
-  // so handlePrintAllBatch can loop them.
-  const printOneBatchItem = async (tx: Transaction, docType: 'receipt-pdf' | 'tag-pdf') => {
-    if (docType === 'receipt-pdf') {
-      const { printCargoReceipt } = await import("./CargoReceipt");
-      await printCargoReceipt(buildBatchReceiptData(tx));
-    } else {
-      const { printCargoTagPDF } = await import("./CargoTagPDF");
-      await printCargoTagPDF({
-        id: tx.awb_tag_number || tx.id,
-        name: tx.name,
-        route: tx.detail.split(" · ")[3] || route,
-        pieces: tx.pieces || 1,
-        weight: tx.kg || 0,
-        airline: tx.airline || airline,
-        hubName: user?.hub || "Air Cargo Hub",
-        date: `${new Date().toLocaleDateString("en-GB")} ${tnow()}`,
-        contentType: tx.detail?.split(" · ")[4] || contentType,
-        agentName: tx.enteredByName,
-        phone: tx.consigneePhone,
-      });
-    }
+  const printOneBatchItem = async (tx: Transaction) => {
+    const { printCargoTagPDF } = await import("./CargoTagPDF");
+    await printCargoTagPDF({
+      id: tx.awb_tag_number || tx.id,
+      name: tx.name,
+      route: tx.detail.split(" · ")[3] || route,
+      pieces: tx.pieces || 1,
+      weight: tx.kg || 0,
+      airline: tx.airline || airline,
+      hubName: user?.hub || "Air Cargo Hub",
+      date: `${new Date().toLocaleDateString("en-GB")} ${tnow()}`,
+      contentType: tx.detail?.split(" · ")[4] || contentType,
+      agentName: tx.enteredByName,
+      phone: tx.consigneePhone,
+    });
   };
 
-  const handlePrintAllBatch = async (docType: 'receipt-pdf' | 'tag-pdf' | 'pos80' | 'pos58') => {
+  const handlePrintAllBatch = async (docType: 'tag-pdf' | 'pos80') => {
     if (batchItems.length === 0 || batchPrinting) return;
     // printRange is 1-indexed/inclusive (as picked in PrintRangeModal);
     // null means the whole batch. slice() takes it back to 0-indexed.
@@ -1910,19 +1903,15 @@ export const CargoForm = ({
     if (itemsToPrint.length === 0) return;
     setBatchPrinting(true);
 
-    if (docType === 'pos80' || docType === 'pos58') {
-      // One Bluetooth connection for the whole batch -- see
-      // printBatchViaBluetooth's own comment for why this can't just loop
-      // printViaBluetooth per item (that would re-prompt the device picker
-      // once per item).
+    if (docType === 'pos80') {
+      // One Bluetooth connection for the whole batch
       try {
         const { printBatchViaBluetooth } = await import('../../lib/escpos');
         const { compileCargoReceiptStream } = await import('../../lib/escposCargoReceiptPrinting');
-        const width = docType === 'pos80' ? '80mm' : '58mm';
         const { done, failed } = await printBatchViaBluetooth(
           itemsToPrint.map((tx) => async () => compileCargoReceiptStream(
             { ...buildBatchReceiptData(tx), trackingUrl: `https://app.haulwey.com/track/${tx.id}` },
-            width,
+            '80mm',
           )),
           (i, total) => setBatchPrintProgress(`Printing ${i + 1} of ${total}…`),
         );
@@ -1936,15 +1925,12 @@ export const CargoForm = ({
       return;
     }
 
-    // PDF paths -- sequential, not Promise.all, mirrors GatPrintQueue.
-    // handlePrint, which hit the same "don't fire N PDF windows at once"
-    // constraint first. One item failing (offline, transient render error)
-    // doesn't stop the rest of the batch from printing.
+    // USB tag label printing per item
     let done = 0, failed = 0;
     for (let i = 0; i < itemsToPrint.length; i++) {
       setBatchPrintProgress(`Printing ${i + 1} of ${itemsToPrint.length}…`);
       try {
-        await printOneBatchItem(itemsToPrint[i], docType);
+        await printOneBatchItem(itemsToPrint[i]);
         done++;
       } catch (err) {
         failed++;
@@ -1954,40 +1940,6 @@ export const CargoForm = ({
     setBatchPrinting(false);
     setBatchPrintProgress('');
     showToast({ message: `${done} printed${failed ? `, ${failed} failed` : ''}.`, type: failed ? 'warning' : 'success' });
-  };
-
-  const handlePrintReceipt = async () => {
-    if (successTx) {
-      const { printCargoReceipt } = await import("./CargoReceipt");
-      const printData = {
-        entryRef: successTx.id,
-        serialNumber: serialNumber - 1,
-        date: `${new Date().toLocaleDateString("en-GB")} ${tnow()}`,
-        hubName: user?.hub || "Air Cargo Hub",
-        agentName: user?.name || "Agent",
-        airline: (() => {
-          const txAir = successTx.airline || airline;
-          return txAir === "Green Africa"
-            ? "Green Africa Airways"
-            : txAir === "United Nigeria"
-              ? "United Nigeria Airlines"
-              : txAir;
-        })(),
-        consignee: successTx.name,
-        awbTagNumber: successTx.awb_tag_number || awb,
-        pieces: successTx.pieces || parseInt(pcs),
-        kg: successTx.kg || parseFloat(kg),
-        route: successTx.detail.split(" · ")[3] || route,
-        contentType: successTx.detail.split(" · ")[4] || contentType,
-        amount: successTx.amount,
-        paymentMode: formatPaymentModeDisplay(successTx.mode, successTx.wallet_deduction_amount, successTx.amount),
-        paymentNarration: successTx.paymentNarration,
-        bankName: successTx.bank || undefined,
-        remark: successTx.remarks || undefined,
-        pickupPin: (successTx as any).pickupPin || undefined,
-      };
-      printCargoReceipt(printData);
-    }
   };
 
   const handlePrintTagPDF100mm = async () => {
@@ -2242,21 +2194,6 @@ export const CargoForm = ({
         <div className="grid grid-cols-2 gap-2.5">
           <button
             type="button"
-            onClick={handlePrintReceipt}
-            className="w-full min-h-[44px] h-11 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] text-[12px] font-sans font-medium rounded-xl border border-[var(--color-border)] transition-colors cursor-pointer flex items-center justify-center gap-1.5"
-          >
-            PDF receipt
-          </button>
-          <button
-            type="button"
-            onClick={handlePrintTagPDF100mm}
-            className="w-full min-h-[44px] h-11 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] text-[12px] font-sans font-medium rounded-xl border border-[var(--color-border)] transition-colors cursor-pointer"
-            title="Fixed 100mm x 80mm label"
-          >
-            Tag PDF (100×80)
-          </button>
-          <button
-            type="button"
             onClick={() => {
               import('../../lib/escpos').then(async ({ printViaBluetooth }) => {
                 await printViaBluetooth(async () => {
@@ -2274,30 +2211,17 @@ export const CargoForm = ({
             }}
             className="w-full min-h-[44px] h-11 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] text-[12px] font-sans font-medium rounded-xl border border-[var(--color-border)] transition-colors cursor-pointer flex items-center justify-center gap-1.5"
           >
-            <Bluetooth size={14} className="text-[var(--color-muted)]" />
-            <span>POS print (80mm)</span>
+            <Receipt size={14} className="shrink-0 text-[var(--color-muted)]" />
+            <span>80mm receipt</span>
           </button>
           <button
             type="button"
-            onClick={() => {
-              import('../../lib/escpos').then(async ({ printViaBluetooth }) => {
-                await printViaBluetooth(async () => {
-                  const m = await import('../../lib/escposCargoReceiptPrinting');
-                  const thermalPrintData = {
-                    ...printData,
-                    trackingUrl: `https://app.haulwey.com/track/${successTx.id}`,
-                  };
-                  return await m.compileCargoReceiptStream(thermalPrintData, '58mm');
-                });
-              }).catch((err: any) => {
-                console.error('Bluetooth print failed:', err);
-                showToast({ message: err?.message || 'Bluetooth print failed. Ensure printer is paired.', type: 'error' });
-              });
-            }}
+            onClick={handlePrintTagPDF100mm}
             className="w-full min-h-[44px] h-11 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] text-[12px] font-sans font-medium rounded-xl border border-[var(--color-border)] transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+            title="Print USB tag label (100×80mm)"
           >
-            <Bluetooth size={14} className="text-[var(--color-muted)]" />
-            <span>POS print (58mm)</span>
+            <Tag size={14} className="shrink-0 text-[var(--color-muted)]" />
+            <span>USB tag print</span>
           </button>
         </div>
 
@@ -2392,37 +2316,22 @@ export const CargoForm = ({
         <div className="grid grid-cols-2 gap-2.5">
           <button
             type="button"
-            onClick={() => handlePrintAllBatch('receipt-pdf')}
+            onClick={() => handlePrintAllBatch('pos80')}
             disabled={batchPrinting}
-            className="w-full min-h-[44px] h-11 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] text-[12px] font-sans font-medium rounded-xl border border-[var(--color-border)] transition-colors cursor-pointer disabled:opacity-50"
+            className="w-full min-h-[44px] h-11 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] text-[12px] font-sans font-medium rounded-xl border border-[var(--color-border)] transition-colors cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
           >
-            All PDF receipts
+            <Receipt size={14} className="shrink-0 text-[var(--color-muted)]" />
+            <span>80mm receipt</span>
           </button>
           <button
             type="button"
             onClick={() => handlePrintAllBatch('tag-pdf')}
             disabled={batchPrinting}
-            className="w-full min-h-[44px] h-11 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] text-[12px] font-sans font-medium rounded-xl border border-[var(--color-border)] transition-colors cursor-pointer disabled:opacity-50"
-          >
-            All tag PDFs (100×80)
-          </button>
-          <button
-            type="button"
-            onClick={() => handlePrintAllBatch('pos80')}
-            disabled={batchPrinting}
             className="w-full min-h-[44px] h-11 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] text-[12px] font-sans font-medium rounded-xl border border-[var(--color-border)] transition-colors cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
+            title="Print USB tag label (100×80mm)"
           >
-            <Bluetooth size={14} className="text-[var(--color-muted)]" />
-            <span>POS print all (80mm)</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => handlePrintAllBatch('pos58')}
-            disabled={batchPrinting}
-            className="w-full min-h-[44px] h-11 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground)] text-[12px] font-sans font-medium rounded-xl border border-[var(--color-border)] transition-colors cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
-          >
-            <Bluetooth size={14} className="text-[var(--color-muted)]" />
-            <span>POS print all (58mm)</span>
+            <Tag size={14} className="shrink-0 text-[var(--color-muted)]" />
+            <span>USB tag print</span>
           </button>
         </div>
 

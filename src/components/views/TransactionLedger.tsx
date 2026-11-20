@@ -51,6 +51,8 @@ import {
   ChevronRight,
   Download,
   Printer,
+  Receipt,
+  Tag,
   HandCoins,
   Clock,
   Undo2,
@@ -1876,89 +1878,6 @@ export const TransactionLedger = ({
     }
   };
 
-  // Opens the same PDF receipt already used by CargoForm/ExcessBaggageForm's
-  // point-of-sale success screens, rebuilt from the historical Transaction --
-  // unlike handleReprintReceipt above, this needs no Bluetooth printer, just
-  // a normal browser tab (to view, save, print on any printer, or email).
-  const handleReprintReceiptPDF = async () => {
-    if (!viewingDetail || !viewingDetail.raw) return;
-    let tx = viewingDetail.raw;
-    if (tx.type !== 'cargo' && tx.type !== 'package') return;
-
-    // Belt-and-suspenders on top of the live-resync effect above: a
-    // realtime event can still be in flight at the exact click moment.
-    // Re-fetch this one row immediately before printing so a receipt never
-    // shows a stale debt/payment status. Falls back to the in-memory value
-    // (possibly stale, e.g. offline) if this fetch doesn't come back.
-    try {
-      const deptType = tx.type as DebtEntryType;
-      const idCol = deptType === 'baggage' ? 'transaction_id' : 'entry_ref';
-      const { data: freshRow } = await supabase
-        .from(DEBT_TABLE_NAME[deptType])
-        .select('*')
-        .eq(idCol, tx.id)
-        .maybeSingle();
-      if (freshRow) {
-        tx = {
-          ...tx,
-          mode: computeDebtDisplayModeFromRow(freshRow, deptType),
-          amountPaid: freshRow.amount_paid ?? tx.amountPaid,
-          paymentHistory: freshRow.payment_history ?? tx.paymentHistory,
-          raw: freshRow,
-        };
-      }
-    } catch { /* offline or fetch failed -- print with what we already have */ }
-
-    try {
-      if (tx.type === 'cargo') {
-        const { printCargoReceipt } = await import('./CargoReceipt');
-        await printCargoReceipt({
-          entryRef: tx.id,
-          serialNumber: 0,
-          date: txDisplayDateTime(tx.created_at, tx.time),
-          hubName: tx.hub || user.hub,
-          agentName: tx.enteredByName || user.name,
-          airline: tx.airline || 'Unknown',
-          consignee: tx.consignee || tx.name,
-          awbTagNumber: tx.awb_tag_number || 'N/A',
-          pieces: tx.pieces || 1,
-          kg: tx.kg || 1,
-          route: tx.route || 'Unknown',
-          contentType: tx.contentType || tx.detail?.split(' · ')[4] || 'General Goods',
-          amount: tx.amount,
-          paymentMode: formatPaymentModeDisplay(tx.mode, tx.wallet_deduction_amount, tx.amount),
-          bankName: tx.bank,
-          paymentNarration: tx.paymentNarration,
-          remark: tx.remarks,
-          pickupPin: tx.pickupPin,
-          retrievedAmount: (tx as any).raw?.retrieved_amount || 0,
-        });
-      } else if (tx.type === 'package') {
-        const { downloadPackageReceipt } = await import('./PackageReceipt');
-        await downloadPackageReceipt({
-          entryRef: tx.entryRef || tx.id,
-          date: txDisplayDateTime(tx.created_at, tx.time),
-          agentName: tx.enteredByName || user.name,
-          customerName: tx.name,
-          phone: tx.consigneePhone,
-          destination: tx.destination || tx.route || 'Destination',
-          contentType: tx.contentType || 'Package',
-          pieces: tx.pieces || 1,
-          kg: tx.kg || 0,
-          contents: (tx as any).contents,
-          amount: tx.amount,
-          paymentMode: formatPaymentModeDisplay(tx.mode, tx.wallet_deduction_amount, tx.amount),
-          paymentNarration: tx.paymentNarration,
-          bankName: tx.bank,
-          retrievedAmount: (tx as any).raw?.retrieved_amount || 0,
-        });
-      }
-    } catch (error: any) {
-      console.error('Error generating PDF receipt:', error);
-      showToast({ message: error?.message || 'Failed to generate PDF receipt.', type: 'error' });
-    }
-  };
-
   const handleReprintTag = async (_width?: '58mm' | '80mm') => {
     // Change: use wired PDF tag printing (opens PDF in new tab / OS print dialog)
     if (!viewingDetail || !viewingDetail.raw) return;
@@ -2042,86 +1961,6 @@ export const TransactionLedger = ({
       console.error('Error opening tag PDF:', error);
       preOpenedWindow?.close();
       showToast({ message: 'Failed to open tag PDF for printing', type: 'error' });
-    }
-  };
-
-  const handleReprintTagPDF = async () => {
-    if (!viewingDetail || !viewingDetail.raw) return;
-    if (viewingDetail.raw.type !== 'cargo' && viewingDetail.raw.type !== 'package') {
-      showToast({ message: 'PDF Tag only available for cargo and package entries', type: 'info' });
-      return;
-    }
-    const preOpenedWindow = isStandalonePWA() ? null : window.open('', '_blank');
-    try {
-      const tx = { ...viewingDetail.raw };
-
-      if (tx.type === 'package') {
-        const { printPackageTagPDF } = await import('./PackageTagPDF');
-        const data = {
-          id: tx.awb_tag_number || tx.entryRef || tx.id,
-          name: tx.name,
-          destination: tx.destination || tx.route || 'Destination',
-          contentType: tx.contentType || 'Package',
-          pieces: tx.pieces || 1,
-          kg: tx.kg || 0,
-          contents: (tx as any).contents,
-          hubName: user?.hub || 'Station',
-          date: txDisplayDateTime(tx.created_at, tx.time),
-        };
-
-        await printPackageTagPDF(data, preOpenedWindow);
-
-        try {
-          await supabase.from('tag_print_log').insert({
-            cargo_ref: tx.id,
-            awb_tag_number: data.id,
-            printed_by: user.id,
-            printed_by_name: user.name,
-            hub_id: user.hub_id,
-            hub_name: user.hub || 'Unknown',
-            print_method: 'pdf',
-            pieces_printed: tx.pieces || 1,
-          });
-        } catch (err) {
-          console.error('Failed to log tag print', err);
-        }
-        return;
-      }
-
-      const { printCargoTagPDF } = await import('./CargoTagPDF');
-      const route = tx.route || (tx.detail ? tx.detail.split(' · ')[3] : 'Unknown') || 'Unknown';
-      const data = {
-        id: tx.awb_tag_number || tx.entryRef || tx.id,
-        name: tx.name,
-        route: route,
-        pieces: tx.pieces || 1,
-        weight: tx.kg || 0,
-        airline: tx.airline,
-        hubName: user?.hub || 'Air Cargo Hub',
-        date: txDisplayDateTime(tx.created_at, tx.time),
-        contentType: tx.contentType || (tx.detail ? tx.detail.split(' · ')[4] : undefined),
-      };
-
-      await printCargoTagPDF(data, preOpenedWindow);
-
-      try {
-        await supabase.from('tag_print_log').insert({
-          cargo_ref: tx.id,
-          awb_tag_number: data.id,
-          printed_by: user.id,
-          printed_by_name: user.name,
-          hub_id: user.hub_id,
-          hub_name: user.hub || 'Unknown',
-          print_method: 'pdf',
-          pieces_printed: tx.pieces || 1,
-        });
-      } catch (err) {
-        console.error('Failed to log tag print', err);
-      }
-    } catch (err) {
-      console.error('Error printing tag PDF:', err);
-      preOpenedWindow?.close();
-      showToast({ message: 'Failed to open tag PDF', type: 'error' });
     }
   };
 
@@ -3772,7 +3611,7 @@ export const TransactionLedger = ({
               className="flex flex-col items-start px-3 py-2.5 rounded-xl hover:bg-[var(--color-surface-hover)] text-left transition-colors cursor-pointer group"
             >
               <span className="text-[12px] font-sans font-medium text-[var(--color-foreground)] flex items-center gap-1.5">
-                <Printer size={13} /> Thermal receipt (80mm)
+                <Receipt size={13} className="shrink-0 text-[var(--color-muted)]" /> 80mm receipt
               </span>
               <span className="text-[11px] text-[var(--color-muted)] mt-0.5">
                 Print compact 80mm shift summary receipt.
@@ -5471,50 +5310,27 @@ export const TransactionLedger = ({
                   {(user.can_print_ledger || user.role === 'super_admin') && (
                     <div className="space-y-2 pt-2.5 border-t border-[var(--color-border)]">
                       <div className="text-[12px] font-sans font-medium text-[var(--color-muted)]">Printing &amp; documents</div>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      <div className="grid grid-cols-2 gap-2">
                         {(viewingDetail.raw.type === 'cargo' || viewingDetail.raw.type === 'package') && (
                           <>
                             <button
+                              type="button"
                               onClick={() => handleReprintReceipt('80mm')}
-                              className="min-h-[44px] px-3.5 flex items-center justify-center gap-1.5 bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-2)] text-[var(--color-foreground)] rounded-full transition-colors border border-[var(--color-border)] hover:border-[var(--color-border-strong)] text-[12px] font-sans font-medium cursor-pointer"
+                              className="min-h-[44px] px-3.5 flex items-center justify-center gap-2 bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-2)] text-[var(--color-foreground)] rounded-full transition-colors border border-[var(--color-border)] hover:border-[var(--color-border-strong)] text-[12px] font-sans font-medium cursor-pointer"
                             >
-                              <Printer size={13} /> Receipt (80)
+                              <Receipt size={14} className="shrink-0 text-[var(--color-muted)]" />
+                              <span>80mm receipt</span>
                             </button>
                             <button
-                              onClick={() => handleReprintReceipt('58mm')}
-                              className="min-h-[44px] px-3.5 flex items-center justify-center gap-1.5 bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-2)] text-[var(--color-foreground)] rounded-full transition-colors border border-[var(--color-border)] hover:border-[var(--color-border-strong)] text-[12px] font-sans font-medium cursor-pointer"
-                            >
-                              <Printer size={13} /> Receipt (58)
-                            </button>
-                          </>
-                        )}
-
-                        {(viewingDetail.raw.type === 'cargo' || viewingDetail.raw.type === 'package') && (
-                          <>
-                            <button
+                              type="button"
                               onClick={() => handleReprintTag('80mm')}
-                              className="min-h-[44px] px-3.5 flex items-center justify-center gap-1.5 bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-2)] text-[var(--color-foreground)] rounded-full transition-colors border border-[var(--color-border)] hover:border-[var(--color-border-strong)] text-[12px] font-sans font-medium cursor-pointer"
+                              className="min-h-[44px] px-3.5 flex items-center justify-center gap-2 bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-2)] text-[var(--color-foreground)] rounded-full transition-colors border border-[var(--color-border)] hover:border-[var(--color-border-strong)] text-[12px] font-sans font-medium cursor-pointer"
+                              title="Print USB tag label (100×80mm)"
                             >
-                              <Printer size={13} /> Print tag
-                            </button>
-                            <button
-                              onClick={() => handleReprintTagPDF()}
-                              className="min-h-[44px] px-3.5 flex items-center justify-center gap-1.5 bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-2)] text-[var(--color-foreground)] rounded-full transition-colors border border-[var(--color-border)] hover:border-[var(--color-border-strong)] text-[12px] font-sans font-medium cursor-pointer"
-                              title="Open 100×80mm PDF tag"
-                            >
-                              <Printer size={13} /> Tag PDF
+                              <Tag size={14} className="shrink-0 text-[var(--color-muted)]" />
+                              <span>USB tag print</span>
                             </button>
                           </>
-                        )}
-
-                        {(viewingDetail.raw.type === 'cargo' || viewingDetail.raw.type === 'package') && (
-                          <button
-                            onClick={() => handleReprintReceiptPDF()}
-                            className="min-h-[44px] px-3.5 flex items-center justify-center gap-1.5 bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-2)] text-[var(--color-foreground)] rounded-full transition-colors border border-[var(--color-border)] hover:border-[var(--color-border-strong)] text-[12px] font-sans font-medium cursor-pointer col-span-2 sm:col-span-1"
-                            title="Open PDF receipt for viewing or printing"
-                          >
-                            <Printer size={13} /> PDF receipt
-                          </button>
                         )}
                       </div>
                     </div>

@@ -34,10 +34,10 @@ export async function compilePackageReceiptStream(data: PackageReceiptPrintData,
   let allChunks: Uint8Array[] = [];
 
   for (const copyType of copies) {
-    // No airline for this desk. 58mm: plain-text EHI header, no logo raster
-    // at all -- keeps this width fast to print. 80mm keeps the full EHI logo
+    // No airline for this desk. 58mm: plain-text header, no logo raster
+    // at all -- keeps this width fast to print. 80mm keeps the full branding logo
     // image via brandingHeaderWithAirline('', width), which falls back to
-    // the plain EHI-only header since there's no airline.
+    // the plain neutral header since there's no airline.
     const chunks: Uint8Array[] = [
       new Uint8Array(INIT),
       new Uint8Array(setPrintArea(width)),

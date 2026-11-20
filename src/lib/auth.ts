@@ -2,6 +2,7 @@ import { supabase } from './supabase';
 import { writeAuditLog } from './supabase';
 import { UserRole, HubType } from './types';
 import { notifySilentError } from './ToastContext';
+import { buildTagNumber, getTenantTagPrefix } from './tagNumber';
 
 export interface UserProfile {
   id: string;
@@ -216,24 +217,33 @@ export function seedDemoDataIfEmpty(user: UserProfile): void {
     const txKey = `ehi_recent_tx_v1_${user.id}`;
     const existing = localStorage.getItem(txKey);
     if (!existing || JSON.parse(existing).length === 0) {
+      const originHub = user.hub_code || 'LOS';
+      const prefix = getTenantTagPrefix();
+      const pkgDest = originHub === 'ABV' ? 'LOS' : 'ABV';
+      const cargo1Route = originHub === 'ABV' ? 'ABV-LOS' : 'LOS-ABV';
+      const cargo2Route = originHub === 'ABV' ? 'ABV-KAN' : 'LOS-KAN';
+      const cargo1Tag = buildTagNumber({ prefix, hubCode: originHub, contentCode: 'CG', sequence: 1042 });
+      const pkgTag = buildTagNumber({ prefix, hubCode: originHub, contentTypeCode: 'PKG', sequence: 512 });
+      const cargo2Tag = buildTagNumber({ prefix, hubCode: originHub, contentCode: 'CG', sequence: 1041 });
+
       const demoTxs = [
         {
-          id: 'HWY-LOS-CG-001042',
+          id: cargo1Tag,
           name: 'Dangote Industries Ltd',
-          detail: 'Arik Air · 4pcs · 128KG · LOS-ABV · Industrial Spares',
+          detail: `Arik Air · 4pcs · 128KG · ${cargo1Route} · Industrial Spares`,
           amount: 89600,
           mode: 'Transfer',
           bank: 'Access Bank',
           time: '11:45',
           type: 'cargo',
           status: 'Intake',
-          awb_tag_number: 'HWY-LOS-CG-001042',
+          awb_tag_number: cargo1Tag,
           airline_awb: '072-12345678',
           airline: 'Arik Air',
           flight: 'W3 331',
           pieces: 4,
           kg: 128,
-          route: 'LOS-ABV',
+          route: cargo1Route,
           contentType: 'Industrial Spares',
           enteredByName: user.name,
           pickupPin: '7392',
@@ -242,15 +252,15 @@ export function seedDemoDataIfEmpty(user: UserProfile): void {
           created_at: new Date(Date.now() - 3600000).toISOString(),
         },
         {
-          id: 'HWY-LOS-PKG-000512',
+          id: pkgTag,
           name: 'Chukwuma Electronics',
-          detail: 'ABV · Electronics · 2pcs · 45kg · Solar Inverters · 🚚 KJA-482XA',
+          detail: `${pkgDest} · Electronics · 2pcs · 45kg · Solar Inverters · 🚚 KJA-482XA`,
           amount: 32000,
           mode: 'Cash',
           time: '10:20',
           type: 'package',
           status: 'Intake',
-          destination: 'ABV',
+          destination: pkgDest,
           contentType: 'Electronics',
           pieces: 2,
           kg: 45,
@@ -264,21 +274,21 @@ export function seedDemoDataIfEmpty(user: UserProfile): void {
           created_at: new Date(Date.now() - 7200000).toISOString(),
         },
         {
-          id: 'HWY-LOS-CG-001041',
+          id: cargo2Tag,
           name: 'Prime Pharmaceuticals',
-          detail: 'Air Peace · 2pcs · 18KG · LOS-KAN · Cold-chain Vaccines',
+          detail: `Air Peace · 2pcs · 18KG · ${cargo2Route} · Cold-chain Vaccines`,
           amount: 27500,
           mode: 'Wallet',
           time: '09:15',
           type: 'cargo',
           status: 'Intake',
-          awb_tag_number: 'HWY-LOS-CG-001041',
+          awb_tag_number: cargo2Tag,
           airline_awb: '072-84920194',
           airline: 'Air Peace',
           flight: 'P4 7122',
           pieces: 2,
           kg: 18,
-          route: 'LOS-KAN',
+          route: cargo2Route,
           contentType: 'Vaccines',
           wallet_id: '00000000-0000-0000-0000-000000000012',
           wallet_deduction_amount: 27500,
